@@ -84,9 +84,11 @@ class BrandController extends Controller
         $validated['created_by'] = $request->user()->id;
 
 
-        brand::create($validated);
+        $brand = brand::create($validated);
 
-        return redirect()->route('brands.index')->with('success', 'Brand created successfully!');
+        if (request()->expectsJson()) {
+            return response()->json(['brand' => $brand]);
+        }
     }
 
     /**
@@ -120,7 +122,7 @@ class BrandController extends Controller
 
         $brand->update($validated);
 
-        return redirect()->route('brands.index')->with('success', 'Brand updated successfully!');
+        // return response()->json(['success' => true, 'message' => 'Brand updated successfully!']);
     }
 
     /**
@@ -137,6 +139,6 @@ class BrandController extends Controller
             'updated_by' => $request->user()->id
         ]);
 
-        return redirect()->route('brands.index')->with('success', 'Brand deactivated successfully!');
+        return response()->json(['success' => true, 'message' => 'Brand deactivated successfully!']);
     }
 }

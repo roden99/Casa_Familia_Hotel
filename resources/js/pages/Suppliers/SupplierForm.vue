@@ -49,12 +49,6 @@ const props = defineProps({
 
 });
 
-const confirmButtonText = computed(() => {
-    if (props.transactionType === 'create') return 'Save';
-    if (props.transactionType === 'update') return 'Update';
-    if (props.transactionType === 'delete') return 'Deactivate';
-    return 'Yes';
-});
 
 const handleAlertClose = () => {
     isDialogOpen.value = false;
@@ -200,141 +194,94 @@ onMounted(() => {
 <template>
     <!-- <FormCard v-show="!isDialogOpen" :card-title="cardTitle"> -->
 
-    <FormCard :loading="isProcessing" :card-title="cardTitle">
-        <form @submit.prevent="Submit" class="space-y-4">
-
-            <div class="w-full min-h-[310px] space-y-6">
-
-                <BaseField>
-                    <template #fieldGroups>
-                        <!-- Supplier Information -->
-                        <FieldSet>
-                            <!-- <FieldLegend>Supplier Information</FieldLegend> -->
-
-                            <!-- Supplier Input Fields Here -->
-                            <FieldGroup class="rounded-lg border p-4">
-
-                                <div class="grid w-full grid-cols-15 gap-4">
-                                    <Field class="col-span-15">
-                                        <FieldLabel class="font-normal">Supplier Name:</FieldLabel>
-                                        <Input v-model="form.company" required />
-                                    </Field>
+    <FormCard :loading="isProcessing" size="lg">
+        <form @submit.prevent="Submit" class="space-y-4 mt-4">
 
 
-                                    <Field class="col-span-15">
-                                        <FieldLabel class="font-normal">Contact Person:</FieldLabel>
-                                        <div class="grid grid-cols-3 gap-4">
-                                            <Input v-model="form.lastname" placeholder="Last Name" required />
-                                            <Input v-model="form.firstname" placeholder="First Name" required />
-                                            <Input v-model="form.middlename" placeholder="Middle Name" />
-                                        </div>
-                                    </Field>
+            <BaseField legend="Supplier Information" description="Enter supplier details">
+                <template #fields>
+                    <FieldGroup>
 
-                                    <Field class="col-span-5">
-                                        <FieldLabel class=" font-normal">Phone Number:</FieldLabel>
-                                        <Input v-model="form.contact_phone" required />
-                                    </Field>
+                        <div class="grid w-full grid-cols-12 gap-4">
+                            <Field class="col-span-15">
+                                <FieldLabel class="font-normal">Supplier Name:</FieldLabel>
+                                <Input v-model="form.company" required />
+                            </Field>
 
 
-                                    <Field class="col-span-5">
-                                        <FieldLabel class="font-normal">Email Address:</FieldLabel>
-                                        <Input v-model="form.contact_email" type="email" required />
-                                    </Field>
-
-                                    <Field class="col-span-5">
-
-                                        <FieldLabel class="font-normal">TIN Number:</FieldLabel>
-                                        <Input v-model="form.tin" />
-
-                                    </Field>
-
-
-
-
-                                    <Field class="col-span-15">
-                                        <FieldLabel class="font-normal">Address:</FieldLabel>
-                                        <div class="grid grid-cols-3 gap-4">
-                                            <BaseCombobox v-model="selectedProvince" placeholder="Province"
-                                                empty-message="No province found" width="w-full" />
-                                            <BaseCombobox v-model="selectedCity" placeholder="Municipality"
-                                                empty-message="No municipality found" width="w-full" />
-                                            <BaseCombobox v-model="selectedBarangay" placeholder="Select Barangay"
-                                                empty-message="No barangay found" width="w-full" />
-                                        </div>
-                                    </Field>
-
-                                    <Field class="col-span-15 mb-6">
-                                        <FieldLabel class="font-normal">Street Address / Unit / Building:</FieldLabel>
-                                        <Input v-model="form.address"
-                                            placeholder="Enter street address, unit number, building name, etc." />
-                                    </Field>
+                            <Field class="col-span-15">
+                                <FieldLabel class="font-normal">Contact Person:</FieldLabel>
+                                <div class="grid grid-cols-3 gap-4">
+                                    <Input v-model="form.lastname" placeholder="Last Name" required />
+                                    <Input v-model="form.firstname" placeholder="First Name" required />
+                                    <Input v-model="form.middlename" placeholder="Middle Name" />
                                 </div>
-                            </FieldGroup>
-                        </FieldSet>
-                    </template>
+                            </Field>
 
-                </BaseField>
-
-
-            </div>
+                            <Field class="col-span-5">
+                                <FieldLabel class=" font-normal">Phone Number:</FieldLabel>
+                                <Input v-model="form.contact_phone" required />
+                            </Field>
 
 
+                            <Field class="col-span-5">
+                                <FieldLabel class="font-normal">Email Address:</FieldLabel>
+                                <Input v-model="form.contact_email" type="email" required />
+                            </Field>
 
-            <div class="flex justify-end space-x-2">
+                            <Field class="col-span-5">
 
-                <BaseButton text="Cancel" variant="outline" color="secondary" type="button"
-                    @click="emit('member-form-closed')">
-                </BaseButton>
+                                <FieldLabel class="font-normal">TIN Number:</FieldLabel>
+                                <Input v-model="form.tin" />
 
-                <BaseButton :loading="isProcessing" :text="confirmButtonText" variant="default" color="primary"
-                    type="button" @click="openConfirmDialog">
-                </BaseButton>
+                            </Field>
 
 
-            </div>
+
+
+                            <Field class="col-span-15">
+                                <FieldLabel class="font-normal">Address:</FieldLabel>
+                                <div class="grid grid-cols-3 gap-4">
+                                    <BaseCombobox v-model="selectedProvince" placeholder="Province"
+                                        empty-message="No province found" width="w-full" />
+                                    <BaseCombobox v-model="selectedCity" placeholder="Municipality"
+                                        empty-message="No municipality found" width="w-full" />
+                                    <BaseCombobox v-model="selectedBarangay" placeholder="Select Barangay"
+                                        empty-message="No barangay found" width="w-full" />
+                                </div>
+                            </Field>
+
+                            <Field class="col-span-15 mb-6">
+                                <FieldLabel class="font-normal">Street Address / Unit / Building:</FieldLabel>
+                                <Input v-model="form.address"
+                                    placeholder="Enter street address, unit number, building name, etc." />
+                            </Field>
+                        </div>
+                    </FieldGroup>
+
+                </template>
+
+            </BaseField>
+
 
         </form>
+        <template #footer>
+
+            <BaseButton type="button" :disabled="isProcessing" @click="emit('form-closed')" transactionType="cancel">
+            </BaseButton>
+
+            <BaseButton type="button" @click="openConfirmDialog" :transactionType="props.transactionType"
+                :loading="isProcessing" :disabled="isProcessing">
+            </BaseButton>
+        </template>
+
+        <BaseAlertDialog v-model:open="isDialogOpen" :loading="isProcessing" :transaction-type="props.transactionType"
+            @cancel="handleAlertClose" @confirm="handleSubmit" />
+
 
 
     </FormCard>
 
-    <BaseAlertDialog v-model:open="isDialogOpen">
-        <template #alertTitle>
-            <template v-if="transactionType === 'create'">
-                Are you sure you want to save?
-            </template>
-
-            <template v-if="transactionType === 'update'">
-                Are you sure you want to update?
-            </template>
-
-            <template v-if="transactionType === 'delete'">
-                Are you sure you want to deactivate this supplier?
-            </template>
-
-        </template>
-        <template #alertDescription>
-            <h4 class="font-semibold text-sm mb-2">Supplier Details:</h4>
-            <div class="text-sm space-y-1">
-                <p><span class="font-medium">Company:</span> {{ form.company || 'N/A' }}</p>
-                <p><span class="font-medium">Contact Person:</span> {{ form.firstname }} {{ form.middlename }} {{
-                    form.lastname }}</p>
-                <p><span class="font-medium">Email:</span> {{ form.contact_email || 'N/A' }}</p>
-                <p><span class="font-medium">Phone:</span> {{ form.contact_phone || 'N/A' }}</p>
-                <p v-if="form.address"><span class="font-medium">Address:</span> {{ form.address }}</p>
-            </div>
-        </template>
-
-        <template #alertFooter>
-
-            <BaseButton text="Cancel" :disabled="isProcessing" :variant="'outline'" color="secondary" type="button"
-                @click="handleAlertClose" />
-
-            <BaseButton :text="confirmButtonText" :variant="buttonVariants" color="primary" type="button"
-                @click="handleSubmit" :disabled="isProcessing" :loading="isProcessing" />
-
-        </template>
-    </BaseAlertDialog>
 
 
 

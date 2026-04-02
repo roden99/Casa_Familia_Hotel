@@ -10,6 +10,8 @@ use App\Http\Controllers\WarehouseController;
 use App\Http\Controllers\WarehouseItemController;
 use App\Http\Controllers\DeliveryController;
 use App\Http\Controllers\ProductUnitController;
+use App\Http\Controllers\StrengthController;
+use App\Http\Controllers\DrugFormController;
 
 Route::get('/login', function () {
     return Inertia::render('Login/Index');
@@ -32,6 +34,8 @@ Route::resource('suppliers', SupplierController::class);
 Route::resource('customers', CustomerController::class);
 
 Route::resource('brands', BrandController::class);
+Route::resource('strengths', StrengthController::class);
+Route::resource('drugforms', DrugFormController::class);
 Route::resource('product-units', ProductUnitController::class);
 Route::resource('products', ProductController::class);
 Route::resource('warehouses', WarehouseController::class);

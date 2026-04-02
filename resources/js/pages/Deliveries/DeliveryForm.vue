@@ -8,10 +8,69 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useForm } from '@inertiajs/vue3';
-import { onMounted, ref, computed } from 'vue';
+import { onMounted, ref, computed, watch } from 'vue';
 import { toast } from 'vue-sonner';
-import { Field, FieldGroup, FieldLabel, FieldSet } from '@/components/ui/field';
+import { Field, FieldGroup, FieldLabel, FieldSet, FieldSeparator } from '@/components/ui/field';
 import BaseField from '@/components/BaseField.vue';
+import BaseDatePick from '@/components/ui/BaseDatePick.vue';
+
+import {
+    Table,
+    TableBody,
+    TableCaption,
+    TableCell,
+    TableFooter,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table'
+
+import BaseCombobox from '@/components/ui/BaseCombobox.vue';
+
+const invoices = [
+    {
+        invoice: 'INV001',
+        paymentStatus: 'Paid',
+        totalAmount: '$250.00',
+        paymentMethod: 'Credit Card',
+    },
+    {
+        invoice: 'INV002',
+        paymentStatus: 'Pending',
+        totalAmount: '$150.00',
+        paymentMethod: 'PayPal',
+    },
+    {
+        invoice: 'INV003',
+        paymentStatus: 'Unpaid',
+        totalAmount: '$350.00',
+        paymentMethod: 'Bank Transfer',
+    },
+    {
+        invoice: 'INV004',
+        paymentStatus: 'Paid',
+        totalAmount: '$450.00',
+        paymentMethod: 'Credit Card',
+    },
+    {
+        invoice: 'INV005',
+        paymentStatus: 'Paid',
+        totalAmount: '$550.00',
+        paymentMethod: 'PayPal',
+    },
+    {
+        invoice: 'INV006',
+        paymentStatus: 'Pending',
+        totalAmount: '$200.00',
+        paymentMethod: 'Bank Transfer',
+    },
+    {
+        invoice: 'INV007',
+        paymentStatus: 'Unpaid',
+        totalAmount: '$300.00',
+        paymentMethod: 'Credit Card',
+    },
+]
 
 const props = defineProps({
     isProcessing: {
@@ -40,182 +99,129 @@ const props = defineProps({
     },
 });
 
-const confirmButtonText = computed(() => {
-    if (props.transactionType === 'create') return 'Save';
-    if (props.transactionType === 'update') return 'Update';
-    if (props.transactionType === 'delete') return 'Delete';
-    return 'Yes';
-});
-
-const handleAlertClose = () => {
-    isDialogOpen.value = false;
-
-    if (props.transactionType === 'delete') {
-        emit('form-closed')
-    }
-};
-
-const isFormValidated = () => {
-    if (!form.supplier_id || !form.delivery_date || !form.status) {
-        toast.error('Fill up the required fields');
-        return false;
-    }
-    return true;
-};
-
-const openConfirmDialog = () => {
-    form.clearErrors();
-    if (!isFormValidated()) return false;
-    isDialogOpen.value = true;
-    return true;
-};
-
-const buttonVariants = computed(() => {
-    return props.transactionType === 'create' ? 'default' : props.transactionType === 'update' ? 'default' : 'destructive';
-});
-
-const form = useForm({
-    purchase_order_id: props.delivery?.purchase_order_id || null,
-    supplier_id: props.delivery?.supplier_id || null,
-    delivery_date: props.delivery?.delivery_date || '',
-    status: props.delivery?.status || 'pending',
-    notes: props.delivery?.notes || '',
-});
-
-// Convert suppliers to options format for BaseSelect
-const supplierOptions = computed(() => {
-    return props.suppliers.map(supplier => ({
-        value: supplier.id,
-        label: supplier.company
-    }));
-});
-
-const statusOptions = [
-    { value: 'pending', label: 'Pending' },
-    { value: 'received', label: 'Received' },
-    { value: 'partial', label: 'Partial' },
-    { value: 'cancelled', label: 'Cancelled' },
-];
-
 const emit = defineEmits(['handleSubmit', 'form-closed']);
-
-const handleSubmit = () => {
-    try {
-        emit('handleSubmit', form.data());
-    } catch (error) {
-        toast.error('ERROR', { description: error.message });
-    }
-}
 
 const isDialogOpen = ref(false);
 
-onMounted(() => {
+const handleAlertClose = () => {
+    isDialogOpen.value = false;
     if (props.transactionType === 'delete') {
-        isDialogOpen.value = true;
+        emit('form-closed');
+    }
+};
+
+const openConfirmDialog = () => {
+    isDialogOpen.value = true;
+};
+
+watch(() => props.isProcessing, (newVal, oldVal) => {
+    if (oldVal === true && newVal === false) {
+        isDialogOpen.value = false;
     }
 });
 
-</script>
+const handleSubmit = () => {
+    try {
+        emit('handleSubmit', {});
+    } catch (error) {
+        toast.error('ERROR', { description: error.message });
+    }
+};</script>
 
 <template>
-    <FormCard :loading="isProcessing" :card-title="cardTitle" max-width="max-w-lg">
-        <form @submit.prevent="Submit" class="space-y-4">
+    <FormCard :loading="false" size="lg">
+        <form @submit.prevent="Submit" class="space-y-4 mt-4">
+            <BaseField legend="Delivery Information" description="Enter delivery details">
+                <template #fields>
+                    <FieldGroup>
+                        <div class="grid w-full grid-cols-12 gap-4">
+                            <Field class="col-span-6">
+                                <BaseCombobox v-model="selectedBrand" label="Supplier"
+                                    :initial-options="brandsWithCurrent" endpoint="/brands" response-key="brands"
+                                    label-key="brandname" empty-message="Empty Search. Create?" width="w-full"
+                                    :max-results="5" />
+                            </Field>
 
-            <div class="w-full space-y-6">
 
-                <BaseField>
-                    <template #fieldGroups>
-                        <FieldSet>
-                            <FieldGroup class="rounded-lg border p-4">
+                            <Field class="col-span-3">
+                                <FieldLabel class="font-normal">Delivery No.:</FieldLabel>
+                                <Input />
+                            </Field>
 
-                                <div class="grid w-full grid-cols-15 gap-4">
-                                    <Field class="col-span-15">
-                                        <FieldLabel class="font-normal">Supplier:<span class="text-red-500">*</span>
-                                        </FieldLabel>
-                                        <BaseSelect v-model="form.supplier_id" :options="supplierOptions"
-                                            placeholder="Select Supplier" required />
-                                    </Field>
+                            <Field class="col-span-3">
+                                <FieldLabel class="font-normal">Terms:</FieldLabel>
+                                <Input />
+                            </Field>
 
-                                    <Field class="col-span-15">
-                                        <FieldLabel class="font-normal">Delivery Date:<span
-                                                class="text-red-500">*</span></FieldLabel>
-                                        <Input v-model="form.delivery_date" type="date" required />
-                                    </Field>
 
-                                    <Field class="col-span-15">
-                                        <FieldLabel class="font-normal">Status:<span class="text-red-500">*</span>
-                                        </FieldLabel>
-                                        <BaseSelect v-model="form.status" :options="statusOptions"
-                                            placeholder="Select Status" required />
-                                    </Field>
+                        </div>
 
-                                    <Field class="col-span-15">
-                                        <FieldLabel class="font-normal">Notes:</FieldLabel>
-                                        <Textarea v-model="form.notes" placeholder="Enter any additional notes..." />
-                                    </Field>
+                        <div class="grid w-full grid-cols-12 gap-4">
 
-                                </div>
-                            </FieldGroup>
-                        </FieldSet>
-                    </template>
+                            <Field class="col-span-6">
+                                <FieldLabel class="font-normal">Invoice Date:</FieldLabel>
+                                <BaseDatePick class="w-32" />
+                            </Field>
 
-                </BaseField>
 
-            </div>
+                            <Field class="col-span-6">
+                                <FieldLabel class="font-normal">Received Date:</FieldLabel>
+                                <BaseDatePick class="w-32" />
+                            </Field>
+                        </div>
 
-            <div class="flex justify-end space-x-2">
+                        <FieldSeparator />
 
-                <BaseButton text="Cancel" variant="outline" color="secondary" type="button"
-                    @click="emit('form-closed')">
-                </BaseButton>
+                    </FieldGroup>
 
-                <BaseButton :loading="isProcessing" :text="confirmButtonText" variant="default" color="primary"
-                    type="button" @click="openConfirmDialog">
-                </BaseButton>
 
-            </div>
+                    <FieldGroup>
+                        <div class="grid w-full grid-cols-12 gap-4">
+                            <Field class="col-span-12">
+                                <SearchableCombobox v-model="selectedBrand" :initial-options="brandsWithCurrent"
+                                    endpoint="/brands" response-key="brands" label-key="brandname"
+                                    empty-message="Empty Search. Create?" width="w-full" :max-results="5" />
+                            </Field>
+                        </div>
 
+
+
+                        <Table>
+                            <TableCaption>List of your deliveries.</TableCaption>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead class="w-[100px]">Description</TableHead>
+                                    <TableHead>Unit</TableHead>
+                                    <TableHead>Quantity</TableHead>
+                                    <TableHead class="text-right">Unit Price</TableHead>
+                                    <TableHead class="text-right">Amount</TableHead>
+                                </TableRow>
+                            </TableHeader>
+
+                            <TableBody>
+                                <TableRow v-for="invoice in invoices" :key="invoice.invoice">
+                                    <TableCell>{{ invoice.invoice }}</TableCell>
+                                    <TableCell>{{ invoice.paymentStatus }}</TableCell>
+                                    <TableCell>{{ invoice.paymentMethod }}</TableCell>
+                                    <TableCell class="text-right">{{ invoice.totalAmount }}</TableCell>
+                                </TableRow>
+                            </TableBody>
+                        </Table>
+                    </FieldGroup>
+                </template>
+            </BaseField>
         </form>
 
+        <template #footer>
+            <BaseButton type="button" :disabled="isProcessing" @click="emit('form-closed')" transactionType="cancel">
+            </BaseButton>
+
+            <BaseButton type="button" @click="openConfirmDialog" :transactionType="props.transactionType"
+                :loading="isProcessing" :disabled="isProcessing">
+            </BaseButton>
+        </template>
+
+        <BaseAlertDialog v-model:open="isDialogOpen" :loading="isProcessing" :transaction-type="props.transactionType"
+            @cancel="handleAlertClose" @confirm="handleSubmit" />
     </FormCard>
-
-    <BaseAlertDialog v-model:open="isDialogOpen">
-        <template #alertTitle>
-            <template v-if="transactionType === 'create'">
-                Are you sure you want to save?
-            </template>
-
-            <template v-if="transactionType === 'update'">
-                Are you sure you want to update?
-            </template>
-
-            <template v-if="transactionType === 'delete'">
-                Are you sure you want to delete?
-            </template>
-        </template>
-
-        <template #alertDescription>
-            <template v-if="transactionType === 'create'">
-                This will create a new delivery in the system.
-            </template>
-
-            <template v-if="transactionType === 'update'">
-                This will update the delivery information.
-            </template>
-
-            <template v-if="transactionType === 'delete'">
-                This action cannot be undone. This will permanently delete the delivery.
-            </template>
-        </template>
-
-        <template #alertActions>
-            <BaseButton text="Cancel" variant="outline" color="secondary" type="button" @click="handleAlertClose">
-            </BaseButton>
-
-            <BaseButton :loading="isProcessing" :text="confirmButtonText" :variant="buttonVariants" color="primary"
-                type="button" @click="handleSubmit">
-            </BaseButton>
-        </template>
-    </BaseAlertDialog>
-
 </template>

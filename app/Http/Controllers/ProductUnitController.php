@@ -21,7 +21,7 @@ class ProductUnitController extends Controller
                 $query->where('unit_name', 'like', "{$search}%");
             }
             return response()->json([
-                'productUnits' => $query->orderBy('unit_name')->limit(10)->get(['id', 'unit_name', 'unit_code'])
+                'productUnits' => $query->orderBy('unit_name')->limit(5)->get(['id', 'unit_name', 'unit_code'])
             ]);
         }
 
@@ -77,7 +77,11 @@ class ProductUnitController extends Controller
         // Add system-generated fields
         $validated['created_by'] = $request->user()->id;
 
-        ProductUnit::create($validated);
+        $productUnit = ProductUnit::create($validated);
+
+        if ($request->expectsJson()) {
+            return response()->json(['productUnit' => $productUnit]);
+        }
 
         return redirect()->route('product-units.index')->with('success', 'Product Unit created successfully!');
     }

@@ -24,6 +24,7 @@ const actionConfig: Record<string, { label: string; icon: any; class: string }> 
   copy: { label: 'Copy', icon: Copy, class: 'text-gray-600' },
   download: { label: 'Download', icon: Download, class: 'text-purple-600' },
   add: { label: 'Add', icon: Plus, class: 'text-blue-600' },
+  history: { label: 'History', icon: Eye, class: 'text-yellow-600' }, // Added for Warehouse
 }
 
 const emit = defineEmits<{

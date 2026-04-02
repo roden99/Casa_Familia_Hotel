@@ -15,6 +15,8 @@ class product extends Model
         'productname',
         'brand_id',
         'product_unit_id',
+        'strength_id',
+        'drugform_id',
         'status',
         'created_by',
         'updated_by',
@@ -39,6 +41,22 @@ class product extends Model
     public function unit()
     {
         return $this->belongsTo(ProductUnit::class, 'product_unit_id');
+    }
+
+    /**
+     * Get the strength that the product belongs to.
+     */
+    public function strength()
+    {
+        return $this->belongsTo(strength::class, 'strength_id');
+    }
+
+    /**
+     * Get the drug form that the product belongs to.
+     */
+    public function drugform()
+    {
+        return $this->belongsTo(drugform::class, 'drugform_id');
     }
 
     /**

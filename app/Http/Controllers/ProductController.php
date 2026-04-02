@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\product;
 use App\Models\brand;
 use App\Models\ProductUnit;
+use App\Models\strength;
+use App\Models\drugform;
 use Illuminate\Http\Request;
 
 class ProductController extends Controller
@@ -75,7 +77,9 @@ class ProductController extends Controller
             'products' => $products,
             'columns' => $columns,
             'brands' => brand::where('status', true)->orderBy('brandname')->get(['id', 'brandname']),
-            'productUnits' => ProductUnit::where('status', true)->orderBy('unit_name')->get(['id', 'unit_name', 'unit_code'])
+            'productUnits' => ProductUnit::where('status', true)->orderBy('unit_name')->get(['id', 'unit_name', 'unit_code']),
+            'strengths' => strength::where('status', true)->orderBy('strengthname')->get(['id', 'strengthname']),
+            'drugforms' => drugform::where('status', true)->orderBy('drugformname')->get(['id', 'drugformname'])
         ]);
     }
 
@@ -97,6 +101,8 @@ class ProductController extends Controller
             'productname' => 'required|string|max:255',
             'brand_id' => 'nullable|exists:brands,id',
             'product_unit_id' => 'required|exists:product_units,id',
+            'strength_id' => 'nullable|exists:strengths,id',
+            'drugform_id' => 'nullable|exists:drugforms,id',
             'isgeneric' => 'boolean',
         ]);
 
@@ -134,6 +140,8 @@ class ProductController extends Controller
             'productname' => 'required|string|max:255',
             'brand_id' => 'nullable|exists:brands,id',
             'product_unit_id' => 'required|exists:product_units,id',
+            'strength_id' => 'nullable|exists:strengths,id',
+            'drugform_id' => 'nullable|exists:drugforms,id',
             'isgeneric' => 'boolean',
         ]);
 

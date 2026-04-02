@@ -127,6 +127,9 @@ const getActionsForIndex = (indexType) => {
         'Categories': ['edit', 'copy', 'delete'],
         'ClaimEligibility': ['view', 'edit', 'delete'],
         'Accreditations': ['view', 'download', 'delete'],
+        'Suppliers': ['edit', 'delete'],
+        'Warehouse Items': ['history', 'edit', 'delete'],
+        // Add more index types as needed
         // Add more index types as needed
     };
 
@@ -514,8 +517,8 @@ watch(selectValue, (val, oldVal) => {
 
                 <!-- Pagination Controls -->
                 <div class="flex justify-center">
-                    <Pagination :total="paginationInfo.last_page" :sibling-count="1" :show-edges="true"
-                        :default-page="paginationInfo.current_page" @update:page="goToPage">
+                    <Pagination :total="paginationInfo.last_page" :items-per-page="1" :sibling-count="1"
+                        :show-edges="true" :default-page="paginationInfo.current_page" @update:page="goToPage">
                         <PaginationContent>
                             <!-- First Page -->
                             <PaginationFirst v-if="paginationInfo.current_page > 3" @click="firstPage" />

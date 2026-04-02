@@ -48,6 +48,16 @@ const props = defineProps({
         default: () => []
     },
 
+    strengths: {
+        type: Array,
+        default: () => []
+    },
+
+    drugforms: {
+        type: Array,
+        default: () => []
+    },
+
 });
 
 
@@ -112,7 +122,7 @@ const handleAction = ({ type, data }) => {
 
 <template>
 
-    <Head title="Products"/>
+    <Head title="Products" />
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
             <!-- Use the reactive products data -->
@@ -130,10 +140,11 @@ const handleAction = ({ type, data }) => {
             </BaseIndex>
 
             <CreateProduct v-if="showCreateProductModal" @form-closed="showCreateProductModal = false" :brands="brands"
-                :product-units="productUnits" />
+                :product-units="productUnits" :strengths="strengths" :drugforms="drugforms" />
 
             <UpdateProduct v-if="showUpdateProductModal" :product="selectedProduct" :brands="brands"
-                :product-units="productUnits" @product-form-closed="showUpdateProductModal = false" />
+                :product-units="productUnits" :strengths="strengths" :drugforms="drugforms"
+                @product-form-closed="showUpdateProductModal = false" />
 
             <DeleteProduct v-if="showDeleteProductModal" :product="selectedProduct"
                 @product-form-closed="showDeleteProductModal = false" />
