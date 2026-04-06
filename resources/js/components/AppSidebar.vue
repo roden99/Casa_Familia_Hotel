@@ -40,7 +40,7 @@ const mainNavItems: NavItem[] = [
     children: [
       {
         title: 'Product List',
-        href: '/warehouse-items',
+        href: '/under-construction',
         icon: Package,
       },
     ],
