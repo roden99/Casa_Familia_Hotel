@@ -83,7 +83,6 @@ class BrandController extends Controller
         // Add system-generated fields
         $validated['created_by'] = $request->user()->id;
 
-
         $brand = brand::create($validated);
 
         if (request()->expectsJson()) {
@@ -139,6 +138,6 @@ class BrandController extends Controller
             'updated_by' => $request->user()->id
         ]);
 
-        return response()->json(['success' => true, 'message' => 'Brand deactivated successfully!']);
+        // return response()->json(['success' => true, 'message' => 'Brand deactivated successfully!']);
     }
 }

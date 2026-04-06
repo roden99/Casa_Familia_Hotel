@@ -128,6 +128,7 @@ const getActionsForIndex = (indexType) => {
         'ClaimEligibility': ['view', 'edit', 'delete'],
         'Accreditations': ['view', 'download', 'delete'],
         'Suppliers': ['edit', 'delete'],
+        'Customers': ['edit', 'delete'],
         'Warehouse Items': ['history', 'edit', 'delete'],
         // Add more index types as needed
         // Add more index types as needed
