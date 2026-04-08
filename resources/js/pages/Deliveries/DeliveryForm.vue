@@ -13,6 +13,9 @@ import { toast } from 'vue-sonner';
 import { Field, FieldGroup, FieldLabel, FieldSet, FieldSeparator } from '@/components/ui/field';
 import BaseField from '@/components/BaseField.vue';
 import BaseDatePick from '@/components/ui/BaseDatePick.vue';
+import Skeleton from '@/components/ui/skeleton/Skeleton.vue';
+import axios from 'axios';
+import CreateSupplier from '../Suppliers/CreateSupplier.vue';
 
 import {
     Table,
@@ -102,6 +105,7 @@ const props = defineProps({
 const emit = defineEmits(['handleSubmit', 'form-closed']);
 
 const isDialogOpen = ref(false);
+const isLoading = ref(false);
 
 const handleAlertClose = () => {
     isDialogOpen.value = false;
@@ -126,7 +130,52 @@ const handleSubmit = () => {
     } catch (error) {
         toast.error('ERROR', { description: error.message });
     }
-};</script>
+};
+
+onMounted(async () => {
+    if (props.transactionType === 'delete') {
+        isDialogOpen.value = true;
+    }
+    isLoading.value = true;
+    await Promise.all([
+        loadSuppliers(),
+    ]);
+    isLoading.value = false;
+});
+
+
+
+
+
+const suppliers = ref([]);
+const supplierOptions = ref([]);
+
+
+async function loadSuppliers(searchQuery = '') {
+    // isLoading.value = true;
+    try {
+        const res = await axios.get('/suppliers', {
+            headers: { Accept: 'application/json' },
+            params: { search: searchQuery },
+        });
+        const supplierArr = Array.isArray(res.data.suppliers) ? res.data.suppliers : [];
+        suppliers.value = supplierArr;
+        supplierOptions.value = supplierArr.map((supplier) => ({
+            value: String(supplier.id),
+            label: supplier.company,
+        }));
+    } catch (error) {
+        console.error('Failed to fetch suppliers:', error);
+        toast.error('Failed to load suppliers. Please try again.');
+    } finally {
+        // isLoading.value = false;
+    }
+}
+
+
+
+
+</script>
 
 <template>
     <FormCard :loading="false" size="lg">
@@ -134,13 +183,26 @@ const handleSubmit = () => {
             <BaseField legend="Delivery Information" description="Enter delivery details">
                 <template #fields>
                     <FieldGroup>
+
+
                         <div class="grid w-full grid-cols-12 gap-4">
+
+
                             <Field class="col-span-6">
-                                <BaseCombobox v-model="selectedBrand" label="Supplier"
-                                    :initial-options="brandsWithCurrent" endpoint="/brands" response-key="brands"
-                                    label-key="brandname" empty-message="Empty Search. Create?" width="w-full"
-                                    :max-results="5" />
+                                <Skeleton v-if="isLoading" class="h-4 w-10 mb-1" />
+                                <FieldLabel v-else class="font-normal">Supplier:</FieldLabel>
+                                <BaseCombobox v-model="selectedSupplier" :options="supplierOptions"
+                                    empty-message="Empty Search" width="w-full" @search="loadSuppliers"
+                                    :skeleton="isLoading">
+                                    <template #create="{ close }">
+                                        <CreateSupplier
+                                            @supplier-created="(supplier) => { supplierOptions.push({ value: String(supplier.id), label: supplier.company }); selectedSupplier = String(supplier.id); }"
+                                            @form-closed="close" />
+                                    </template>
+                                </BaseCombobox>
                             </Field>
+
+
 
 
                             <Field class="col-span-3">

@@ -109,7 +109,6 @@ const form = useForm({
 
 const emit = defineEmits(['handleSubmit', 'member-form-closed']);
 
-
 const handleSubmit = () => {
     try {
 

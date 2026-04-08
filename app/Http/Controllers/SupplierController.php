@@ -16,6 +16,21 @@ class SupplierController extends Controller
 
 
 
+        if (request()->wantsJson()) {
+            $search = $request->input('search');
+
+            $query = supplier::where('status', 'active');
+
+            if (!empty($search)) {
+                $query->where('company', 'like', "{$search}%");
+            }
+            return response()->json([
+                'suppliers' => $query->orderBy('company')->limit(5)->get(['id', 'company'])
+            ]);
+        }
+
+
+
         $search = $request->input('search');
         $column = $request->input('column');
 
@@ -101,9 +116,11 @@ class SupplierController extends Controller
         $validated['created_by'] = $request->user()->id;
         $validated['status'] = $validated['status'] ?? 'active';
 
-        supplier::create($validated);
+        $supplier = supplier::create($validated);
 
-        return redirect()->route('suppliers.index')->with('success', 'Supplier created successfully!');
+        if (request()->expectsJson()) {
+            return response()->json(['supplier' => $supplier]);
+        }
     }
 
     /**
