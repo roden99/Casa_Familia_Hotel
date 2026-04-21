@@ -25,21 +25,37 @@ class CustomerController extends Controller
             $query->where($column, 'like', "{$search}%");
         }
 
-        $customers = $query->orderBy('created_at', 'desc')->paginate(15)->through(function ($customer) {
-            $customer->full_name = trim(
-                strtoupper($customer->last_name) . ', ' .
-                    strtoupper($customer->first_name) . ' ' .
-                    strtoupper($customer->middle_name)
-            );
-            return $customer;
+        $customers = $query->with('salesAccounts')->orderBy('created_at', 'desc')->paginate(15)->through(function ($customer) {
+            return [
+                'id'                  => $customer->id,
+                'company'             => $customer->company,
+                'first_name'          => $customer->first_name,
+                'last_name'           => $customer->last_name,
+                'middle_name'         => $customer->middle_name,
+                'email'               => $customer->email,
+                'phone'               => $customer->phone,
+                'address'             => $customer->address,
+                'status'              => $customer->status,
+                'is_drugstore'        => $customer->is_drugstore ? 'Yes' : 'No',
+                'full_name'           => trim(
+                    strtoupper($customer->last_name) . ', ' .
+                        strtoupper($customer->first_name) . ' ' .
+                        strtoupper($customer->middle_name)
+                ),
+                'sales_account_id'   => $customer->salesAccounts->first()?->id,
+                'sales_account_name' => $customer->salesAccounts->first()?->account_name ?? '',
+            ];
         });
 
         $columns = [
             ['accessorKey' => 'id', 'header' => 'ID', 'isVisible' => false, 'isParameter' => false],
+            ['accessorKey' => 'is_drugstore', 'header' => 'DRUGSTORE', 'isVisible' => true, 'isParameter' => true],
+            ['accessorKey' => 'sales_account_name', 'header' => 'SALES ACCOUNT', 'isVisible' => true, 'isParameter' => true],
+            ['accessorKey' => 'company', 'header' => 'COMPANY', 'isVisible' => true, 'isParameter' => true],
             ['accessorKey' => 'full_name', 'header' => 'CUSTOMER NAME', 'isVisible' => true, 'isParameter' => true],
-            ['accessorKey' => 'email', 'header' => 'EMAIL', 'isVisible' => true, 'isParameter' => true],
-            ['accessorKey' => 'phone', 'header' => 'PHONE', 'isVisible' => true, 'isParameter' => true],
-            ['accessorKey' => 'status', 'header' => 'STATUS', 'isVisible' => true, 'isParameter' => false],
+            ['accessorKey' => 'email', 'header' => 'EMAIL', 'isVisible' => false, 'isParameter' => false],
+            ['accessorKey' => 'phone', 'header' => 'PHONE', 'isVisible' => true, 'isParameter' => false],
+            ['accessorKey' => 'status', 'header' => 'STATUS', 'isVisible' => false, 'isParameter' => false],
         ];
 
         return inertia('Customers/CustomerIndex', [
@@ -62,17 +78,24 @@ class CustomerController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'first_name' => 'required|string|max:255',
-            'last_name' => 'required|string|max:255',
+            'is_drugstore' => 'boolean',
+            'company' => 'nullable|string|max:255',
+            'first_name' => 'nullable|string|max:255',
+            'last_name' => 'nullable|string|max:255',
             'middle_name' => 'nullable|string|max:255',
-            'phone' => 'required|string|max:50',
-            'email' => 'required|email|max:255|unique:customers,email',
+            'phone' => 'nullable|string|max:50',
+            'email' => 'nullable|email|max:255',
             'address' => 'nullable|string|max:500',
+            'sales_account_id' => 'nullable|exists:sales_accounts,id',
         ]);
 
-        $validated['status'] = $validated['status'] ?? 'active';
+        $salesAccountId = $validated['sales_account_id'] ? (int) $validated['sales_account_id'] : null;
+        unset($validated['sales_account_id']);
 
-        Customer::create($validated);
+        $validated['status'] = 'active';
+
+        $customer = Customer::create($validated);
+        $customer->salesAccounts()->sync($salesAccountId ? [$salesAccountId] : []);
 
         return redirect()->route('customers.index')->with('success', 'Customer created successfully!');
     }
@@ -99,15 +122,22 @@ class CustomerController extends Controller
     public function update(Request $request, Customer $customer)
     {
         $validated = $request->validate([
-            'first_name' => 'required|string|max:255',
-            'last_name' => 'required|string|max:255',
+            'is_drugstore' => 'boolean',
+            'company' => 'nullable|string|max:255',
+            'first_name' => 'nullable|string|max:255',
+            'last_name' => 'nullable|string|max:255',
             'middle_name' => 'nullable|string|max:255',
-            'phone' => 'required|string|max:50',
-            'email' => 'required|email|max:255|unique:customers,email,' . $customer->id,
+            'phone' => 'nullable|string|max:50',
+            'email' => 'nullable|email|max:255',
             'address' => 'nullable|string|max:500',
+            'sales_account_id' => 'nullable|exists:sales_accounts,id',
         ]);
 
+        $salesAccountId = $validated['sales_account_id'] ? (int) $validated['sales_account_id'] : null;
+        unset($validated['sales_account_id']);
+
         $customer->update($validated);
+        $customer->salesAccounts()->sync($salesAccountId ? [$salesAccountId] : []);
 
         return redirect()->route('customers.index')->with('success', 'Customer updated successfully!');
     }
@@ -119,6 +149,8 @@ class CustomerController extends Controller
     public function destroy(Request $request, $id)
     {
         $customer = Customer::findOrFail($id);
+
+        $customer->salesAccounts()->detach();
 
         // Soft delete: set status to inactive
         $customer->update([

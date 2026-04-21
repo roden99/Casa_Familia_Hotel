@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\SalesAccountController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Http\Controllers\SupplierController;
@@ -32,6 +33,7 @@ Route::get('under-construction', function () {
 Route::resource('suppliers', SupplierController::class);
 
 Route::resource('customers', CustomerController::class);
+Route::resource('sales-accounts', SalesAccountController::class);
 
 Route::resource('brands', BrandController::class);
 Route::resource('strengths', StrengthController::class);
