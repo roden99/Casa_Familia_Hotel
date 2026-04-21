@@ -195,17 +195,17 @@ onMounted(async () => {
                     <FieldGroup>
                         <div class="grid w-full grid-cols-12 gap-4">
 
-
                             <Field class="col-span-6">
                                 <div class="flex items-center space-x-2">
-                                    <Switch :modelValue="form.is_drugstore"
+                                    <Skeleton v-if="isLoading" class="h-5 w-9 rounded-full" />
+                                    <Switch v-else :modelValue="form.is_drugstore"
                                         @update:modelValue="val => form.is_drugstore = val" />
-                                    <FieldLabel for="is_drugstore" class="font-normal cursor-pointer">
+                                    <Skeleton v-if="isLoading" class="h-4 w-16" />
+                                    <FieldLabel v-else for="is_drugstore" class="font-normal cursor-pointer">
                                         Drugstore
                                     </FieldLabel>
                                 </div>
                             </Field>
-
 
                             <Field class="col-span-12">
                                 <Skeleton v-if="isLoading" class="h-4 w-28 mb-1" />
@@ -216,43 +216,45 @@ onMounted(async () => {
                                     placeholder="Select Sales Account" />
                             </Field>
 
-
-
                             <Field class="col-span-12">
-                                <FieldLabel class="font-normal">Company:</FieldLabel>
-                                <Input v-model="form.company" placeholder="Company Name" />
+                                <Skeleton v-if="isLoading" class="h-4 w-20 mb-1" />
+                                <FieldLabel v-else class="font-normal">Company:</FieldLabel>
+                                <Skeleton v-if="isLoading" class="h-9 w-full" />
+                                <Input v-else v-model="form.company" placeholder="Company Name" />
                             </Field>
+
                             <Field class="col-span-12">
-                                <FieldLabel class="font-normal">Customer Name:</FieldLabel>
+                                <Skeleton v-if="isLoading" class="h-4 w-32 mb-1" />
+                                <FieldLabel v-else class="font-normal">Customer Name:</FieldLabel>
                                 <div class="grid grid-cols-3 gap-4">
-                                    <Input v-model="form.last_name" placeholder="Last Name" />
-                                    <Input v-model="form.first_name" placeholder="First Name" />
-                                    <Input v-model="form.middle_name" placeholder="Middle Name" />
+                                    <Skeleton v-if="isLoading" class="h-9 w-full" />
+                                    <Input v-else v-model="form.last_name" placeholder="Last Name" />
+                                    <Skeleton v-if="isLoading" class="h-9 w-full" />
+                                    <Input v-else v-model="form.first_name" placeholder="First Name" />
+                                    <Skeleton v-if="isLoading" class="h-9 w-full" />
+                                    <Input v-else v-model="form.middle_name" placeholder="Middle Name" />
                                 </div>
                             </Field>
 
                             <Field class="col-span-6">
-                                <FieldLabel class="font-normal">Phone Number:</FieldLabel>
-                                <Input v-model="form.phone" placeholder="Phone Number" />
+                                <Skeleton v-if="isLoading" class="h-4 w-24 mb-1" />
+                                <FieldLabel v-else class="font-normal">Phone Number:</FieldLabel>
+                                <Skeleton v-if="isLoading" class="h-9 w-full" />
+                                <Input v-else v-model="form.phone" placeholder="Phone Number" />
                             </Field>
+
                             <Field class="col-span-6">
-                                <FieldLabel class="font-normal">Email Address:</FieldLabel>
-                                <Input v-model="form.email" type="email" placeholder="Email Address" />
+                                <Skeleton v-if="isLoading" class="h-4 w-28 mb-1" />
+                                <FieldLabel v-else class="font-normal">Email Address:</FieldLabel>
+                                <Skeleton v-if="isLoading" class="h-9 w-full" />
+                                <Input v-else v-model="form.email" type="email" placeholder="Email Address" />
                             </Field>
-                            <!-- <Field class="col-span-12">
-                                <FieldLabel class="font-normal">Address:</FieldLabel>
-                                <div class="grid grid-cols-3 gap-4">
-                                    <BaseCombobox v-model="selectedProvince" placeholder="Province"
-                                        empty-message="No province found" width="w-full" />
-                                    <BaseCombobox v-model="selectedCity" placeholder="Municipality"
-                                        empty-message="No municipality found" width="w-full" />
-                                    <BaseCombobox v-model="selectedBarangay" placeholder="Select Barangay"
-                                        empty-message="No barangay found" width="w-full" />
-                                </div>
-                            </Field> -->
+
                             <Field class="col-span-12 mb-6">
-                                <FieldLabel class="font-normal">Customer Address:</FieldLabel>
-                                <Input v-model="form.address" placeholder="Customer Address" />
+                                <Skeleton v-if="isLoading" class="h-4 w-36 mb-1" />
+                                <FieldLabel v-else class="font-normal">Customer Address:</FieldLabel>
+                                <Skeleton v-if="isLoading" class="h-9 w-full" />
+                                <Input v-else v-model="form.address" placeholder="Customer Address" />
                             </Field>
                         </div>
                     </FieldGroup>
@@ -260,10 +262,12 @@ onMounted(async () => {
             </BaseField>
         </form>
         <template #footer>
-            <BaseButton type="button" :disabled="isProcessing" @click="emit('member-form-closed')"
+            <Skeleton v-if="isLoading" class="h-9 w-20" />
+            <BaseButton v-else type="button" :disabled="isProcessing" @click="emit('member-form-closed')"
                 transactionType="cancel">
             </BaseButton>
-            <BaseButton type="button" @click="openConfirmDialog" :transactionType="props.transactionType"
+            <Skeleton v-if="isLoading" class="h-9 w-20" />
+            <BaseButton v-else type="button" @click="openConfirmDialog" :transactionType="props.transactionType"
                 :loading="isProcessing" :disabled="isProcessing">
             </BaseButton>
         </template>
