@@ -1,8 +1,8 @@
 <script setup>
 import CustomerForm from '@/pages/Customers/CustomerForm.vue'
+import { router } from '@inertiajs/vue3'
 import { ref } from 'vue'
 import { toast } from 'vue-sonner'
-import axios from 'axios'
 
 const props = defineProps({
     customer: {
@@ -19,26 +19,23 @@ const handleClose = () => {
     emit('member-form-closed');
 };
 
-const handleSubmit = async () => {
-    try {
-        await axios.delete(`/customers/${props.customer.id}`);
-        formRef.value?.closeDialog();
-        emit('customer-deleted');
-        emit('member-form-closed');
-        toast.success('Success', { description: 'Customer deactivated successfully!' });
-    } catch (error) {
-        const errors = error.response?.data?.errors;
-        if (errors) {
+const handleSubmit = () => {
+    router.delete(`/customers/${props.customer.id}`, {
+        preserveScroll: 'errors',
+        preserveState: 'errors',
+        onSuccess: () => {
+            formRef.value?.closeDialog();
+            emit('customer-deleted');
+            emit('member-form-closed');
+            toast.success('Success', { description: 'Customer deactivated successfully!' });
+        },
+        onError: (errors) => {
             const firstErrorKey = Object.keys(errors)[0];
-            toast.warning('Failed to deactivate customer.', { description: errors[firstErrorKey][0] });
-        } else {
-            toast.error('Failed to deactivate customer.');
-        }
-        formRef.value?.closeDialog();
-        emit('member-form-closed');
-    } finally {
-
-    }
+            toast.warning('Failed to deactivate customer.', { description: errors[firstErrorKey] });
+            formRef.value?.closeDialog();
+            emit('member-form-closed');
+        },
+    });
 };
 </script>
 
