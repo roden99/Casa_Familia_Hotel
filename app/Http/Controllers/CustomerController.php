@@ -73,6 +73,7 @@ class CustomerController extends Controller
             ['accessorKey' => 'last_name',      'header' => 'CUSTOMER NAME',        'isVisible' => false, 'isParameter' => true],
             ['accessorKey' => 'phone',       'header' => 'PHONE',         'isVisible' => true,  'isParameter' => false],
             ['accessorKey' => 'email',       'header' => 'EMAIL',         'isVisible' => true, 'isParameter' => false],
+            ['accessorKey' => 'address',     'header' => 'ADDRESS',       'isVisible' => true,  'isParameter' => false],
             ['accessorKey' => 'status',      'header' => 'STATUS',        'isVisible' => false, 'isParameter' => false],
         ];
 

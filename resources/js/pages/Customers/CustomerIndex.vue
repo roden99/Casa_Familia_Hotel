@@ -163,7 +163,8 @@ const formattedCustomers = computed(() => {
                 v-model:selectModelValue="selectModelValue" @action="handleAction" :hover-fields="[
                     { field: 'fullname', label: 'Customer Name' },
                     { field: 'email', label: 'Email' },
-                    { field: 'phone', label: 'Phone' }
+                    { field: 'phone', label: 'Phone' },
+                    { field: 'address', label: 'Address' }
                 ]">
 
 
