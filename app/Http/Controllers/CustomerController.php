@@ -27,11 +27,18 @@ class CustomerController extends Controller
 
         $search = $request->input('search');
         $column = $request->input('column');
+        $type = $request->input('type');
 
         $query = Customer::query();
 
         // Show only active customers
         $query->where('status', 'active');
+
+        if ($type === 'drugstore') {
+            $query->where('is_drugstore', true);
+        } elseif ($type === 'person') {
+            $query->where('is_drugstore', false);
+        }
 
         if (!empty($search) && strlen($search) >= 3 && !empty($column)) {
             $query->where($column, 'like', "{$search}%");

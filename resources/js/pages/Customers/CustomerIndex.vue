@@ -52,6 +52,20 @@ const showUpdateCustomerModal = ref(false);
 const showDeleteCustomerModal = ref(false);
 const selectedCustomer = ref(null);
 
+const currentType = ref(new URLSearchParams(window.location.search).get('type') || 'all');
+
+const handleTypeFilter = (type) => {
+    currentType.value = type;
+    const currentUrl = new URL(window.location.href);
+    if (type === 'all') {
+        currentUrl.searchParams.delete('type');
+    } else {
+        currentUrl.searchParams.set('type', type);
+    }
+    currentUrl.searchParams.delete('page');
+    router.get(currentUrl.pathname + currentUrl.search, {}, { preserveState: true });
+};
+
 
 const handleAction = ({ type, data }) => {
 
@@ -156,6 +170,29 @@ const formattedCustomers = computed(() => {
                 <Button variant="default" class="mr-2" @click="showCreateCustomerModal = true">
                     New Customers
                 </Button>
+
+                <div class="flex items-center gap-1 ml-2 border rounded-md p-1">
+                    <Button
+                        :variant="currentType === 'all' ? 'default' : 'ghost'"
+                        size="sm"
+                        @click="handleTypeFilter('all')">
+                        All
+                    </Button>
+                    <Button
+                        :variant="currentType === 'drugstore' ? 'default' : 'ghost'"
+                        size="sm"
+                        class="gap-1"
+                        @click="handleTypeFilter('drugstore')">
+                        <Hospital class="h-4 w-4" /> Drugstore
+                    </Button>
+                    <Button
+                        :variant="currentType === 'person' ? 'default' : 'ghost'"
+                        size="sm"
+                        class="gap-1"
+                        @click="handleTypeFilter('person')">
+                        <User class="h-4 w-4" /> Person
+                    </Button>
+                </div>
 
             </BaseIndex>
 
