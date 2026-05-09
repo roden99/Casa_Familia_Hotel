@@ -13,6 +13,18 @@ class CustomerController extends Controller
      */
     public function index(Request $request)
     {
+        if (request()->wantsJson()) {
+            $search = $request->input('search');
+            $query = Customer::where('status', 'active');
+
+            if (!empty($search)) {
+                $query->where('company', 'like', "{$search}%");
+            }
+            return response()->json([
+                'customers' => $query->orderBy('company')->limit(5)->get(['id', 'company'])
+            ]);
+        }
+
         $search = $request->input('search');
         $column = $request->input('column');
 
@@ -25,42 +37,41 @@ class CustomerController extends Controller
             $query->where($column, 'like', "{$search}%");
         }
 
-        $customers = $query->with('salesAccounts')->orderBy('created_at', 'desc')->paginate(15)->through(function ($customer) {
+        $customers = $query->orderBy('created_at', 'desc')->paginate(15)->through(function ($customer) {
             return [
-                'id'                  => $customer->id,
-                'company'             => $customer->company,
-                'first_name'          => $customer->first_name,
-                'last_name'           => $customer->last_name,
-                'middle_name'         => $customer->middle_name,
-                'email'               => $customer->email,
-                'phone'               => $customer->phone,
-                'address'             => $customer->address,
-                'status'              => $customer->status,
-                'is_drugstore'        => $customer->is_drugstore ? 'Yes' : 'No',
-                'full_name'           => trim(
-                    strtoupper($customer->last_name) . ', ' .
-                        strtoupper($customer->first_name) . ' ' .
-                        strtoupper($customer->middle_name)
-                ),
-                'sales_account_id'   => $customer->salesAccounts->first()?->id,
-                'sales_account_name' => $customer->salesAccounts->first()?->account_name ?? '',
+                'id'          => $customer->id,
+                'is_drugstore' => $customer->is_drugstore ? 'YES' : 'NO',
+                'display_name' => $customer->is_drugstore
+                    ? strtoupper($customer->company)
+                    : trim(
+                        ($customer->company ? strtoupper($customer->company) . ' - ' : '') .
+                            strtoupper($customer->last_name)
+                    ),
+                'company'     => strtoupper($customer->company),
+                'last_name'   => strtoupper($customer->last_name),
+                'first_name'  => strtoupper($customer->first_name),
+                'middle_name' => strtoupper($customer->middle_name),
+                'phone'       => $customer->phone,
+                'email'       => strtoupper($customer->email),
+                'address'     => strtoupper($customer->address),
+                'status'      => strtoupper($customer->status),
             ];
         });
 
         $columns = [
-            ['accessorKey' => 'id', 'header' => 'ID', 'isVisible' => false, 'isParameter' => false],
-            ['accessorKey' => 'is_drugstore', 'header' => 'DRUGSTORE', 'isVisible' => true, 'isParameter' => true],
-            ['accessorKey' => 'sales_account_name', 'header' => 'SALES ACCOUNT', 'isVisible' => true, 'isParameter' => true],
-            ['accessorKey' => 'company', 'header' => 'COMPANY', 'isVisible' => true, 'isParameter' => true],
-            ['accessorKey' => 'full_name', 'header' => 'CUSTOMER NAME', 'isVisible' => true, 'isParameter' => true],
-            ['accessorKey' => 'email', 'header' => 'EMAIL', 'isVisible' => false, 'isParameter' => false],
-            ['accessorKey' => 'phone', 'header' => 'PHONE', 'isVisible' => true, 'isParameter' => false],
-            ['accessorKey' => 'status', 'header' => 'STATUS', 'isVisible' => false, 'isParameter' => false],
+            ['accessorKey' => 'id',         'header' => 'ID',            'isVisible' => false, 'isParameter' => false],
+            ['accessorKey' => 'is_drugstore',  'header' => 'LEGEND',           'isVisible' => true,  'isParameter' => false],
+            ['accessorKey' => 'display_name',   'header' => 'COMPANY / NAME',   'isVisible' => true,  'isParameter' => false],
+            ['accessorKey' => 'company',        'header' => 'COMPANY',          'isVisible' => false, 'isParameter' => true],
+            ['accessorKey' => 'last_name',      'header' => 'CUSTOMER NAME',        'isVisible' => false, 'isParameter' => true],
+            ['accessorKey' => 'phone',       'header' => 'PHONE',         'isVisible' => true,  'isParameter' => false],
+            ['accessorKey' => 'email',       'header' => 'EMAIL',         'isVisible' => true, 'isParameter' => false],
+            ['accessorKey' => 'status',      'header' => 'STATUS',        'isVisible' => false, 'isParameter' => false],
         ];
 
         return inertia('Customers/CustomerIndex', [
             'customers' => $customers,
-            'columns' => $columns
+            'columns'   => $columns,
         ]);
     }
 
@@ -86,18 +97,17 @@ class CustomerController extends Controller
             'phone' => 'nullable|string|max:50',
             'email' => 'nullable|email|max:255',
             'address' => 'nullable|string|max:500',
-            'sales_account_id' => 'nullable|exists:sales_accounts,id',
         ]);
 
-        $salesAccountId = $validated['sales_account_id'] ? (int) $validated['sales_account_id'] : null;
-        unset($validated['sales_account_id']);
-
-        $validated['status'] = 'active';
+        // Add system-generated fields
+        $validated['created_by'] = $request->user()->id;
+        $validated['status'] = $validated['status'] ?? 'active';
 
         $customer = Customer::create($validated);
-        $customer->salesAccounts()->sync($salesAccountId ? [$salesAccountId] : []);
 
-        return redirect()->route('customers.index')->with('success', 'Customer created successfully!');
+        if (request()->expectsJson()) {
+            return response()->json(['customer' => $customer]);
+        }
     }
 
     /**
@@ -121,25 +131,24 @@ class CustomerController extends Controller
      */
     public function update(Request $request, Customer $customer)
     {
-        $validated = $request->validate([
-            'is_drugstore' => 'boolean',
-            'company' => 'nullable|string|max:255',
-            'first_name' => 'nullable|string|max:255',
-            'last_name' => 'nullable|string|max:255',
-            'middle_name' => 'nullable|string|max:255',
-            'phone' => 'nullable|string|max:50',
-            'email' => 'nullable|email|max:255',
-            'address' => 'nullable|string|max:500',
-            'sales_account_id' => 'nullable|exists:sales_accounts,id',
-        ]);
+        // $validated = $request->validate([
+        //     'is_drugstore' => 'boolean',
+        //     'company' => 'nullable|string|max:255',
+        //     'first_name' => 'nullable|string|max:255',
+        //     'last_name' => 'nullable|string|max:255',
+        //     'middle_name' => 'nullable|string|max:255',
+        //     'phone' => 'nullable|string|max:50',
+        //     'email' => 'nullable|email|max:255',
+        //     'address' => 'nullable|string|max:500',
+        //     'sales_account_id' => 'nullable|exists:sales_accounts,id',
+        // ]);
 
-        $salesAccountId = $validated['sales_account_id'] ? (int) $validated['sales_account_id'] : null;
-        unset($validated['sales_account_id']);
+        // $salesAccountId = $validated['sales_account_id'] ? (int) $validated['sales_account_id'] : null;
+        // unset($validated['sales_account_id']);
 
-        $customer->update($validated);
-        $customer->salesAccounts()->sync($salesAccountId ? [$salesAccountId] : []);
-
-        return redirect()->route('customers.index')->with('success', 'Customer updated successfully!');
+        // $customer->update($validated);
+        // $customer->salesAccounts()->sync($salesAccountId ? [$salesAccountId] : []);
+        // return redirect()->route('customers.index')->with('success', 'Customer updated successfully!');
     }
 
     /**

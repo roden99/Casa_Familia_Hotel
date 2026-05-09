@@ -3,10 +3,11 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
 import Breadcrumb from '@/components/ui/breadcrumb/Breadcrumb.vue';
 import BaseIndex from '@/components/BaseIndex.vue';
-import { onMounted, ref, computed, watch } from 'vue';
+import { h, onMounted, ref, computed, watch } from 'vue';
 import { toast } from 'vue-sonner';
 import { router, usePage, Head } from '@inertiajs/vue3';
 import { isNumberArray } from '@tanstack/vue-table';
+import { Hospital, Pill, User } from 'lucide-vue-next';
 import CreateCustomer from '@/pages/Customers/CreateCustomer.vue';
 import UpdateCustomer from '@/pages/Customers/UpdateCustomer.vue';
 import DeleteCustomer from '@/pages/Customers/DeleteCustomer.vue';
@@ -90,6 +91,26 @@ const handleAction = ({ type, data }) => {
 
 };
 
+const enrichedColumns = computed(() =>
+    props.columns.map(col => {
+        if (col.accessorKey === 'is_drugstore') {
+            return {
+                ...col,
+                cell: ({ row }) => {
+                    const val = row.original.is_drugstore;
+                    const isDrugstore = val === true || val === 'YES' || val === 1;
+                    return h('div', { class: 'flex items-center justify-start' },
+                        isDrugstore
+                            ? h(Hospital, { class: 'h-4 w-4 text-green-600' })
+                            : h(User, { class: 'h-4 w-4 text-blue-500' })
+                    );
+                },
+            };
+        }
+        return col;
+    })
+);
+
 // Format customers with concatenated full name
 const formattedCustomers = computed(() => {
     // Handle both array and paginated object (with .data property)
@@ -122,27 +143,32 @@ const formattedCustomers = computed(() => {
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
             <!-- Use the reactive customers data -->
+
             <BaseIndex IndexType="Customers" :data="formattedCustomers"
-                :columnDefs="columns.filter(col => col.isVisible === true)" :selectOptions="selectOptions"
+                :columnDefs="enrichedColumns.filter(col => col.isVisible === true)" :selectOptions="selectOptions"
                 v-model:selectModelValue="selectModelValue" @action="handleAction" :hover-fields="[
                     { field: 'fullname', label: 'Customer Name' },
                     { field: 'email', label: 'Email' },
                     { field: 'phone', label: 'Phone' }
                 ]">
 
+
                 <Button variant="default" class="mr-2" @click="showCreateCustomerModal = true">
-                    New Customer
+                    New Customers
                 </Button>
 
             </BaseIndex>
 
-            <CreateCustomer v-if="showCreateCustomerModal" @member-form-closed="showCreateCustomerModal = false" />
+            <CreateCustomer v-if="showCreateCustomerModal" @member-form-closed="showCreateCustomerModal = false"
+                @customer-created="() => { showCreateCustomerModal = false; router.reload({ only: ['customers'] }); }" />
 
             <UpdateCustomer v-if="showUpdateCustomerModal" :customer="selectedCustomer"
-                @member-form-closed="showUpdateCustomerModal = false" />
+                @member-form-closed="showUpdateCustomerModal = false"
+                @customer-updated="() => { showUpdateCustomerModal = false; router.reload({ only: ['customers'] }); }" />
 
             <DeleteCustomer v-if="showDeleteCustomerModal" :customer="selectedCustomer"
-                @member-form-closed="showDeleteCustomerModal = false" />
+                @member-form-closed="showDeleteCustomerModal = false"
+                @customer-deleted="() => { showDeleteCustomerModal = false; router.reload({ only: ['customers'] }); }" />
 
 
         </div>

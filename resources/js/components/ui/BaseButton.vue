@@ -1,8 +1,8 @@
 <script setup>
-import { Loader2 } from 'lucide-vue-next';
-import { Button, buttonVariants } from '@/components/ui/buttonorig';
-import { ColumnOrdering } from '@tanstack/vue-table';
+import { Loader2, Save, Pencil, Trash2, X, ShieldCheck, RotateCcw, Printer } from 'lucide-vue-next';
+import { Button } from '@/components/ui/buttonorig';
 import { computed } from 'vue';
+import Skeleton from '@/components/ui/skeleton/Skeleton.vue';
 
 
 const props = defineProps({
@@ -21,11 +21,16 @@ const props = defineProps({
   disabled: {
     type: Boolean,
     default: false,
-  }
+  },
+  skeleton: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const buttonText = computed(() => {
   if (props.transactionType === 'create') return 'Save';
+  if (props.transactionType === 'print') return 'Print';
   if (props.transactionType === 'update') return 'Update';
   if (props.transactionType === 'delete') return 'Delete';
   if (props.transactionType === 'cancel') return 'Cancel';
@@ -39,6 +44,7 @@ const buttonVariant = computed(() => {
   if (props.transactionType === 'cancel') return 'secondary';
   if (props.transactionType === 'verify') return 'secondary';
   if (props.transactionType === 'clear') return 'secondary';
+  if (props.transactionType === 'print') return 'secondary';
   return 'default';
 });
 
@@ -47,15 +53,29 @@ const buttonColor = computed(() => {
   if (props.transactionType === 'cancel') return 'secondary';
   if (props.transactionType === 'verify') return 'secondary';
   if (props.transactionType === 'clear') return 'secondary';
+  if (props.transactionType === 'print') return 'secondary';
 
   return 'primary';
 });
 
-</script>
-<template>
+const buttonIcon = computed(() => {
+  if (props.transactionType === 'create') return Save;
+  if (props.transactionType === 'update') return Pencil;
+  if (props.transactionType === 'delete') return Trash2;
+  if (props.transactionType === 'cancel') return X;
+  if (props.transactionType === 'verify') return ShieldCheck;
+  if (props.transactionType === 'clear') return RotateCcw;
+  if (props.transactionType === 'print') return Printer;
+  return null;
+});
 
-  <Button :variant="buttonVariant" :color="buttonColor" :type="type" :disabled="disabled" :loading="loading">
+</script>
+
+<template>
+  <Skeleton v-if="skeleton" class="h-9 w-20 rounded-md" />
+  <Button v-else :variant="buttonVariant" :color="buttonColor" :type="type" :disabled="disabled" :loading="loading">
     <Loader2 v-if="loading" class="mr-2 h-4 w-4 animate-spin" />
+    <component :is="buttonIcon" v-else-if="buttonIcon" class="mr-2 h-4 w-4" />
     {{ loading ? 'Please wait' : buttonText }}
   </Button>
 </template>

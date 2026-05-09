@@ -12,19 +12,17 @@ import BaseField from '@/components/BaseField.vue';
 
 
 
+
 const props = defineProps({
 
-    isProcessing: {
-        type: Boolean,
-        default: false,
-    },
+
 
     cardTitle: {
         type: String,
         default: 'Form',
     },
 
-    brand: {
+    salesAccount: {
         type: Object,
         default: null,
     },
@@ -36,13 +34,25 @@ const props = defineProps({
 
 });
 
+
+const isSaving = ref(false);
+const isLoading = ref(true);
+const isBusy = computed(() => isSaving.value);
+const isDialogOpen = ref(false);
+
+
+
 const form = useForm({
-    brandname: props.brand?.brandname || '',
+    account_name: props.salesAccount?.account_name || '',
+    brand_id: props.salesAccount?.brand_id || null,
 });
 
-const isLoading = ref(true);
-const isDialogOpen = ref(false);
-const isBusy = computed(() => props.isProcessing);
+
+
+
+
+
+
 
 const handleAlertClose = () => {
     isDialogOpen.value = false;
@@ -54,15 +64,17 @@ const handleAlertClose = () => {
 
 
 const isFormValidated = () => {
-    if (!form.brandname.toString().trim()) {
+    if (!form.account_name.toString().trim()) {
         toast.error('Fill up the forms properly');
         return false;
     }
+
     return true;
 };
 
 
 const openConfirmDialog = () => {
+
     form.clearErrors();
     if (!isFormValidated()) return false;
     isDialogOpen.value = true;
@@ -75,46 +87,49 @@ const openConfirmDialog = () => {
 
 
 
-
 const emit = defineEmits(['handleSubmit', 'form-closed']);
 
 
 const handleSubmit = () => {
     try {
+        isSaving.value = true;
         emit('handleSubmit', form.data());
     } catch (error) {
         toast.error('ERROR', { description: error.message });
+        isSaving.value = false;
     }
-};
+}
 
 const closeDialog = () => {
     isDialogOpen.value = false;
-};
+    isSaving.value = false;
+}
 
 defineExpose({ closeDialog });
 
-onMounted(() => {
 
+
+
+onMounted(async () => {
     if (props.transactionType === 'delete') {
         isDialogOpen.value = true;
     }
     isLoading.value = false;
-
 });
 
 
-
 </script>
+
 <template>
-    <FormCard :loading="isProcessing" size="md">
-        <form @submit.prevent="Submit" class="space-y-4 mt-4">
-            <BaseField legend="Brand Information" description="Enter brand details">
+    <FormCard size="md" :loading="isBusy">
+        <form @submit.prevent="handleSubmit" class="space-y-4 mt-4">
+            <BaseField legend="Account Information" description="Enter account details">
                 <template #fields>
                     <FieldGroup :skeleton="isLoading" :skeleton-rows="1" :skeleton-cols="1">
                         <div class="grid w-full grid-cols-12 gap-4">
                             <Field class="col-span-12">
-                                <FieldLabel class="font-normal">Brand Name:</FieldLabel>
-                                <Input v-model="form.brandname" required />
+                                <FieldLabel class="font-normal">Add Account:</FieldLabel>
+                                <Input v-model="form.account_name" required />
                             </Field>
                         </div>
                     </FieldGroup>
@@ -128,11 +143,12 @@ onMounted(() => {
             </BaseButton>
 
             <BaseButton type="button" :disabled="isBusy" @click="openConfirmDialog"
-                :transactionType="props.transactionType" :skeleton="isLoading">
+                :transactionType="props.transactionType" :skeleton="isLoading" :loading="isBusy">
             </BaseButton>
-
         </template>
-        <BaseAlertDialog v-model:open="isDialogOpen" :loading="isProcessing" :transaction-type="props.transactionType"
-            @cancel="handleAlertClose" @confirm="handleSubmit" />
+
+        <BaseAlertDialog v-model:open="isDialogOpen" :disabled="isBusy" :loading="isBusy"
+            :transaction-type="props.transactionType" @cancel="handleAlertClose" @confirm="handleSubmit" />
     </FormCard>
+
 </template>

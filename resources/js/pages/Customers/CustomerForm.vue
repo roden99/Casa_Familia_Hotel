@@ -8,9 +8,9 @@ import BaseButton from '@/components/ui/BaseButton.vue';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useForm } from '@inertiajs/vue3';
-import { onMounted, ref, computed, watch, nextTick } from 'vue';
+import { onMounted, ref, computed } from 'vue';
 import { toast } from 'vue-sonner';
-import axios from 'axios';
+
 
 
 import { CalendarDate, fromDate, getLocalTimeZone } from '@internationalized/date';
@@ -28,11 +28,6 @@ import Skeleton from '@/components/ui/skeleton/Skeleton.vue';
 
 
 const props = defineProps({
-
-    isProcessing: {
-        type: Boolean,
-        default: false,
-    },
 
     cardTitle: {
         type: String,
@@ -68,7 +63,7 @@ const handleAlertClose = () => {
 
 
 const isFormValidated = () => {
-    const hasName = form.first_name.toString().trim() && form.last_name.toString().trim();
+    const hasName = form.last_name.toString().trim();
     const hasCompany = form.company.toString().trim();
 
     if (form.is_drugstore) {
@@ -78,7 +73,7 @@ const isFormValidated = () => {
         }
     } else {
         if (!hasName) {
-            toast.error('First name and last name are required');
+            toast.error('Customer name is required');
             return false;
         }
     }
@@ -119,42 +114,18 @@ const form = useForm({
     sales_account_id: props.customer?.sales_account_id ? Number(props.customer.sales_account_id) : null,
 });
 
-const selectedSalesAccount = ref(props.customer?.sales_account_id ? String(props.customer.sales_account_id) : null);
-const salesAccountOptions = ref([]);
-const isLoading = ref(true);
-
-watch(selectedSalesAccount, (val) => {
-    form.sales_account_id = val ? Number(val) : null;
-});
-
-async function loadSalesAccounts(searchQuery = '') {
-    try {
-        const res = await axios.get('/sales-accounts', {
-            headers: { Accept: 'application/json' },
-            params: { search: searchQuery },
-        });
-        salesAccountOptions.value = res.data.salesAccounts.map((a) => ({
-            value: String(a.id),
-            label: a.account_name,
-        }));
-    } catch (error) {
-        console.error('Failed to fetch sales accounts:', error);
-        toast.error('Failed to load sales accounts. Please try again.');
-    }
-}
-
 
 
 
 const emit = defineEmits(['handleSubmit', 'member-form-closed']);
 
-
 const handleSubmit = () => {
     try {
-
+        isSaving.value = true;
         emit('handleSubmit', form.data());
     } catch (error) {
         toast.error('ERROR', { description: error.message });
+        isSaving.value = false;
     }
 }
 
@@ -169,33 +140,38 @@ const cityOptions = ref([]);
 const barangayOptions = ref([]);
 
 
-
+const isSaving = ref(false);
+const isLoading = ref(true);
+const isBusy = computed(() => isSaving.value);
 const isDialogOpen = ref(false);
 
 onMounted(async () => {
     if (props.transactionType === 'delete') {
         isDialogOpen.value = true;
+        isLoading.value = false;
+        return;
     }
-    const initialAccount = selectedSalesAccount.value;
-    selectedSalesAccount.value = null;
-    isLoading.value = true;
-    await loadSalesAccounts();
     isLoading.value = false;
-    await nextTick();
-    selectedSalesAccount.value = initialAccount;
 });
+
+const closeDialog = () => {
+    isDialogOpen.value = false;
+    isSaving.value = false;
+};
+
+defineExpose({ closeDialog });
 
 </script>
 
 <template>
-    <FormCard :loading="isProcessing" size="lg">
+    <FormCard :loading="isBusy" size="lg">
         <form @submit.prevent="Submit" class="space-y-4 mt-4">
             <BaseField legend="Customer Information" description="Enter customer details">
                 <template #fields>
                     <FieldGroup>
                         <div class="grid w-full grid-cols-12 gap-4">
 
-                            <Field class="col-span-6">
+                            <Field class="col-span-12">
                                 <div class="flex items-center space-x-2">
                                     <Skeleton v-if="isLoading" class="h-5 w-9 rounded-full" />
                                     <Switch v-else :modelValue="form.is_drugstore"
@@ -207,33 +183,26 @@ onMounted(async () => {
                                 </div>
                             </Field>
 
-                            <Field class="col-span-12">
-                                <Skeleton v-if="isLoading" class="h-4 w-28 mb-1" />
-                                <FieldLabel v-else class="font-normal">Sales Account:</FieldLabel>
-                                <Skeleton v-if="isLoading" class="h-9 w-full" />
-                                <BaseCombobox v-else v-model="selectedSalesAccount" :options="salesAccountOptions"
-                                    empty-message="No sales account found" width="w-full" @search="loadSalesAccounts"
-                                    placeholder="Select Sales Account" />
-                            </Field>
 
-                            <Field class="col-span-12">
+                            <Field class="col-span-6">
                                 <Skeleton v-if="isLoading" class="h-4 w-20 mb-1" />
                                 <FieldLabel v-else class="font-normal">Company:</FieldLabel>
                                 <Skeleton v-if="isLoading" class="h-9 w-full" />
                                 <Input v-else v-model="form.company" placeholder="Company Name" />
                             </Field>
 
-                            <Field class="col-span-12">
+                            <Field class="col-span-6">
                                 <Skeleton v-if="isLoading" class="h-4 w-32 mb-1" />
                                 <FieldLabel v-else class="font-normal">Customer Name:</FieldLabel>
-                                <div class="grid grid-cols-3 gap-4">
+
+                                <Skeleton v-if="isLoading" class="h-9 w-full" />
+                                <Input v-else v-model="form.last_name" placeholder="Customer Name" />
+                                <Skeleton v-if="isLoading" class="h-9 w-full" />
+
+                                <!-- <Input v-else v-model="form.first_name" placeholder="First Name" />
                                     <Skeleton v-if="isLoading" class="h-9 w-full" />
-                                    <Input v-else v-model="form.last_name" placeholder="Last Name" />
-                                    <Skeleton v-if="isLoading" class="h-9 w-full" />
-                                    <Input v-else v-model="form.first_name" placeholder="First Name" />
-                                    <Skeleton v-if="isLoading" class="h-9 w-full" />
-                                    <Input v-else v-model="form.middle_name" placeholder="Middle Name" />
-                                </div>
+                                    <Input v-else v-model="form.middle_name" placeholder="Middle Name" /> -->
+
                             </Field>
 
                             <Field class="col-span-6">
@@ -262,16 +231,24 @@ onMounted(async () => {
             </BaseField>
         </form>
         <template #footer>
-            <Skeleton v-if="isLoading" class="h-9 w-20" />
-            <BaseButton v-else type="button" :disabled="isProcessing" @click="emit('member-form-closed')"
+
+
+            <BaseButton :skeleton="isLoading" type="button" :disabled="isBusy" @click="emit('member-form-closed')"
                 transactionType="cancel">
             </BaseButton>
-            <Skeleton v-if="isLoading" class="h-9 w-20" />
-            <BaseButton v-else type="button" @click="openConfirmDialog" :transactionType="props.transactionType"
-                :loading="isProcessing" :disabled="isProcessing">
+
+
+
+            <BaseButton type="button" @click="openConfirmDialog" :transactionType="props.transactionType"
+                :loading="isBusy" :disabled="isBusy" :skeleton="isLoading">
             </BaseButton>
+
+
+
         </template>
-        <BaseAlertDialog v-model:open="isDialogOpen" :loading="isProcessing" :transaction-type="props.transactionType"
-            @cancel="handleAlertClose" @confirm="handleSubmit" />
+
+        <BaseAlertDialog v-model:open="isDialogOpen" :disabled="isBusy" :loading="isBusy"
+            :transaction-type="props.transactionType" @cancel="handleAlertClose" @confirm="handleSubmit" />
+
     </FormCard>
 </template>

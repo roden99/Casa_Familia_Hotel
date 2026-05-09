@@ -130,6 +130,8 @@ const getActionsForIndex = (indexType) => {
         'Suppliers': ['edit', 'delete'],
         'Customers': ['edit', 'delete'],
         'Warehouse Items': ['history', 'edit', 'delete'],
+        'SalesAccounts': ['clients', 'edit', 'delete'],
+
         // Add more index types as needed
         // Add more index types as needed
     };
@@ -391,8 +393,8 @@ const hasFilteredMembers = computed(() => {
 watch(selectValue, (val, oldVal) => {
     emit('update:selectModelValue', val);
 
-    // Reset the filter value for the previous column
-    if (oldVal && table.getColumn(oldVal)) {
+    // Reset the filter value for the previous column (only if it exists in the table)
+    if (oldVal && props.columnDefs.some(c => c.accessorKey === oldVal) && table.getColumn(oldVal)) {
         table.getColumn(oldVal).setFilterValue('');
     }
 });

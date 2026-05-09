@@ -1,10 +1,8 @@
 <script setup>
 import CustomerForm from '@/pages/Customers/CustomerForm.vue'
-import { router } from '@inertiajs/vue3'
 import { ref } from 'vue'
 import { toast } from 'vue-sonner'
-
-
+import axios from 'axios'
 
 const props = defineProps({
     customer: {
@@ -13,43 +11,40 @@ const props = defineProps({
     }
 });
 
-const emit = defineEmits(['member-form-closed']);
+const emit = defineEmits(['member-form-closed', 'customer-deleted']);
+
+const formRef = ref(null);
 
 const handleClose = () => {
     emit('member-form-closed');
 };
 
-
-const isProcessing = ref(false);
-const handleSubmit = (formData) => {
-    isProcessing.value = true;
-    router.delete(`/customers/${props.customer.id}`, {
-        preserveScroll: "errors",
-        preserveState: "errors",
-        onSuccess: () => {
-            toast.success('Success', { description: 'Customer deactivated successfully!' });
-            isProcessing.value = false;
-            emit('member-form-closed'); // Close modal on success
-        },
-        onError: (errors) => {
-
+const handleSubmit = async () => {
+    try {
+        await axios.delete(`/customers/${props.customer.id}`);
+        formRef.value?.closeDialog();
+        emit('customer-deleted');
+        emit('member-form-closed');
+        toast.success('Success', { description: 'Customer deactivated successfully!' });
+    } catch (error) {
+        const errors = error.response?.data?.errors;
+        if (errors) {
             const firstErrorKey = Object.keys(errors)[0];
-            toast.warning('Failed to deactivate customer.', { description: errors[firstErrorKey] });
-            isProcessing.value = false;
-        },
-        onFinish: () => {
-            isProcessing.value = false;
+            toast.warning('Failed to deactivate customer.', { description: errors[firstErrorKey][0] });
+        } else {
+            toast.error('Failed to deactivate customer.');
         }
-    });
+        formRef.value?.closeDialog();
+        emit('member-form-closed');
+    } finally {
+
+    }
 };
-
 </script>
+
 <template>
-
-
     <div>
-        <CustomerForm @handleSubmit="handleSubmit" @member-form-closed="handleClose" :is-processing="isProcessing"
+        <CustomerForm ref="formRef" @handleSubmit="handleSubmit" @member-form-closed="handleClose"
             :card-title="'Delete Customer'" :transaction-type="'delete'" :customer="customer" />
     </div>
-
 </template>

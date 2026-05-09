@@ -43,6 +43,7 @@ Route::resource('products', ProductController::class);
 Route::resource('warehouses', WarehouseController::class);
 Route::resource('warehouse-items', WarehouseItemController::class);
 Route::resource('deliveries', DeliveryController::class);
+Route::resource('sales-accounts', SalesAccountController::class);
 
 
 

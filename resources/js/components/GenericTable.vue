@@ -1,9 +1,7 @@
 <script setup lang="ts">
-import { MoreHorizontal, Edit, Trash, Eye, Copy, Download, Plus } from 'lucide-vue-next'
+import { MoreHorizontal, Pencil, Trash2, Eye, Copy, Download, PlusCircle, Users, ShieldCheck, History, UserSearch } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { toast } from 'vue-sonner'
-import { computed } from 'vue'
 
 interface Props {
   row?: Record<string, any>
@@ -15,16 +13,17 @@ const props = withDefaults(defineProps<Props>(), {
   actions: () => ['view', 'edit', 'delete']
 })
 
-// ✅ Action configuration mapping with proper typing
 const actionConfig: Record<string, { label: string; icon: any; class: string }> = {
-  verifyEligibility: { label: 'Verify Eligibility', icon: Eye, class: 'text-blue-600' },
+  verifyEligibility: { label: 'Verify Eligibility', icon: ShieldCheck, class: 'text-blue-600' },
   view: { label: 'View', icon: Eye, class: 'text-blue-600' },
-  edit: { label: 'Edit', icon: Edit, class: 'text-green-600' },
-  delete: { label: 'Delete', icon: Trash, class: 'text-red-600' },
+  edit: { label: 'Edit', icon: Pencil, class: 'text-green-600' },
+  delete: { label: 'Delete', icon: Trash2, class: 'text-red-600' },
   copy: { label: 'Copy', icon: Copy, class: 'text-gray-600' },
   download: { label: 'Download', icon: Download, class: 'text-purple-600' },
-  add: { label: 'Add', icon: Plus, class: 'text-blue-600' },
-  history: { label: 'History', icon: Eye, class: 'text-yellow-600' }, // Added for Warehouse
+  add: { label: 'Add', icon: PlusCircle, class: 'text-blue-600' },
+  history: { label: 'History', icon: History, class: 'text-yellow-600' },
+  clients: { label: 'Clients', icon: Users, class: 'text-indigo-600' },
+  customers: { label: 'View Customers', icon: UserSearch, class: 'text-indigo-600' },
 }
 
 const emit = defineEmits<{
@@ -32,7 +31,7 @@ const emit = defineEmits<{
 }>()
 
 const handleAction = (action: string, row: Record<string, any>) => {
-  console.log(`${action} clicked for:`, row)
+  // console.log(`${action} clicked for:`, row)
   // toast.info(`${action} action triggered`, {
   //   description: `Action: ${actionConfig[action]?.label || action}`
   // })

@@ -95,11 +95,11 @@ const mainNavItems: NavItem[] = [
         href: '/brands',
         icon: NotebookText,
       },
-      {
-        title: 'Strengths',
-        href: '/strengths',
-        icon: Zap,
-      },
+      // {
+      //   title: 'Strengths',
+      //   href: '/strengths',
+      //   icon: Zap,
+      // },
       {
         title: 'Drug Forms',
         href: '/drugforms',
@@ -114,6 +114,11 @@ const mainNavItems: NavItem[] = [
         title: 'Customers',
         href: '/customers',
         icon: UsersRoundIcon,
+      },
+      {
+        title: 'Accounts',
+        icon: NotebookText,
+        href: '/sales-accounts',
       },
       {
         title: 'Suppliers',

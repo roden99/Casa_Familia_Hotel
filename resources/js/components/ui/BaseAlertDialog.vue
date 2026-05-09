@@ -13,6 +13,10 @@ const props = defineProps({
         type: Boolean,
         default: false
     },
+    disabled: {
+        type: Boolean,
+        default: false
+    },
     transactionType: {
         type: String,
         default: 'create'
@@ -96,11 +100,11 @@ const iconClass = computed(() => {
             <AlertDialogFooter>
 
 
-                <BaseButton :disabled="props.loading" type="button"
+                <BaseButton :disabled="props.disabled" type="button"
                     @click="props.transactionType === 'delete' ? emit('cancel') : emit('update:open', false)"
                     transactionType="cancel" />
 
-                <BaseButton type="button" @click="handleConfirm" :loading="props.loading" :disabled="props.loading"
+                <BaseButton type="button" @click="handleConfirm" :loading="props.loading" :disabled="props.disabled"
                     :transactionType="props.transactionType" />
             </AlertDialogFooter>
         </AlertDialogContent>
