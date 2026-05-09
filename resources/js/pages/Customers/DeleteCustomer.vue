@@ -24,15 +24,12 @@ const handleSubmit = () => {
         preserveScroll: 'errors',
         preserveState: 'errors',
         onSuccess: () => {
-            formRef.value?.closeDialog();
-            emit('customer-deleted');
-            emit('member-form-closed');
             toast.success('Success', { description: 'Customer deactivated successfully!' });
+            emit('member-form-closed');
         },
         onError: (errors) => {
             const firstErrorKey = Object.keys(errors)[0];
             toast.warning('Failed to deactivate customer.', { description: errors[firstErrorKey] });
-            formRef.value?.closeDialog();
             emit('member-form-closed');
         },
     });

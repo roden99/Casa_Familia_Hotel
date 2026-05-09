@@ -131,24 +131,25 @@ class CustomerController extends Controller
      */
     public function update(Request $request, Customer $customer)
     {
-        // $validated = $request->validate([
-        //     'is_drugstore' => 'boolean',
-        //     'company' => 'nullable|string|max:255',
-        //     'first_name' => 'nullable|string|max:255',
-        //     'last_name' => 'nullable|string|max:255',
-        //     'middle_name' => 'nullable|string|max:255',
-        //     'phone' => 'nullable|string|max:50',
-        //     'email' => 'nullable|email|max:255',
-        //     'address' => 'nullable|string|max:500',
-        //     'sales_account_id' => 'nullable|exists:sales_accounts,id',
-        // ]);
+        $validated = $request->validate([
+            'is_drugstore' => 'boolean',
+            'company' => 'nullable|string|max:255',
+            'first_name' => 'nullable|string|max:255',
+            'last_name' => 'nullable|string|max:255',
+            'middle_name' => 'nullable|string|max:255',
+            'phone' => 'nullable|string|max:50',
+            'email' => 'nullable|email|max:255',
+            'address' => 'nullable|string|max:500',
+            'sales_account_id' => 'nullable|exists:sales_accounts,id',
+        ]);
 
-        // $salesAccountId = $validated['sales_account_id'] ? (int) $validated['sales_account_id'] : null;
-        // unset($validated['sales_account_id']);
+        $salesAccountId = isset($validated['sales_account_id']) ? (int) $validated['sales_account_id'] : null;
+        unset($validated['sales_account_id']);
 
-        // $customer->update($validated);
-        // $customer->salesAccounts()->sync($salesAccountId ? [$salesAccountId] : []);
-        // return redirect()->route('customers.index')->with('success', 'Customer updated successfully!');
+        $customer->update($validated);
+        $customer->salesAccounts()->sync($salesAccountId ? [$salesAccountId] : []);
+
+        return redirect()->route('customers.index')->with('success', 'Customer updated successfully!');
     }
 
     /**

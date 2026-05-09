@@ -1,8 +1,8 @@
 <script setup>
 import CustomerForm from '@/pages/Customers/CustomerForm.vue'
+import { router } from '@inertiajs/vue3'
 import { ref } from 'vue'
 import { toast } from 'vue-sonner'
-import axios from 'axios'
 
 const props = defineProps({
     customer: {
@@ -19,25 +19,20 @@ const handleClose = () => {
     emit('member-form-closed');
 };
 
-const handleSubmit = async (formData) => {
-    try {
-        const res = await axios.put(`/customers/${props.customer.id}`, formData);
-        toast.success('Success', { description: 'Customer updated successfully!' });
-        formRef.value?.closeDialog();
-        emit('customer-updated', res.data.customer);
-        emit('member-form-closed');
-    } catch (error) {
-        const errors = error.response?.data?.errors;
-        if (errors) {
+const handleSubmit = (formData) => {
+    router.put(`/customers/${props.customer.id}`, formData, {
+        preserveScroll: 'errors',
+        preserveState: 'errors',
+        onSuccess: () => {
+            toast.success('Success', { description: 'Customer updated successfully!' });
+            emit('member-form-closed');
+        },
+        onError: (errors) => {
             const firstErrorKey = Object.keys(errors)[0];
-            toast.warning('Failed to update customer.', { description: errors[firstErrorKey][0] });
-        } else {
-            toast.error('Failed to update customer.');
-        }
-        formRef.value?.closeDialog();
-    } finally {
-
-    }
+            toast.warning('Failed to update customer.', { description: errors[firstErrorKey] });
+            emit('member-form-closed');
+        },
+    });
 };
 </script>
 
