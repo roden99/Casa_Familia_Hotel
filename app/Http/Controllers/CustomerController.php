@@ -54,7 +54,7 @@ class CustomerController extends Controller
         if (!empty($search) && strlen($search) >= 3) {
             $query->where(function ($q) use ($search) {
                 $q->where('company', 'like', "{$search}%")
-                  ->orWhere('last_name', 'like', "{$search}%");
+                    ->orWhere('last_name', 'like', "{$search}%");
             });
         }
 
