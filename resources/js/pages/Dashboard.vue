@@ -2,8 +2,8 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/vue3';
-import PlaceholderPattern from '../components/PlaceholderPattern.vue';
-import BaseEmpty from '@/components/BaseEmpty.vue';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Users, Hospital, User } from 'lucide-vue-next';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -11,34 +11,59 @@ const breadcrumbs: BreadcrumbItem[] = [
         href: '/dashboard',
     },
 ];
+
+defineProps<{
+    stats: {
+        total_customers: number;
+        total_drugstores: number;
+        total_doctors: number;
+    };
+}>();
 </script>
 
 <template>
-
     <Head title="Dashboard" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
-            <BaseEmpty />
 
-            <!-- <div class="grid auto-rows-min gap-4 md:grid-cols-3">
-                <div
-                    class="relative aspect-video overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
-                    <PlaceholderPattern />
-                </div>
-                <div
-                    class="relative aspect-video overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
-                    <PlaceholderPattern />
-                </div>
-                <div
-                    class="relative aspect-video overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
-                    <PlaceholderPattern />
-                </div>
+            <div class="grid gap-4 md:grid-cols-3">
+
+                <Card>
+                    <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle class="text-sm font-medium">Total Customers</CardTitle>
+                        <Users class="h-5 w-5 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div class="text-3xl font-bold">{{ stats.total_customers }}</div>
+                        <p class="text-xs text-muted-foreground mt-1">Active customers</p>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle class="text-sm font-medium">Drugstores</CardTitle>
+                        <Hospital class="h-5 w-5 text-green-600" />
+                    </CardHeader>
+                    <CardContent>
+                        <div class="text-3xl font-bold">{{ stats.total_drugstores }}</div>
+                        <p class="text-xs text-muted-foreground mt-1">Active drugstore accounts</p>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle class="text-sm font-medium">Doctors</CardTitle>
+                        <User class="h-5 w-5 text-blue-600" />
+                    </CardHeader>
+                    <CardContent>
+                        <div class="text-3xl font-bold">{{ stats.total_doctors }}</div>
+                        <p class="text-xs text-muted-foreground mt-1">Active doctor accounts</p>
+                    </CardContent>
+                </Card>
+
             </div>
-            <div
-                class="relative min-h-[100vh] flex-1 rounded-xl border border-sidebar-border/70 dark:border-sidebar-border md:min-h-min">
-                <PlaceholderPattern />
-            </div> -->
+
         </div>
     </AppLayout>
 </template>

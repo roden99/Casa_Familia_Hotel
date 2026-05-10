@@ -1,6 +1,8 @@
 <?php
 
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\CustomerAccountController;
 use App\Http\Controllers\SalesAccountController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -22,9 +24,7 @@ Route::get('/', function () {
     return redirect()->route('login');
 })->name('home');
 
-Route::get('dashboard', function () {
-    return Inertia::render('Dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+Route::get('dashboard', [DashboardController::class, 'index'])->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::get('under-construction', function () {
     return Inertia::render('UnderConstruction');
@@ -33,6 +33,8 @@ Route::get('under-construction', function () {
 Route::resource('suppliers', SupplierController::class);
 
 Route::resource('customers', CustomerController::class);
+Route::get('customer-accounts', [CustomerAccountController::class, 'index'])->name('customer-accounts.index');
+Route::post('customer-accounts', [CustomerAccountController::class, 'store'])->name('customer-accounts.store');
 Route::resource('sales-accounts', SalesAccountController::class);
 
 Route::resource('brands', BrandController::class);

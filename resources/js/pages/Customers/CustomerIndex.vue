@@ -173,25 +173,17 @@ const formattedCustomers = computed(() => {
                 </Button>
 
                 <div class="flex items-center gap-1 ml-2 border rounded-md p-1">
-                    <Button
-                        :variant="currentType === 'all' ? 'default' : 'ghost'"
-                        size="sm"
+                    <Button :variant="currentType === 'all' ? 'default' : 'ghost'" size="sm"
                         @click="handleTypeFilter('all')">
                         All
                     </Button>
-                    <Button
-                        :variant="currentType === 'drugstore' ? 'default' : 'ghost'"
-                        size="sm"
-                        class="gap-1"
+                    <Button :variant="currentType === 'drugstore' ? 'default' : 'ghost'" size="sm" class="gap-1"
                         @click="handleTypeFilter('drugstore')">
                         <Hospital class="h-4 w-4" /> Drugstore
                     </Button>
-                    <Button
-                        :variant="currentType === 'person' ? 'default' : 'ghost'"
-                        size="sm"
-                        class="gap-1"
+                    <Button :variant="currentType === 'person' ? 'default' : 'ghost'" size="sm" class="gap-1"
                         @click="handleTypeFilter('person')">
-                        <User class="h-4 w-4" /> Person
+                        <User class="h-4 w-4" /> Doctor
                     </Button>
                 </div>
 

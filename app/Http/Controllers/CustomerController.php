@@ -18,10 +18,21 @@ class CustomerController extends Controller
             $query = Customer::where('status', 'active');
 
             if (!empty($search)) {
-                $query->where('company', 'like', "{$search}%");
+                $query->where(function ($q) use ($search) {
+                    $q->where('company', 'like', "{$search}%")
+                        ->orWhere('last_name', 'like', "{$search}%");
+                });
             }
+
+            $customers = $query->orderBy('company')->limit(10)->get(['id', 'company', 'last_name', 'first_name', 'is_drugstore']);
+
             return response()->json([
-                'customers' => $query->orderBy('company')->limit(5)->get(['id', 'company'])
+                'customers' => $customers->map(fn($c) => [
+                    'id'           => $c->id,
+                    'display_name' => $c->is_drugstore
+                        ? strtoupper($c->company)
+                        : trim(strtoupper($c->last_name) . ', ' . strtoupper($c->first_name)),
+                ])
             ]);
         }
 
@@ -40,8 +51,11 @@ class CustomerController extends Controller
             $query->where('is_drugstore', false);
         }
 
-        if (!empty($search) && strlen($search) >= 3 && !empty($column)) {
-            $query->where($column, 'like', "{$search}%");
+        if (!empty($search) && strlen($search) >= 3) {
+            $query->where(function ($q) use ($search) {
+                $q->where('company', 'like', "{$search}%")
+                  ->orWhere('last_name', 'like', "{$search}%");
+            });
         }
 
         $customers = $query->orderBy('created_at', 'desc')->paginate(15)->through(function ($customer) {

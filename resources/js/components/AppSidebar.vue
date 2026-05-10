@@ -5,7 +5,7 @@ import NavUser from '@/components/NavUser.vue';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/vue3';
-import { BookOpen, Boxes, Warehouse, Folder, Settings2Icon, UserRoundCogIcon, Store, UsersRoundIcon, NotebookText, ShoppingCartIcon, BaggageClaim, LayoutGrid, LucideNotebookText, ScanBarcode, Package, UserCheck, UserRoundSearch, UsersRound, ShoppingCart, UserRoundCog, Settings2, Truck, ClipboardList, Ruler, Zap, Pill } from 'lucide-vue-next';
+import { BookOpen, Boxes, Warehouse, Folder, Settings2Icon, UserRoundCogIcon, Store, UsersRoundIcon, NotebookText, ShoppingCartIcon, BaggageClaim, LayoutGrid, LucideNotebookText, ScanBarcode, Package, UserCheck, UserRoundSearch, UsersRound, ShoppingCart, UserRoundCog, Settings2, Truck, ClipboardList, Ruler, Zap, Pill, Notebook } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 
 const mainNavItems: NavItem[] = [
@@ -57,6 +57,13 @@ const mainNavItems: NavItem[] = [
       },
     ],
   },
+
+  {
+    title: 'Customer Accounts',
+    href: '/customer-accounts',
+    icon: UserCheck,
+  },
+
 
   {
     title: 'Sales Order',
@@ -116,14 +123,14 @@ const mainNavItems: NavItem[] = [
         icon: UsersRoundIcon,
       },
       {
-        title: 'Accounts',
-        icon: NotebookText,
-        href: '/sales-accounts',
-      },
-      {
         title: 'Suppliers',
         href: '/suppliers',
         icon: Store,
+      },
+      {
+        title: 'Sales Accounts',
+        href: '/sales-accounts',
+        icon: Notebook,
       },
       {
         title: 'User Management',
@@ -132,7 +139,6 @@ const mainNavItems: NavItem[] = [
       },
     ],
   },
-
 
 ];
 </script>

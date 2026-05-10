@@ -359,7 +359,7 @@ const table = useVueTable({
     onExpandedChange: (updaterOrValue) => valueUpdater(updaterOrValue, expanded),
     initialState: {
         pagination: {
-            pageSize: hasServerPagination.value ? tableData.value.length : 100,
+            pageSize: 100,
         },
     },
     state: {
@@ -404,7 +404,7 @@ watch(selectValue, (val, oldVal) => {
 <template>
     <div class="flex h-full flex-1 flex-col gap-1 rounded-xl p-1">
         <div class="ml-1 w-full">
-            <!-- <span class="text-base font-semibold">{{ props.IndexType }}</span> -->
+            <span class="text-base font-semibold">{{ props.IndexType }}</span>
             <div class="flex items-center gap-2 py-2">
                 <slot>
                     <Button variant="default" class="mr-2">Create</Button>
