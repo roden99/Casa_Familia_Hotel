@@ -113,6 +113,11 @@ const mainNavItems: NavItem[] = [
         icon: Pill,
       },
       {
+        title: 'Product Types',
+        href: '/product-types',
+        icon: Pill,
+      },
+      {
         title: 'Warehouse',
         href: '/warehouses',
         icon: Warehouse,
