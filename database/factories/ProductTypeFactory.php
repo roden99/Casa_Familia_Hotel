@@ -17,13 +17,11 @@ class ProductTypeFactory extends Factory
     public function definition(): array
     {
         $types = ['Brand', 'Generic', 'OTC', 'Prescription', 'Supplement', 'Herbal', 'Veterinary', 'Medical Device', 'Cosmetic', 'Food'];
-        $codes = ['BRD', 'GEN', 'OTC', 'RX', 'SUPP', 'HERB', 'VET', 'MDEV', 'COS', 'FOOD'];
 
         $index = fake()->unique()->numberBetween(0, count($types) - 1);
 
         return [
             'type_name' => $types[$index],
-            'type_code' => $codes[$index],
             'status' => fake()->boolean(90),
             'created_by' => null,
             'updated_by' => null,

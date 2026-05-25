@@ -69,8 +69,7 @@ const handleAction = ({ type, data }) => {
             <BaseIndex IndexType="Product Types" :data="props.productTypes"
                 :columnDefs="columns.filter(col => col.isVisible === true)" :selectOptions="selectOptions"
                 v-model:selectModelValue="selectModelValue" @action="handleAction" :hover-fields="[
-                    { field: 'type_name', label: 'Type Name' },
-                    { field: 'type_code', label: 'Type Code' }
+                    { field: 'type_name', label: 'Type Name' }
                 ]">
                 <Button variant="default" class="mr-2" @click="showCreateProductTypeModal = true">
                     New Product Type

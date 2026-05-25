@@ -72,6 +72,9 @@ const value = ref(props.modelValue)
 const searchQuery = ref('')
 let debounceTimeout = null
 
+// Cache the selected label so it persists even when options reload
+const selectedLabel = ref(props.options.find(f => f.value === props.modelValue)?.label || '')
+
 const selected = computed(() => {
     return props.options.find(f => f.value === value.value)
 })
@@ -89,7 +92,20 @@ const listHeight = computed(() => {
 })
 
 function selectOption(val) {
+    // Cancel any pending debounced search so stale results don't overwrite options after selection
+    if (debounceTimeout) {
+        clearTimeout(debounceTimeout)
+        debounceTimeout = null
+    }
+    searchQuery.value = ''
+
     const newValue = val === value.value ? '' : val
+    if (newValue) {
+        const opt = props.options.find(f => f.value === newValue)
+        selectedLabel.value = opt?.label || ''
+    } else {
+        selectedLabel.value = ''
+    }
     value.value = newValue
     emit('update:modelValue', newValue)
     open.value = false
@@ -97,6 +113,20 @@ function selectOption(val) {
 
 watch(() => props.modelValue, (newVal) => {
     value.value = newVal
+    if (newVal) {
+        const opt = props.options.find(f => f.value === newVal)
+        if (opt) selectedLabel.value = opt.label
+    } else {
+        selectedLabel.value = ''
+    }
+})
+
+// When options reload (e.g. from debounced search), update the cached label if found
+watch(() => props.options, (newOptions) => {
+    if (value.value) {
+        const opt = newOptions.find(f => f.value === value.value)
+        if (opt) selectedLabel.value = opt.label
+    }
 })
 
 watch(searchQuery, (newQuery) => {
@@ -116,7 +146,7 @@ watch(searchQuery, (newQuery) => {
             <InputGroup :class="cn(width, 'cursor-pointer', props.disabled && 'opacity-50 pointer-events-none')"
                 role="combobox" :aria-expanded="open && !props.disablepop" :aria-required="props.required"
                 @click="props.disablepop && $event.preventDefault()">
-                <InputGroupInput readonly :value="selected?.label || ''" :placeholder="placeholder"
+                <InputGroupInput readonly :value="selectedLabel || selected?.label || ''" :placeholder="placeholder"
                     class="cursor-pointer" />
                 <InputGroupAddon align="inline-end">
                     <ChevronsUpDown class="opacity-50" />

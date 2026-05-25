@@ -63,7 +63,6 @@ const buttonVariants = computed(() => {
 
 const form = useForm({
     unit_name: props.productUnit?.unit_name || '',
-    unit_code: props.productUnit?.unit_code || '',
 });
 
 const emit = defineEmits(['handleSubmit', 'form-closed']);
@@ -95,10 +94,6 @@ onMounted(() => {
                             <Field class="col-span-12">
                                 <FieldLabel class="font-normal">Unit Name:</FieldLabel>
                                 <Input v-model="form.unit_name" required />
-                            </Field>
-                            <Field class="col-span-12">
-                                <FieldLabel class="font-normal">Unit Code (Optional):</FieldLabel>
-                                <Input v-model="form.unit_code" />
                             </Field>
                         </div>
                     </FieldGroup>

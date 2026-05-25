@@ -8,9 +8,10 @@ import BaseButton from '@/components/ui/BaseButton.vue';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useForm } from '@inertiajs/vue3';
-import { onMounted, ref, computed, version } from 'vue';
+import { onMounted, ref, computed, watch } from 'vue';
 import { toast } from 'vue-sonner';
 import axios from 'axios';
+import Skeleton from '@/components/ui/skeleton/Skeleton.vue';
 
 
 import { CalendarDate, fromDate, getLocalTimeZone } from '@internationalized/date';
@@ -131,15 +132,19 @@ const barangayOptions = ref([]);
 
 
 const isDialogOpen = ref(false);
+const isLoading = ref(true);
+
+watch(() => props.isProcessing, (newVal, oldVal) => {
+    if (oldVal === true && newVal === false) {
+        isDialogOpen.value = false;
+    }
+});
 
 onMounted(() => {
-
-
-
     if (props.transactionType === 'delete') {
         isDialogOpen.value = true;
     }
-
+    isLoading.value = false;
 });
 
 // Fetch provinces on mount
@@ -203,14 +208,17 @@ onMounted(() => {
 
                         <div class="grid w-full grid-cols-12 gap-4">
                             <Field class="col-span-15">
-                                <FieldLabel class="font-normal">Supplier Name:</FieldLabel>
-                                <Input v-model="form.company" required />
+                                <Skeleton v-if="isLoading" class="h-4 w-28 mb-1" />
+                                <FieldLabel v-else class="font-normal">Supplier Name:</FieldLabel>
+                                <Skeleton v-if="isLoading" class="h-9 w-full" />
+                                <Input v-else v-model="form.company" required />
                             </Field>
 
-
                             <Field class="col-span-15">
-                                <FieldLabel class="font-normal">Contact Person:</FieldLabel>
-                                <div class="grid grid-cols-3 gap-4">
+                                <Skeleton v-if="isLoading" class="h-4 w-28 mb-1" />
+                                <FieldLabel v-else class="font-normal">Contact Person:</FieldLabel>
+                                <Skeleton v-if="isLoading" class="h-9 w-full" />
+                                <div v-else class="grid grid-cols-3 gap-4">
                                     <Input v-model="form.lastname" placeholder="Last Name" required />
                                     <Input v-model="form.firstname" placeholder="First Name" required />
                                     <Input v-model="form.middlename" placeholder="Middle Name" />
@@ -218,29 +226,31 @@ onMounted(() => {
                             </Field>
 
                             <Field class="col-span-5">
-                                <FieldLabel class=" font-normal">Phone Number:</FieldLabel>
-                                <Input v-model="form.contact_phone" required />
-                            </Field>
-
-
-                            <Field class="col-span-5">
-                                <FieldLabel class="font-normal">Email Address:</FieldLabel>
-                                <Input v-model="form.contact_email" type="email" required />
+                                <Skeleton v-if="isLoading" class="h-4 w-24 mb-1" />
+                                <FieldLabel v-else class="font-normal">Phone Number:</FieldLabel>
+                                <Skeleton v-if="isLoading" class="h-9 w-full" />
+                                <Input v-else v-model="form.contact_phone" required />
                             </Field>
 
                             <Field class="col-span-5">
-
-                                <FieldLabel class="font-normal">TIN Number:</FieldLabel>
-                                <Input v-model="form.tin" />
-
+                                <Skeleton v-if="isLoading" class="h-4 w-28 mb-1" />
+                                <FieldLabel v-else class="font-normal">Email Address:</FieldLabel>
+                                <Skeleton v-if="isLoading" class="h-9 w-full" />
+                                <Input v-else v-model="form.contact_email" type="email" required />
                             </Field>
 
-
-
+                            <Field class="col-span-5">
+                                <Skeleton v-if="isLoading" class="h-4 w-20 mb-1" />
+                                <FieldLabel v-else class="font-normal">TIN Number:</FieldLabel>
+                                <Skeleton v-if="isLoading" class="h-9 w-full" />
+                                <Input v-else v-model="form.tin" />
+                            </Field>
 
                             <Field class="col-span-15">
-                                <FieldLabel class="font-normal">Address:</FieldLabel>
-                                <div class="grid grid-cols-3 gap-4">
+                                <Skeleton v-if="isLoading" class="h-4 w-16 mb-1" />
+                                <FieldLabel v-else class="font-normal">Address:</FieldLabel>
+                                <Skeleton v-if="isLoading" class="h-9 w-full" />
+                                <div v-else class="grid grid-cols-3 gap-4">
                                     <BaseCombobox v-model="selectedProvince" placeholder="Province"
                                         empty-message="No province found" width="w-full" />
                                     <BaseCombobox v-model="selectedCity" placeholder="Municipality"
@@ -251,8 +261,10 @@ onMounted(() => {
                             </Field>
 
                             <Field class="col-span-15 mb-6">
-                                <FieldLabel class="font-normal">Street Address / Unit / Building:</FieldLabel>
-                                <Input v-model="form.address"
+                                <Skeleton v-if="isLoading" class="h-4 w-40 mb-1" />
+                                <FieldLabel v-else class="font-normal">Street Address / Unit / Building:</FieldLabel>
+                                <Skeleton v-if="isLoading" class="h-9 w-full" />
+                                <Input v-else v-model="form.address"
                                     placeholder="Enter street address, unit number, building name, etc." />
                             </Field>
                         </div>
@@ -265,11 +277,11 @@ onMounted(() => {
 
         </form>
         <template #footer>
-
-            <BaseButton type="button" :disabled="isProcessing" @click="emit('form-closed')" transactionType="cancel">
+            <Skeleton v-if="isLoading" class="h-9 w-20" />
+            <BaseButton v-else type="button" :disabled="isProcessing" @click="emit('member-form-closed')" transactionType="cancel">
             </BaseButton>
-
-            <BaseButton type="button" @click="openConfirmDialog" :transactionType="props.transactionType"
+            <Skeleton v-if="isLoading" class="h-9 w-20" />
+            <BaseButton v-else type="button" @click="openConfirmDialog" :transactionType="props.transactionType"
                 :loading="isProcessing" :disabled="isProcessing">
             </BaseButton>
         </template>

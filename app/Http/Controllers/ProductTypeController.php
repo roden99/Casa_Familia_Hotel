@@ -14,15 +14,21 @@ class ProductTypeController extends Controller
     {
         if (request()->wantsJson()) {
             $search = $request->input('search');
+            $includeId = $request->input('include_id');
 
             $query = ProductType::where('status', 1);
 
             if (!empty($search)) {
                 $query->where('type_name', 'like', "{$search}%");
             }
-            return response()->json([
-                'productTypes' => $query->orderBy('type_name')->limit(5)->get(['id', 'type_name', 'type_code'])
-            ]);
+            $results = $query->orderBy('id')->limit(5)->get(['id', 'type_name']);
+
+            if ($includeId && !$results->contains('id', (int)$includeId)) {
+                $extra = ProductType::where('id', (int)$includeId)->first(['id', 'type_name']);
+                if ($extra) $results->prepend($extra);
+            }
+
+            return response()->json(['productTypes' => $results]);
         }
 
         $search = $request->input('search');
@@ -44,7 +50,6 @@ class ProductTypeController extends Controller
         $columns = [
             ['accessorKey' => 'id', 'header' => 'ID', 'isVisible' => false, 'isParameter' => false],
             ['accessorKey' => 'type_name', 'header' => 'TYPE NAME', 'isVisible' => true, 'isParameter' => true],
-            ['accessorKey' => 'type_code', 'header' => 'TYPE CODE', 'isVisible' => true, 'isParameter' => true],
             ['accessorKey' => 'status_text', 'header' => 'STATUS', 'isVisible' => false, 'isParameter' => false],
             ['accessorKey' => 'created_at', 'header' => 'CREATED AT', 'isVisible' => false, 'isParameter' => false],
         ];
@@ -64,7 +69,6 @@ class ProductTypeController extends Controller
     {
         $validated = $request->validate([
             'type_name' => 'required|string|max:255',
-            'type_code' => 'nullable|string|max:50',
         ]);
 
         $validated['created_by'] = $request->user()->id;
@@ -92,7 +96,6 @@ class ProductTypeController extends Controller
     {
         $validated = $request->validate([
             'type_name' => 'required|string|max:255',
-            'type_code' => 'nullable|string|max:50',
         ]);
 
         $validated['updated_by'] = $request->user()->id;

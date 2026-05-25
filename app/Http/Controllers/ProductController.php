@@ -31,7 +31,6 @@ class ProductController extends Controller
                         'productname' => $product->productname,
                         'brand_name' => $product->brand?->brandname ?? 'N/A',
                         'unit_name' => $product->unit?->unit_name ?? 'N/A',
-                        'unit_code' => $product->unit?->unit_code ?? '',
                         'isgeneric' => $product->isgeneric,
                     ];
                 })
@@ -41,14 +40,25 @@ class ProductController extends Controller
 
         $search = $request->input('search');
         $column = $request->input('column');
+        $type = $request->input('type');
 
 
-        $query = product::with(['brand', 'unit'])->where('status', true);
+        $query = product::with(['brand', 'unit', 'drugform', 'productType'])->where('status', true);
+
+        if ($type === 'generic') {
+            $query->where('isgeneric', true);
+        } elseif ($type === 'branded') {
+            $query->where('isgeneric', false);
+        }
 
         if (!empty($search) && strlen($search) >= 3 && !empty($column)) {
             if ($column === 'brand_name') {
                 $query->whereHas('brand', function ($q) use ($search) {
                     $q->where('brandname', 'like', "{$search}%");
+                });
+            } elseif ($column === 'type_name') {
+                $query->whereHas('productType', function ($q) use ($search) {
+                    $q->where('type_name', 'like', "{$search}%");
                 });
             } else {
                 $query->where($column, 'like', "{$search}%");
@@ -60,15 +70,32 @@ class ProductController extends Controller
             $product->generic_text = $product->isgeneric ? 'Generic' : 'Branded';
             $product->brand_name = $product->brand?->brandname ?? 'N/A';
             $product->unit_name = $product->unit?->unit_name ?? 'N/A';
+            $product->type_name = $product->productType?->type_name ?? 'N/A';
+
+            // Build display name: productname drugform unit (brand)
+            $parts = [$product->productname];
+            if ($product->drugform) {
+                $parts[] = $product->drugform->drugformname;
+            }
+            if ($product->unit) {
+                $parts[] = $product->unit->unit_name;
+            }
+            $displayName = implode(' ', $parts);
+            if ($product->brand) {
+                $displayName .= ' (' . $product->brand->brandname . ')';
+            }
+            $product->display_name = $displayName;
+
             return $product;
         });
 
         $columns = [
             ['accessorKey' => 'id', 'header' => 'ID', 'isVisible' => false, 'isParameter' => false],
-            ['accessorKey' => 'productname', 'header' => 'PRODUCT NAME', 'isVisible' => true, 'isParameter' => true],
-            ['accessorKey' => 'brand_name', 'header' => 'BRAND', 'isVisible' => true, 'isParameter' => true],
-            ['accessorKey' => 'unit_name', 'header' => 'UNIT', 'isVisible' => true, 'isParameter' => false],
             ['accessorKey' => 'generic_text', 'header' => 'TYPE', 'isVisible' => true, 'isParameter' => false],
+            ['accessorKey' => 'type_name', 'header' => 'CATEGORY', 'isVisible' => true, 'isParameter' => true],
+            ['accessorKey' => 'display_name', 'header' => 'PRODUCT NAME', 'isVisible' => true, 'isParameter' => false],
+            ['accessorKey' => 'productname', 'header' => 'PRODUCT NAME', 'isVisible' => false, 'isParameter' => true],
+            ['accessorKey' => 'brand_name', 'header' => 'BRAND', 'isVisible' => false, 'isParameter' => true],
             ['accessorKey' => 'status_text', 'header' => 'STATUS', 'isVisible' => true, 'isParameter' => false],
             ['accessorKey' => 'created_at', 'header' => 'CREATED AT', 'isVisible' => false, 'isParameter' => false],
         ];
@@ -77,7 +104,7 @@ class ProductController extends Controller
             'products' => $products,
             'columns' => $columns,
             'brands' => brand::where('status', true)->orderBy('brandname')->get(['id', 'brandname']),
-            'productUnits' => ProductUnit::where('status', true)->orderBy('unit_name')->get(['id', 'unit_name', 'unit_code']),
+            'productUnits' => ProductUnit::where('status', true)->orderBy('unit_name')->get(['id', 'unit_name']),
             'strengths' => strength::where('status', true)->orderBy('strengthname')->get(['id', 'strengthname']),
             'drugforms' => drugform::where('status', true)->orderBy('drugformname')->get(['id', 'drugformname'])
         ]);

@@ -14,15 +14,21 @@ class DrugFormController extends Controller
     {
         if (request()->wantsJson()) {
             $search = $request->input('search');
+            $includeId = $request->input('include_id');
 
             $query = drugform::where('status', 1);
 
             if (!empty($search)) {
                 $query->where('drugformname', 'like', "{$search}%");
             }
-            return response()->json([
-                'drugforms' => $query->orderBy('drugformname')->limit(5)->get(['id', 'drugformname'])
-            ]);
+            $results = $query->orderBy('drugformname')->limit(5)->get(['id', 'drugformname']);
+
+            if ($includeId && !$results->contains('id', (int)$includeId)) {
+                $extra = drugform::where('id', (int)$includeId)->first(['id', 'drugformname']);
+                if ($extra) $results->prepend($extra);
+            }
+
+            return response()->json(['drugforms' => $results]);
         }
 
         $search = $request->input('search');

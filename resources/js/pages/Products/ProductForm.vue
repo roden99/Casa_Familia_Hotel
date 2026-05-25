@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useForm } from '@inertiajs/vue3';
-import { onMounted, ref, computed, version, watch } from 'vue';
+import { onMounted, ref, computed, version, watch, nextTick } from 'vue';
 import { toast } from 'vue-sonner';
 
 import axios from 'axios';
@@ -115,13 +115,17 @@ onMounted(async () => {
     }
     isLoading.value = true;
     await Promise.all([
-        loadBrandTypes(),
-        loadUnitTypes(),
-        loadProductTypes(),
-        loadStrengths(),
-        loadDrugForms(),
+        loadBrandTypes('', props.product?.brand_id),
+        loadUnitTypes('', props.product?.product_unit_id),
+        loadProductTypes('', props.product?.product_type_id),
+        loadStrengths('', props.product?.strength_id),
+        loadDrugForms('', props.product?.drugform_id),
     ]);
     isLoading.value = false;
+    await nextTick();
+    if (props.transactionType !== 'update' && !selectedProductType.value && productTypesOptions.value.length > 0) {
+        selectedProductType.value = productTypesOptions.value[0].value;
+    }
 });
 
 
@@ -151,21 +155,11 @@ const selectedProductType = ref(props.product?.product_type_id ? String(props.pr
 const selectedStrength = ref(props.product?.strength_id ? String(props.product.strength_id) : null);
 const selectedDrugForm = ref(props.product?.drugform_id ? String(props.product.drugform_id) : null);
 
-watch(selectedBrand, (val) => {
-    form.brand_id = val ? Number(val) : null;
-});
-watch(selectedUnit, (val) => {
-    form.product_unit_id = val ? Number(val) : null;
-});
-watch(selectedProductType, (val) => {
-    form.product_type_id = val ? Number(val) : null;
-});
-watch(selectedStrength, (val) => {
-    form.strength_id = val ? Number(val) : null;
-});
-watch(selectedDrugForm, (val) => {
-    form.drugform_id = val ? Number(val) : null;
-});
+watch(selectedBrand, val => { form.brand_id = val ? Number(val) : null; });
+watch(selectedUnit, val => { form.product_unit_id = val ? Number(val) : null; });
+watch(selectedProductType, val => { form.product_type_id = val ? Number(val) : null; });
+watch(selectedStrength, val => { form.strength_id = val ? Number(val) : null; });
+watch(selectedDrugForm, val => { form.drugform_id = val ? Number(val) : null; });
 
 
 
@@ -175,11 +169,11 @@ const brandTypes = ref([]);
 const brandTypesOptions = ref([]);
 
 
-async function loadBrandTypes(searchQuery = '') {
+async function loadBrandTypes(searchQuery = '', includeId = null) {
     try {
         const res = await axios.get('/brands', {
             headers: { Accept: 'application/json' },
-            params: { search: searchQuery },
+            params: { search: searchQuery, include_id: includeId },
         });
 
         brandTypes.value = res.data.brands;
@@ -198,11 +192,11 @@ const unitTypes = ref([]);
 const unitTypesOptions = ref([]);
 
 
-async function loadUnitTypes(searchQuery = '') {
+async function loadUnitTypes(searchQuery = '', includeId = null) {
     try {
         const res = await axios.get('/product-units', {
             headers: { Accept: 'application/json' },
-            params: { search: searchQuery },
+            params: { search: searchQuery, include_id: includeId },
         });
 
         unitTypes.value = res.data.productUnits;
@@ -220,11 +214,11 @@ async function loadUnitTypes(searchQuery = '') {
 
 const strengthTypes = ref([]);
 const strengthTypesOptions = ref([]);
-async function loadStrengths(searchQuery = '') {
+async function loadStrengths(searchQuery = '', includeId = null) {
     try {
         const res = await axios.get('/strengths', {
             headers: { Accept: 'application/json' },
-            params: { search: searchQuery },
+            params: { search: searchQuery, include_id: includeId },
         });
 
         strengthTypes.value = res.data.strengths;
@@ -243,11 +237,11 @@ async function loadStrengths(searchQuery = '') {
 
 const productTypes = ref([]);
 const productTypesOptions = ref([]);
-async function loadProductTypes(searchQuery = '') {
+async function loadProductTypes(searchQuery = '', includeId = null) {
     try {
         const res = await axios.get('/product-types', {
             headers: { Accept: 'application/json' },
-            params: { search: searchQuery },
+            params: { search: searchQuery, include_id: includeId },
         });
 
         productTypes.value = res.data.productTypes;
@@ -264,11 +258,11 @@ async function loadProductTypes(searchQuery = '') {
 
 const drugForms = ref([]);
 const drugFormsOptions = ref([]);
-async function loadDrugForms(searchQuery = '') {
+async function loadDrugForms(searchQuery = '', includeId = null) {
     try {
         const res = await axios.get('/drugforms', {
             headers: { Accept: 'application/json' },
-            params: { search: searchQuery },
+            params: { search: searchQuery, include_id: includeId },
         });
 
         drugForms.value = res.data.drugforms;
@@ -298,7 +292,8 @@ async function loadDrugForms(searchQuery = '') {
                             <Field class="col-span-12">
                                 <div class="flex items-center space-x-2">
                                     <Skeleton v-if="isLoading" class="h-5 w-9 rounded-full" />
-                                    <Switch v-else @update:modelValue="val => form.isgeneric = val" />
+                                    <Switch v-else :model-value="form.isgeneric"
+                                        @update:modelValue="val => form.isgeneric = val" />
                                     <Skeleton v-if="isLoading" class="h-4 w-14" />
                                     <FieldLabel v-else for="isgeneric" class="font-normal cursor-pointer">
                                         Generic
@@ -308,29 +303,39 @@ async function loadDrugForms(searchQuery = '') {
 
 
 
-                            <Field class="col-span-6">
-                                <Skeleton v-if="isLoading" class="h-4 w-10 mb-1" />
-                                <FieldLabel v-else class="font-normal">Brand:</FieldLabel>
-                                <BaseCombobox v-model="selectedBrand" :options="brandTypesOptions"
-                                    empty-message="Empty Search" width="w-full" @search="loadBrandTypes"
-                                    :skeleton="isLoading">
-                                    <template #create="{ close }">
-                                        <CreateBrand
-                                            @brand-created="(brand) => { brandTypesOptions.push({ value: String(brand.id), label: brand.brandname }); selectedBrand = String(brand.id); }"
-                                            @form-closed="close" />
-                                    </template>
-                                </BaseCombobox>
+
+
+                            <Field class="col-span-12">
+                                <Skeleton v-if="isLoading" class="h-4 w-24 mb-1" />
+                                <FieldLabel v-else class="font-normal">Generic Name / Product Name:</FieldLabel>
+                                <Skeleton v-if="isLoading" class="h-9 w-full" />
+                                <Input v-else v-model="form.productname" placeholder="Enter product name" />
+                                <InputError :message="form.errors.productname" />
                             </Field>
 
                             <Field class="col-span-6">
                                 <Skeleton v-if="isLoading" class="h-4 w-12 mb-1" />
                                 <FieldLabel v-else class="font-normal">Type:</FieldLabel>
                                 <BaseCombobox v-model="selectedProductType" :options="productTypesOptions"
-                                    empty-message="Empty Search" width="w-full" @search="loadProductTypes"
-                                    :skeleton="isLoading">
+                                    empty-message="Empty Search" width="w-full"
+                                    @search="(q) => loadProductTypes(q, selectedProductType)" :skeleton="isLoading">
                                     <template #create="{ close }">
                                         <CreateProductType
                                             @type-created="(type) => { productTypesOptions.push({ value: String(type.id), label: type.type_name }); selectedProductType = String(type.id); }"
+                                            @form-closed="close" />
+                                    </template>
+                                </BaseCombobox>
+                            </Field>
+
+                            <Field class="col-span-6">
+                                <Skeleton v-if="isLoading" class="h-4 w-10 mb-1" />
+                                <FieldLabel v-else class="font-normal">Brand:</FieldLabel>
+                                <BaseCombobox v-model="selectedBrand" :options="brandTypesOptions"
+                                    empty-message="Empty Search" width="w-full"
+                                    @search="(q) => loadBrandTypes(q, selectedBrand)" :skeleton="isLoading">
+                                    <template #create="{ close }">
+                                        <CreateBrand
+                                            @brand-created="(brand) => { brandTypesOptions.push({ value: String(brand.id), label: brand.brandname }); selectedBrand = String(brand.id); }"
                                             @form-closed="close" />
                                     </template>
                                 </BaseCombobox>
@@ -352,29 +357,32 @@ async function loadDrugForms(searchQuery = '') {
                                 </BaseCombobox>
                             </Field> -->
 
-                            <Field class="col-span-6">
-                                <Skeleton v-if="isLoading" class="h-4 w-8 mb-1" />
-                                <FieldLabel v-else class="font-normal">Unit:</FieldLabel>
-                                <BaseCombobox v-model="selectedUnit" :options="unitTypesOptions"
-                                    empty-message="Empty Search" width="w-full" @search="loadUnitTypes"
-                                    :skeleton="isLoading">
-                                    <template #create="{ close }">
-                                        <CreateProductUnit
-                                            @unit-created="(unit) => { unitTypesOptions.push({ value: String(unit.id), label: unit.unit_name }); selectedUnit = String(unit.id); }"
-                                            @form-closed="close" />
-                                    </template>
-                                </BaseCombobox>
-                            </Field>
+
 
                             <Field class="col-span-6">
                                 <Skeleton v-if="isLoading" class="h-4 w-10 mb-1" />
                                 <FieldLabel v-else class="font-normal">Form:</FieldLabel>
                                 <BaseCombobox v-model="selectedDrugForm" :options="drugFormsOptions"
-                                    empty-message="Empty Search" width="w-full" @search="loadDrugForms"
-                                    :skeleton="isLoading">
+                                    empty-message="Empty Search" width="w-full"
+                                    @search="(q) => loadDrugForms(q, selectedDrugForm)" :skeleton="isLoading">
                                     <template #create="{ close }">
                                         <CreateDrugForm
                                             @drugform-created="(drugform) => { drugFormsOptions.push({ value: String(drugform.id), label: drugform.drugformname }); selectedDrugForm = String(drugform.id); }"
+                                            @form-closed="close" />
+                                    </template>
+                                </BaseCombobox>
+                            </Field>
+
+
+                            <Field class="col-span-6">
+                                <Skeleton v-if="isLoading" class="h-4 w-8 mb-1" />
+                                <FieldLabel v-else class="font-normal">Unit:</FieldLabel>
+                                <BaseCombobox v-model="selectedUnit" :options="unitTypesOptions"
+                                    empty-message="Empty Search" width="w-full"
+                                    @search="(q) => loadUnitTypes(q, selectedUnit)" :skeleton="isLoading">
+                                    <template #create="{ close }">
+                                        <CreateProductUnit
+                                            @unit-created="(unit) => { unitTypesOptions.push({ value: String(unit.id), label: unit.unit_name }); selectedUnit = String(unit.id); }"
                                             @form-closed="close" />
                                     </template>
                                 </BaseCombobox>

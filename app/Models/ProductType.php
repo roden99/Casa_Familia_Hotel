@@ -12,7 +12,6 @@ class ProductType extends Model
 
     protected $fillable = [
         'type_name',
-        'type_code',
         'status',
         'created_by',
         'updated_by',

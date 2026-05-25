@@ -4,8 +4,9 @@ import BaseAlertDialog from '@/components/ui/BaseAlertDialog.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import { Input } from '@/components/ui/input';
 import { useForm } from '@inertiajs/vue3';
-import { onMounted, ref, computed } from 'vue';
+import { onMounted, ref, computed, watch } from 'vue';
 import { toast } from 'vue-sonner';
+import Skeleton from '@/components/ui/skeleton/Skeleton.vue';
 import { Field, FieldGroup, FieldLabel, FieldSet } from '@/components/ui/field';
 import BaseField from '@/components/BaseField.vue';
 
@@ -63,7 +64,6 @@ const buttonVariants = computed(() => {
 
 const form = useForm({
     type_name: props.productType?.type_name || '',
-    type_code: props.productType?.type_code || '',
 });
 
 const emit = defineEmits(['handleSubmit', 'form-closed']);
@@ -77,11 +77,19 @@ const handleSubmit = () => {
 }
 
 const isDialogOpen = ref(false);
+const isLoading = ref(true);
+
+watch(() => props.isProcessing, (newVal, oldVal) => {
+    if (oldVal === true && newVal === false) {
+        isDialogOpen.value = false;
+    }
+});
 
 onMounted(() => {
     if (props.transactionType === 'delete') {
         isDialogOpen.value = true;
     }
+    isLoading.value = false;
 });
 </script>
 
@@ -93,12 +101,10 @@ onMounted(() => {
                     <FieldGroup>
                         <div class="grid w-full grid-cols-12 gap-4">
                             <Field class="col-span-12">
-                                <FieldLabel class="font-normal">Type Name:</FieldLabel>
-                                <Input v-model="form.type_name" required />
-                            </Field>
-                            <Field class="col-span-12">
-                                <FieldLabel class="font-normal">Type Code (Optional):</FieldLabel>
-                                <Input v-model="form.type_code" />
+                                <Skeleton v-if="isLoading" class="h-4 w-24 mb-1" />
+                                <FieldLabel v-else class="font-normal">Type Name:</FieldLabel>
+                                <Skeleton v-if="isLoading" class="h-9 w-full" />
+                                <Input v-else v-model="form.type_name" required />
                             </Field>
                         </div>
                     </FieldGroup>
@@ -106,9 +112,11 @@ onMounted(() => {
             </BaseField>
         </form>
         <template #footer>
-            <BaseButton type="button" :disabled="isProcessing" @click="emit('form-closed')" transactionType="cancel">
+            <Skeleton v-if="isLoading" class="h-9 w-20" />
+            <BaseButton v-else type="button" :disabled="isProcessing" @click="emit('form-closed')" transactionType="cancel">
             </BaseButton>
-            <BaseButton type="button" @click="openConfirmDialog" :transactionType="props.transactionType"
+            <Skeleton v-if="isLoading" class="h-9 w-20" />
+            <BaseButton v-else type="button" @click="openConfirmDialog" :transactionType="props.transactionType"
                 :loading="isProcessing" :disabled="isProcessing">
             </BaseButton>
         </template>

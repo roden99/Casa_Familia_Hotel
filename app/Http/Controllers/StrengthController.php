@@ -14,15 +14,21 @@ class StrengthController extends Controller
     {
         if (request()->wantsJson()) {
             $search = $request->input('search');
+            $includeId = $request->input('include_id');
 
             $query = strength::where('status', 1);
 
             if (!empty($search)) {
                 $query->where('strengthname', 'like', "{$search}%");
             }
-            return response()->json([
-                'strengths' => $query->orderBy('strengthname')->limit(5)->get(['id', 'strengthname'])
-            ]);
+            $results = $query->orderBy('strengthname')->limit(5)->get(['id', 'strengthname']);
+
+            if ($includeId && !$results->contains('id', (int)$includeId)) {
+                $extra = strength::where('id', (int)$includeId)->first(['id', 'strengthname']);
+                if ($extra) $results->prepend($extra);
+            }
+
+            return response()->json(['strengths' => $results]);
         }
 
         $search = $request->input('search');

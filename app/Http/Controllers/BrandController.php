@@ -18,15 +18,21 @@ class BrandController extends Controller
 
         if (request()->wantsJson()) {
             $search = $request->input('search');
+            $includeId = $request->input('include_id');
 
             $query = brand::where('status', 1);
 
             if (!empty($search)) {
                 $query->where('brandname', 'like', "{$search}%");
             }
-            return response()->json([
-                'brands' => $query->orderBy('brandname')->limit(5)->get(['id', 'brandname'])
-            ]);
+            $results = $query->orderBy('brandname')->limit(5)->get(['id', 'brandname']);
+
+            if ($includeId && !$results->contains('id', (int)$includeId)) {
+                $extra = brand::where('id', (int)$includeId)->first(['id', 'brandname']);
+                if ($extra) $results->prepend($extra);
+            }
+
+            return response()->json(['brands' => $results]);
         }
 
         $search = $request->input('search');

@@ -7,6 +7,7 @@ import { onMounted, ref, computed, watch } from 'vue';
 import { toast } from 'vue-sonner';
 import { router, usePage, Head } from '@inertiajs/vue3';
 import { isNumberArray } from '@tanstack/vue-table';
+import { Pill, Tag } from 'lucide-vue-next';
 
 
 import CreateProduct from '@/pages/Products/CreateProduct.vue';
@@ -75,6 +76,20 @@ const showUpdateProductModal = ref(false);
 const showDeleteProductModal = ref(false);
 const selectedProduct = ref(null);
 
+const currentType = ref(new URLSearchParams(window.location.search).get('type') || 'all');
+
+const handleTypeFilter = (type) => {
+    currentType.value = type;
+    const currentUrl = new URL(window.location.href);
+    if (type === 'all') {
+        currentUrl.searchParams.delete('type');
+    } else {
+        currentUrl.searchParams.set('type', type);
+    }
+    currentUrl.searchParams.delete('page');
+    router.get(currentUrl.pathname + currentUrl.search, {}, { preserveState: true });
+};
+
 
 const handleAction = ({ type, data }) => {
 
@@ -136,6 +151,21 @@ const handleAction = ({ type, data }) => {
                 <Button variant="default" class="mr-2" @click="showCreateProductModal = true">
                     New Product
                 </Button>
+
+                <div class="flex items-center gap-1 ml-2 border rounded-md p-1">
+                    <Button :variant="currentType === 'all' ? 'default' : 'ghost'" size="sm"
+                        @click="handleTypeFilter('all')">
+                        All
+                    </Button>
+                    <Button :variant="currentType === 'generic' ? 'default' : 'ghost'" size="sm" class="gap-1"
+                        @click="handleTypeFilter('generic')">
+                        <Pill class="h-4 w-4" /> Generic
+                    </Button>
+                    <Button :variant="currentType === 'branded' ? 'default' : 'ghost'" size="sm" class="gap-1"
+                        @click="handleTypeFilter('branded')">
+                        <Tag class="h-4 w-4" /> Branded
+                    </Button>
+                </div>
 
             </BaseIndex>
 

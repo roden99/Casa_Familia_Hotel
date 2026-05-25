@@ -8,9 +8,10 @@ import BaseButton from '@/components/ui/BaseButton.vue';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useForm } from '@inertiajs/vue3';
-import { onMounted, ref, computed, version } from 'vue';
+import { onMounted, ref, computed, watch } from 'vue';
 import { toast } from 'vue-sonner';
 import axios from 'axios';
+import Skeleton from '@/components/ui/skeleton/Skeleton.vue';
 
 
 import { CalendarDate, fromDate, getLocalTimeZone } from '@internationalized/date';
@@ -117,13 +118,19 @@ const handleSubmit = () => {
 
 
 const isDialogOpen = ref(false);
+const isLoading = ref(true);
+
+watch(() => props.isProcessing, (newVal, oldVal) => {
+    if (oldVal === true && newVal === false) {
+        isDialogOpen.value = false;
+    }
+});
 
 onMounted(() => {
-
     if (props.transactionType === 'delete') {
         isDialogOpen.value = true;
     }
-
+    isLoading.value = false;
 });
 
 </script>
@@ -138,8 +145,10 @@ onMounted(() => {
                     <FieldGroup>
                         <div class="grid w-full grid-cols-12 gap-4">
                             <Field class="col-span-12">
-                                <FieldLabel class="font-normal">Drug Form Name:</FieldLabel>
-                                <Input v-model="form.drugformname" required />
+                                <Skeleton v-if="isLoading" class="h-4 w-32 mb-1" />
+                                <FieldLabel v-else class="font-normal">Drug Form Name:</FieldLabel>
+                                <Skeleton v-if="isLoading" class="h-9 w-full" />
+                                <Input v-else v-model="form.drugformname" required />
                             </Field>
                         </div>
                     </FieldGroup>
@@ -147,9 +156,11 @@ onMounted(() => {
             </BaseField>
         </form>
         <template #footer>
-            <BaseButton type="button" :disabled="isProcessing" @click="emit('form-closed')" transactionType="cancel">
+            <Skeleton v-if="isLoading" class="h-9 w-20" />
+            <BaseButton v-else type="button" :disabled="isProcessing" @click="emit('form-closed')" transactionType="cancel">
             </BaseButton>
-            <BaseButton type="button" @click="openConfirmDialog" :transactionType="props.transactionType"
+            <Skeleton v-if="isLoading" class="h-9 w-20" />
+            <BaseButton v-else type="button" @click="openConfirmDialog" :transactionType="props.transactionType"
                 :loading="isProcessing" :disabled="isProcessing">
             </BaseButton>
         </template>
