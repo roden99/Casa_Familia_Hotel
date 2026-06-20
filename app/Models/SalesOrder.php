@@ -15,6 +15,7 @@ class SalesOrder extends Model
         'invoice_date',
         'delivery_date',
         'discount_percentage',
+        'terms',
         'created_by',
         'updated_by',
     ];

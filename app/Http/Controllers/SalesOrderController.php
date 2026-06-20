@@ -88,6 +88,7 @@ class SalesOrderController extends Controller
             'invoice_date'                  => 'nullable|date',
             'delivery_date'                 => 'nullable|date',
             'discount_percentage'           => 'nullable|numeric|min:0|max:100',
+            'terms'                         => 'nullable|string|max:255',
             'items'                         => 'required|array|min:1',
             'items.*.product_id'            => 'required|exists:products,id',
             'items.*.quantity'              => 'required|integer|min:1',
@@ -161,6 +162,7 @@ class SalesOrderController extends Controller
             'invoice_date'                  => 'nullable|date',
             'delivery_date'                 => 'nullable|date',
             'discount_percentage'           => 'nullable|numeric|min:0|max:100',
+            'terms'                         => 'nullable|string|max:255',
             'items'                         => 'required|array|min:1',
             'items.*.product_id'            => 'required|exists:products,id',
             'items.*.quantity'              => 'required|integer|min:1',
@@ -191,6 +193,7 @@ class SalesOrderController extends Controller
             'invoice_date'              => $validated['invoice_date'],
             'delivery_date'             => $validated['delivery_date'],
             'discount_percentage'       => $validated['discount_percentage'] ?? 0,
+            'terms'                     => $validated['terms'] ?? null,
             'updated_by'                => $request->user()->id,
         ]);
 

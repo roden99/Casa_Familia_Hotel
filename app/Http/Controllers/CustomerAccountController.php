@@ -23,7 +23,7 @@ class CustomerAccountController extends Controller
                 ->join('customers as c', 'c.id', '=', 'csa.customer_id')
                 ->join('sales_accounts as sa', 'sa.id', '=', 'csa.sales_account_id')
                 ->where('c.status', 'active')
-                ->select('csa.id', 'c.company', 'c.first_name', 'c.last_name', 'c.is_drugstore', 'sa.account_name');
+                ->select('csa.id', 'c.company', 'c.first_name', 'c.last_name', 'c.is_drugstore', 'sa.account_name', 'csa.discount_percentage');
 
             if ($includeId) {
                 $query->where(function ($q) use ($search) {
@@ -43,12 +43,13 @@ class CustomerAccountController extends Controller
 
             $accounts = $query->orderBy('sa.account_name')->orderBy('c.last_name')->limit(10)->get()
                 ->map(fn($row) => [
-                    'value' => (string) $row->id,
-                    'label' => strtoupper($row->account_name) . ' - ' . (
+                    'value'               => (string) $row->id,
+                    'label'               => strtoupper($row->account_name) . ' - ' . (
                         $row->is_drugstore
                         ? strtoupper($row->company)
                         : trim(strtoupper($row->last_name) . ', ' . strtoupper($row->first_name))
                     ),
+                    'discount_percentage' => (float) $row->discount_percentage,
                 ]);
 
             return response()->json(['accounts' => $accounts]);

@@ -21,7 +21,8 @@ const props = defineProps({
 const emit = defineEmits(['remove']);
 
 const computeTotal = (item) => {
-    return (item.quantity * Number(item.unit_price)).toFixed(2);
+    const disc = Number(item.discount_percentage) || 0;
+    return (item.quantity * Number(item.unit_price) * (1 - disc / 100)).toFixed(2);
 };
 </script>
 
@@ -33,13 +34,14 @@ const computeTotal = (item) => {
                 <TableHead>Item Name</TableHead>
                 <TableHead class="text-center w-24">Qty</TableHead>
                 <TableHead class="text-center w-28">UP</TableHead>
+                <TableHead class="text-center w-24">Disc %</TableHead>
                 <TableHead class="text-right w-28">Amount</TableHead>
                 <TableHead class="w-8" />
             </TableRow>
         </TableHeader>
         <TableBody>
             <TableRow v-if="items.length === 0">
-                <TableCell colspan="5" class="text-center text-muted-foreground py-4">
+                <TableCell colspan="6" class="text-center text-muted-foreground py-4">
                     No items added yet.
                 </TableCell>
             </TableRow>
@@ -51,6 +53,10 @@ const computeTotal = (item) => {
                 <TableCell class="text-center">
                     <Input v-model.number="item.unit_price" type="number" min="0" step="0.01"
                         class="w-24 text-center mx-auto" />
+                </TableCell>
+                <TableCell class="text-center">
+                    <Input v-model.number="item.discount_percentage" type="number" min="0" max="100" step="0.01"
+                        class="w-20 text-center mx-auto" />
                 </TableCell>
                 <TableCell class="text-right">{{ computeTotal(item) }}</TableCell>
                 <TableCell class="text-center">

@@ -44,6 +44,7 @@ const form = useForm({
     invoice_date: null,
     delivery_date: null,
     discount_percentage: props.order?.discount_percentage ?? 0,
+    terms: props.order?.terms ?? '',
 });
 
 const emit = defineEmits(['handleSubmit', 'form-closed']);
@@ -130,6 +131,15 @@ async function loadCustomerAccounts(searchQuery = '', includeId = null) {
     }
 }
 
+// Auto-apply discount when account is selected
+watch(() => form.customer_sales_account_id, (newId) => {
+    if (!newId) return;
+    const account = accountOptions.value.find(a => a.value === newId);
+    if (account && account.discount_percentage != null) {
+        form.discount_percentage = account.discount_percentage;
+    }
+});
+
 // ─── Load existing items for update ──────────────────────────────────────────
 
 async function loadOrderItems() {
@@ -151,6 +161,7 @@ async function loadOrderItems() {
             await loadCustomerAccounts('', d.customer_sales_account_id);
             form.customer_sales_account_id = String(d.customer_sales_account_id);
         }
+        form.terms = d.terms ?? '';
     } catch (error) {
         console.error('Failed to load order items:', error);
         toast.error('Failed to load order items.');
@@ -162,6 +173,14 @@ async function loadOrderItems() {
 const selectedProduct = ref(null);
 const itemQuantity = ref(1);
 const itemPrice = ref(0);
+const itemDiscount = ref(0);
+
+// Pre-fill item discount from header discount when a product is picked
+watch(selectedProduct, (newVal) => {
+    if (newVal) {
+        itemDiscount.value = Number(form.discount_percentage) || 0;
+    }
+});
 
 const orderItems = ref([]);
 
@@ -176,6 +195,7 @@ const addItem = () => {
         product_name: product?.label ?? selectedProduct.value,
         quantity: Number(itemQuantity.value),
         unit_price: Number(itemPrice.value),
+        discount_percentage: Number(itemDiscount.value) || Number(form.discount_percentage) || 0,
     });
     selectedProduct.value = null;
     itemQuantity.value = 1;
@@ -247,6 +267,13 @@ async function loadProducts(searchQuery = '') {
 
                         </div>
 
+                        <div class="grid w-full grid-cols-12 gap-4">
+                            <Field class="col-span-6">
+                                <FieldLabel class="font-normal">Terms:</FieldLabel>
+                                <Input v-model="form.terms" placeholder="e.g. Net 30" />
+                            </Field>
+                        </div>
+
 
 
                         <FieldSeparator />
@@ -257,7 +284,7 @@ async function loadProducts(searchQuery = '') {
                         <div class="grid w-full grid-cols-12 gap-4">
                             <Field class="col-span-12">
                                 <div class="grid grid-cols-12 items-start gap-2">
-                                    <Field class="col-span-7">
+                                    <Field class="col-span-6">
                                         <FieldLabel class="font-normal">Select Item:</FieldLabel>
                                         <BaseCombobox v-model="selectedProduct" :options="productsOptions"
                                             empty-message="No products found" width="w-full" @search="loadProducts"
@@ -273,6 +300,12 @@ async function loadProducts(searchQuery = '') {
                                         <FieldLabel class="font-normal">UP</FieldLabel>
                                         <Input v-model="itemPrice" type="number" min="0" step="0.01"
                                             placeholder="0.00" />
+                                    </Field>
+
+                                    <Field class="col-span-1">
+                                        <FieldLabel class="font-normal">Disc %</FieldLabel>
+                                        <Input v-model="itemDiscount" type="number" min="0" max="100" step="0.01"
+                                            placeholder="0" />
                                     </Field>
 
                                     <Field class="col-span-1">

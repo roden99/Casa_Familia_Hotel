@@ -62,11 +62,7 @@ const handleAlertClose = () => {
 
 
 const isFormValidated = () => {
-    if (!form.company.toString().trim() ||
-        !form.lastname.toString().trim() ||
-        !form.firstname.toString().trim() ||
-        !form.contact_phone.toString().trim() ||
-        !form.contact_email.toString().trim()) {
+    if (!form.company.toString().trim()) {
         toast.error('ERROR', { description: 'Please complete all required fields.' });
         return false;
     }
@@ -223,20 +219,20 @@ onMounted(async () => {
                             <Field class="col-span-12">
                                 <FieldLabel class="font-normal">Contact Person:</FieldLabel>
                                 <div class="grid grid-cols-3 gap-4">
-                                    <Input v-model="form.lastname" placeholder="Last Name" required />
-                                    <Input v-model="form.firstname" placeholder="First Name" required />
+                                    <Input v-model="form.lastname" placeholder="Last Name" />
+                                    <Input v-model="form.firstname" placeholder="First Name" />
                                     <Input v-model="form.middlename" placeholder="Middle Name" />
                                 </div>
                             </Field>
 
                             <Field class="col-span-4">
                                 <FieldLabel class="font-normal">Phone Number:</FieldLabel>
-                                <Input v-model="form.contact_phone" required />
+                                <Input v-model="form.contact_phone" />
                             </Field>
 
                             <Field class="col-span-4">
                                 <FieldLabel class="font-normal">Email Address:</FieldLabel>
-                                <Input v-model="form.contact_email" type="email" required />
+                                <Input v-model="form.contact_email" type="email" />
                             </Field>
 
                             <Field class="col-span-4">
