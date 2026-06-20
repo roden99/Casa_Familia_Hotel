@@ -41,6 +41,11 @@ const handleAction = (action: string, row: Record<string, any>) => {
   emit('action', { type: action, data: row })
 }
 
+const isActionDisabled = (action: string, row: Record<string, any>): boolean => {
+  if (action === 'initial' && row.is_inventory) return true
+  return false
+}
+
 
 </script>
 
@@ -60,7 +65,9 @@ const handleAction = (action: string, row: Record<string, any>) => {
       <slot name="actions" :row="row" :handleAction="handleAction">
         <!-- ✅ Default: Render actions based on props -->
         <DropdownMenuItem v-for="action in actions" :key="action"
-          :class="actionConfig[action]?.class || 'text-gray-600'" @click="handleAction(action, row)">
+          :class="[actionConfig[action]?.class || 'text-gray-600', isActionDisabled(action, row) ? 'opacity-50 cursor-not-allowed' : '']"
+          :disabled="isActionDisabled(action, row)"
+          @click="!isActionDisabled(action, row) && handleAction(action, row)">
           <component :is="actionConfig[action]?.icon || Eye" class="mr-2 h-4 w-4" />
           {{ actionConfig[action]?.label || action }}
         </DropdownMenuItem>
