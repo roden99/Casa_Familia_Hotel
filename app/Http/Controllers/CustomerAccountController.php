@@ -14,6 +14,46 @@ class CustomerAccountController extends Controller
      */
     public function index(Request $request)
     {
+        // JSON branch: used by SalesOrderForm combobox
+        if ($request->expectsJson()) {
+            $search    = $request->input('search', '');
+            $includeId = $request->input('include_id');
+
+            $query = DB::table('customer_sales_account as csa')
+                ->join('customers as c', 'c.id', '=', 'csa.customer_id')
+                ->join('sales_accounts as sa', 'sa.id', '=', 'csa.sales_account_id')
+                ->where('c.status', 'active')
+                ->select('csa.id', 'c.company', 'c.first_name', 'c.last_name', 'c.is_drugstore', 'sa.account_name');
+
+            if ($includeId) {
+                $query->where(function ($q) use ($search) {
+                    if (!empty($search)) {
+                        $q->where('c.last_name', 'like', "{$search}%")
+                            ->orWhere('c.company', 'like', "{$search}%")
+                            ->orWhere('sa.account_name', 'like', "{$search}%");
+                    }
+                })->orWhere('csa.id', $includeId);
+            } elseif (!empty($search)) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('c.last_name', 'like', "{$search}%")
+                        ->orWhere('c.company', 'like', "{$search}%")
+                        ->orWhere('sa.account_name', 'like', "{$search}%");
+                });
+            }
+
+            $accounts = $query->orderBy('sa.account_name')->orderBy('c.last_name')->limit(10)->get()
+                ->map(fn($row) => [
+                    'value' => (string) $row->id,
+                    'label' => strtoupper($row->account_name) . ' - ' . (
+                        $row->is_drugstore
+                        ? strtoupper($row->company)
+                        : trim(strtoupper($row->last_name) . ', ' . strtoupper($row->first_name))
+                    ),
+                ]);
+
+            return response()->json(['accounts' => $accounts]);
+        }
+
         $search    = $request->input('search');
         $column    = $request->input('column');
         $accountId = $request->input('account');
@@ -47,7 +87,7 @@ class CustomerAccountController extends Controller
         if (!empty($search) && strlen($search) >= 3) {
             $query->where(function ($q) use ($search) {
                 $q->where('c.company', 'like', "{$search}%")
-                  ->orWhere('c.last_name', 'like', "{$search}%");
+                    ->orWhere('c.last_name', 'like', "{$search}%");
             });
         }
 

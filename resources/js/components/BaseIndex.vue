@@ -82,6 +82,10 @@ const props = defineProps({
         type: Array,
         default: () => []
     },
+    rowClass: {
+        type: Function,
+        default: null
+    },
     // Legacy single field support
     hoverField: {
         type: String,
@@ -120,7 +124,7 @@ const computedHoverItems = (rowData) => {
 const getActionsForIndex = (indexType) => {
     const actionMap = {
         'Members': ['verifyEligibility', 'edit', 'delete'],
-        'Products': ['edit', 'delete'],
+        'Products': ['edit', 'initial', 'history', 'delete'],
         'Orders': ['view', 'download', 'add'],
         'Patients': ['view', 'edit', 'delete'],
         'Users': ['view', 'edit', 'delete'],
@@ -299,6 +303,7 @@ const columns = [
             header: col.header ?? col.accessorKey,
             cell: col.cell ?? (({ row }) => row.getValue(col.accessorKey)),
             accessorKey: col.accessorKey,
+            cellClass: col.cellClass ?? null,
         })),
 
 
@@ -469,9 +474,10 @@ watch(selectValue, (val, oldVal) => {
                         <TableBody>
                             <template v-if="table.getRowModel().rows?.length">
                                 <template v-for="row in table.getRowModel().rows" :key="row.id">
-                                    <TableRow :data-state="row.getIsSelected() && 'selected'">
+                                    <TableRow :data-state="row.getIsSelected() && 'selected'"
+                                        :class="props.rowClass ? props.rowClass(row.original) : ''">
                                         <TableCell v-for="(cell, index) in row.getVisibleCells()" :key="cell.id"
-                                            class="capitalize text-left">
+                                            :class="['capitalize text-left', typeof cell.column.columnDef.cellClass === 'function' ? cell.column.columnDef.cellClass(row.original) : (cell.column.columnDef.cellClass ?? '')]">
 
                                             <!-- Wrap all cells with BaseHover to show dynamic data -->
                                             <BaseHover :items="computedHoverItems(row.original)">

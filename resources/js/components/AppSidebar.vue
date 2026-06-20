@@ -39,8 +39,8 @@ const mainNavItems: NavItem[] = [
     icon: Boxes,
     children: [
       {
-        title: 'Product List',
-        href: '/under-construction',
+        title: 'Products',
+        href: '/products',
         icon: Package,
       },
     ],
@@ -59,17 +59,26 @@ const mainNavItems: NavItem[] = [
   },
 
   {
+    title: 'Sales Management',
+    icon: ClipboardList,
+    href: '/under-construction',
+    children: [
+      {
+        title: 'Sales Orders',
+        href: '/sales-orders',
+        icon: Package,
+      },
+    ],
+  },
+
+  {
     title: 'Customer Accounts',
     href: '/customer-accounts',
     icon: UserCheck,
   },
 
 
-  {
-    title: 'Sales Order',
-    icon: ClipboardList,
-    href: '/under-construction',
-  },
+
 
   {
     title: 'Stock Movement',
@@ -87,11 +96,11 @@ const mainNavItems: NavItem[] = [
     title: 'Library',
     icon: Settings2,
     children: [
-      {
-        title: 'Products',
-        href: '/products',
-        icon: Package,
-      },
+      // {
+      //   title: 'Products',
+      //   href: '/products',
+      //   icon: Package,
+      // },
       {
         title: 'Product Units',
         href: '/product-units',

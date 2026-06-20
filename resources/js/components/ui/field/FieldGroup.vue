@@ -8,6 +8,7 @@ const props = defineProps<{
   skeleton?: boolean
   skeletonRows?: number
   skeletonCols?: number
+  skeletonLayout?: number[]
 }>()
 </script>
 
@@ -17,12 +18,22 @@ const props = defineProps<{
     props.class,
   )">
     <template v-if="skeleton">
-      <div v-for="row in (skeletonRows ?? 3)" :key="row" class="flex w-full gap-4">
-        <div v-for="col in (skeletonCols ?? 3)" :key="col" class="flex flex-1 flex-col gap-1">
-          <Skeleton class="h-4 w-20 rounded" />
-          <Skeleton class="h-9 w-full rounded-md" />
+      <template v-if="skeletonLayout">
+        <div v-for="(cols, rowIndex) in skeletonLayout" :key="rowIndex" class="flex w-full gap-4">
+          <div v-for="col in cols" :key="col" class="flex flex-1 flex-col gap-1">
+            <Skeleton class="h-4 w-20 rounded" />
+            <Skeleton class="h-9 w-full rounded-md" />
+          </div>
         </div>
-      </div>
+      </template>
+      <template v-else>
+        <div v-for="row in (skeletonRows ?? 3)" :key="row" class="flex w-full gap-4">
+          <div v-for="col in (skeletonCols ?? 3)" :key="col" class="flex flex-1 flex-col gap-1">
+            <Skeleton class="h-4 w-20 rounded" />
+            <Skeleton class="h-9 w-full rounded-md" />
+          </div>
+        </div>
+      </template>
     </template>
     <slot v-else />
   </div>

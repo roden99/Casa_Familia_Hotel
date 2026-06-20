@@ -20,6 +20,7 @@ import BaseDatePick from '@/components/ui/BaseDatePick.vue';
 import { useDateFormatter } from '@/composables/useDateFormatter';
 import { normalizeDate, set } from '@vueuse/core';
 import { Field, FieldGroup, FieldLabel, FieldLegend, FieldSeparator, FieldSet } from '@/components/ui/field';
+import { useFieldGroupSkeleton } from '@/composables/useFieldGroupSkeleton';
 import BaseTab from '@/components/BaseTab.vue'
 import Switch from '@/components/ui/switch/Switch.vue';
 import BaseField from '@/components/BaseField.vue';
@@ -108,6 +109,8 @@ watch(() => props.isProcessing, (newVal, oldVal) => {
 
 
 const isLoading = ref(true);
+
+const { skeletonLayout } = useFieldGroupSkeleton([12, 12, 6, 6, 6, 6]);
 
 onMounted(async () => {
     if (props.transactionType === 'delete') {
@@ -277,9 +280,6 @@ async function loadDrugForms(searchQuery = '', includeId = null) {
     }
 }
 
-
-
-
 </script>
 
 <template>
@@ -287,38 +287,29 @@ async function loadDrugForms(searchQuery = '', includeId = null) {
         <form @submit.prevent="Submit" class="space-y-4 mt-4">
             <BaseField legend="Product Information" description="Enter product details">
                 <template #fields>
-                    <FieldGroup>
+                    <FieldGroup :skeleton="isLoading" :skeleton-layout="skeletonLayout">
                         <div class="grid w-full grid-cols-12 gap-4">
                             <Field class="col-span-12">
                                 <div class="flex items-center space-x-2">
-                                    <Skeleton v-if="isLoading" class="h-5 w-9 rounded-full" />
-                                    <Switch v-else :model-value="form.isgeneric"
+                                    <Switch :model-value="form.isgeneric"
                                         @update:modelValue="val => form.isgeneric = val" />
-                                    <Skeleton v-if="isLoading" class="h-4 w-14" />
-                                    <FieldLabel v-else for="isgeneric" class="font-normal cursor-pointer">
+                                    <FieldLabel for="isgeneric" class="font-normal cursor-pointer">
                                         Generic
                                     </FieldLabel>
                                 </div>
                             </Field>
 
-
-
-
-
                             <Field class="col-span-12">
-                                <Skeleton v-if="isLoading" class="h-4 w-24 mb-1" />
-                                <FieldLabel v-else class="font-normal">Generic Name / Product Name:</FieldLabel>
-                                <Skeleton v-if="isLoading" class="h-9 w-full" />
-                                <Input v-else v-model="form.productname" placeholder="Enter product name" />
+                                <FieldLabel class="font-normal">Generic Name / Product Name:</FieldLabel>
+                                <Input v-model="form.productname" placeholder="Enter product name" />
                                 <InputError :message="form.errors.productname" />
                             </Field>
 
                             <Field class="col-span-6">
-                                <Skeleton v-if="isLoading" class="h-4 w-12 mb-1" />
-                                <FieldLabel v-else class="font-normal">Type:</FieldLabel>
+                                <FieldLabel class="font-normal">Type:</FieldLabel>
                                 <BaseCombobox v-model="selectedProductType" :options="productTypesOptions"
                                     empty-message="Empty Search" width="w-full"
-                                    @search="(q) => loadProductTypes(q, selectedProductType)" :skeleton="isLoading">
+                                    @search="(q) => loadProductTypes(q, selectedProductType)">
                                     <template #create="{ close }">
                                         <CreateProductType
                                             @type-created="(type) => { productTypesOptions.push({ value: String(type.id), label: type.type_name }); selectedProductType = String(type.id); }"
@@ -328,11 +319,10 @@ async function loadDrugForms(searchQuery = '', includeId = null) {
                             </Field>
 
                             <Field class="col-span-6">
-                                <Skeleton v-if="isLoading" class="h-4 w-10 mb-1" />
-                                <FieldLabel v-else class="font-normal">Brand:</FieldLabel>
+                                <FieldLabel class="font-normal">Brand:</FieldLabel>
                                 <BaseCombobox v-model="selectedBrand" :options="brandTypesOptions"
                                     empty-message="Empty Search" width="w-full"
-                                    @search="(q) => loadBrandTypes(q, selectedBrand)" :skeleton="isLoading">
+                                    @search="(q) => loadBrandTypes(q, selectedBrand)">
                                     <template #create="{ close }">
                                         <CreateBrand
                                             @brand-created="(brand) => { brandTypesOptions.push({ value: String(brand.id), label: brand.brandname }); selectedBrand = String(brand.id); }"
@@ -341,30 +331,11 @@ async function loadDrugForms(searchQuery = '', includeId = null) {
                                 </BaseCombobox>
                             </Field>
 
-
-
-                            <!-- <Field class="col-span-6">
-                                <Skeleton v-if="isLoading" class="h-4 w-16 mb-1" />
-                                <FieldLabel v-else class="font-normal">Strength:</FieldLabel>
-                                <BaseCombobox v-model="selectedStrength" :options="strengthTypesOptions"
-                                    empty-message="Empty Search" width="w-full" @search="loadStrengths"
-                                    :skeleton="isLoading">
-                                    <template #create="{ close }">
-                                        <CreateStrength
-                                            @strength-created="(strength) => { strengthTypesOptions.push({ value: String(strength.id), label: strength.strengthname }); selectedStrength = String(strength.id); }"
-                                            @form-closed="close" />
-                                    </template>
-                                </BaseCombobox>
-                            </Field> -->
-
-
-
                             <Field class="col-span-6">
-                                <Skeleton v-if="isLoading" class="h-4 w-10 mb-1" />
-                                <FieldLabel v-else class="font-normal">Form:</FieldLabel>
+                                <FieldLabel class="font-normal">Form:</FieldLabel>
                                 <BaseCombobox v-model="selectedDrugForm" :options="drugFormsOptions"
                                     empty-message="Empty Search" width="w-full"
-                                    @search="(q) => loadDrugForms(q, selectedDrugForm)" :skeleton="isLoading">
+                                    @search="(q) => loadDrugForms(q, selectedDrugForm)">
                                     <template #create="{ close }">
                                         <CreateDrugForm
                                             @drugform-created="(drugform) => { drugFormsOptions.push({ value: String(drugform.id), label: drugform.drugformname }); selectedDrugForm = String(drugform.id); }"
@@ -373,13 +344,11 @@ async function loadDrugForms(searchQuery = '', includeId = null) {
                                 </BaseCombobox>
                             </Field>
 
-
                             <Field class="col-span-6">
-                                <Skeleton v-if="isLoading" class="h-4 w-8 mb-1" />
-                                <FieldLabel v-else class="font-normal">Unit:</FieldLabel>
+                                <FieldLabel class="font-normal">Unit:</FieldLabel>
                                 <BaseCombobox v-model="selectedUnit" :options="unitTypesOptions"
                                     empty-message="Empty Search" width="w-full"
-                                    @search="(q) => loadUnitTypes(q, selectedUnit)" :skeleton="isLoading">
+                                    @search="(q) => loadUnitTypes(q, selectedUnit)">
                                     <template #create="{ close }">
                                         <CreateProductUnit
                                             @unit-created="(unit) => { unitTypesOptions.push({ value: String(unit.id), label: unit.unit_name }); selectedUnit = String(unit.id); }"
@@ -387,13 +356,6 @@ async function loadDrugForms(searchQuery = '', includeId = null) {
                                     </template>
                                 </BaseCombobox>
                             </Field>
-
-
-
-
-
-
-
                         </div>
                     </FieldGroup>
                 </template>

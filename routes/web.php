@@ -12,6 +12,7 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\WarehouseController;
 use App\Http\Controllers\WarehouseItemController;
 use App\Http\Controllers\DeliveryController;
+use App\Http\Controllers\SalesOrderController;
 use App\Http\Controllers\ProductUnitController;
 use App\Http\Controllers\ProductTypeController;
 use App\Http\Controllers\StrengthController;
@@ -44,9 +45,12 @@ Route::resource('drugforms', DrugFormController::class);
 Route::resource('product-units', ProductUnitController::class);
 Route::resource('product-types', ProductTypeController::class);
 Route::resource('products', ProductController::class);
+Route::patch('products/{product}/initial-inventory', [ProductController::class, 'initialInventory'])->name('products.initialInventory');
+Route::get('products/{product}/history', [ProductController::class, 'history'])->name('products.history');
 Route::resource('warehouses', WarehouseController::class);
 Route::resource('warehouse-items', WarehouseItemController::class);
 Route::resource('deliveries', DeliveryController::class);
+Route::resource('sales-orders', SalesOrderController::class);
 Route::resource('sales-accounts', SalesAccountController::class);
 
 

@@ -1,5 +1,5 @@
 <script setup>
-import { Loader2, Save, Pencil, Trash2, X, ShieldCheck, RotateCcw, Printer } from 'lucide-vue-next';
+import { Loader2, Save, Pencil, Trash2, X, ShieldCheck, RotateCcw, Printer, Plus, PackagePlus } from 'lucide-vue-next';
 import { Button } from '@/components/ui/buttonorig';
 import { computed } from 'vue';
 import Skeleton from '@/components/ui/skeleton/Skeleton.vue';
@@ -30,6 +30,7 @@ const props = defineProps({
 
 const buttonText = computed(() => {
   if (props.transactionType === 'create') return 'Save';
+  if (props.transactionType === 'add') return '';
   if (props.transactionType === 'print') return 'Print';
   if (props.transactionType === 'update') return 'Update';
   if (props.transactionType === 'delete') return 'Delete';
@@ -60,6 +61,7 @@ const buttonColor = computed(() => {
 
 const buttonIcon = computed(() => {
   if (props.transactionType === 'create') return Save;
+  if (props.transactionType === 'add') return PackagePlus;
   if (props.transactionType === 'update') return Pencil;
   if (props.transactionType === 'delete') return Trash2;
   if (props.transactionType === 'cancel') return X;

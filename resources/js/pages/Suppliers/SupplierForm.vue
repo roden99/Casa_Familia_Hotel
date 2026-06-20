@@ -22,6 +22,7 @@ import BaseCombobox from '@/components/ui/BaseCombobox.vue';
 import { Field, FieldGroup, FieldLabel, FieldLegend, FieldSeparator, FieldSet } from '@/components/ui/field';
 import BaseTab from '@/components/BaseTab.vue'
 import BaseField from '@/components/BaseField.vue';
+import { useFieldGroupSkeleton } from '@/composables/useFieldGroupSkeleton';
 
 
 
@@ -55,7 +56,7 @@ const handleAlertClose = () => {
     isDialogOpen.value = false;
 
     if (props.transactionType === 'delete') {
-        emit('member-form-closed')
+        emit('form-closed')
     }
 };
 
@@ -108,7 +109,7 @@ const form = useForm({
 
 
 
-const emit = defineEmits(['handleSubmit', 'member-form-closed']);
+const emit = defineEmits(['handleSubmit', 'form-closed']);
 
 const handleSubmit = () => {
     try {
@@ -134,17 +135,25 @@ const barangayOptions = ref([]);
 const isDialogOpen = ref(false);
 const isLoading = ref(true);
 
+// Fields: company(12), contact person(12), phone(4), email(4), tin(4), address(12), street(12)
+const { skeletonLayout } = useFieldGroupSkeleton([12, 12, 4, 4, 4, 12, 12]);
+
 watch(() => props.isProcessing, (newVal, oldVal) => {
     if (oldVal === true && newVal === false) {
         isDialogOpen.value = false;
     }
 });
 
-onMounted(() => {
+onMounted(async () => {
     if (props.transactionType === 'delete') {
         isDialogOpen.value = true;
     }
-    isLoading.value = false;
+    isLoading.value = true;
+    try {
+        // await db calls here
+    } finally {
+        isLoading.value = false;
+    }
 });
 
 // Fetch provinces on mount
@@ -204,53 +213,40 @@ onMounted(() => {
 
             <BaseField legend="Supplier Information" description="Enter supplier details">
                 <template #fields>
-                    <FieldGroup>
-
+                    <FieldGroup :skeleton="isLoading" :skeleton-layout="skeletonLayout">
                         <div class="grid w-full grid-cols-12 gap-4">
-                            <Field class="col-span-15">
-                                <Skeleton v-if="isLoading" class="h-4 w-28 mb-1" />
-                                <FieldLabel v-else class="font-normal">Supplier Name:</FieldLabel>
-                                <Skeleton v-if="isLoading" class="h-9 w-full" />
-                                <Input v-else v-model="form.company" required />
+                            <Field class="col-span-12">
+                                <FieldLabel class="font-normal">Supplier Name:</FieldLabel>
+                                <Input v-model="form.company" required />
                             </Field>
 
-                            <Field class="col-span-15">
-                                <Skeleton v-if="isLoading" class="h-4 w-28 mb-1" />
-                                <FieldLabel v-else class="font-normal">Contact Person:</FieldLabel>
-                                <Skeleton v-if="isLoading" class="h-9 w-full" />
-                                <div v-else class="grid grid-cols-3 gap-4">
+                            <Field class="col-span-12">
+                                <FieldLabel class="font-normal">Contact Person:</FieldLabel>
+                                <div class="grid grid-cols-3 gap-4">
                                     <Input v-model="form.lastname" placeholder="Last Name" required />
                                     <Input v-model="form.firstname" placeholder="First Name" required />
                                     <Input v-model="form.middlename" placeholder="Middle Name" />
                                 </div>
                             </Field>
 
-                            <Field class="col-span-5">
-                                <Skeleton v-if="isLoading" class="h-4 w-24 mb-1" />
-                                <FieldLabel v-else class="font-normal">Phone Number:</FieldLabel>
-                                <Skeleton v-if="isLoading" class="h-9 w-full" />
-                                <Input v-else v-model="form.contact_phone" required />
+                            <Field class="col-span-4">
+                                <FieldLabel class="font-normal">Phone Number:</FieldLabel>
+                                <Input v-model="form.contact_phone" required />
                             </Field>
 
-                            <Field class="col-span-5">
-                                <Skeleton v-if="isLoading" class="h-4 w-28 mb-1" />
-                                <FieldLabel v-else class="font-normal">Email Address:</FieldLabel>
-                                <Skeleton v-if="isLoading" class="h-9 w-full" />
-                                <Input v-else v-model="form.contact_email" type="email" required />
+                            <Field class="col-span-4">
+                                <FieldLabel class="font-normal">Email Address:</FieldLabel>
+                                <Input v-model="form.contact_email" type="email" required />
                             </Field>
 
-                            <Field class="col-span-5">
-                                <Skeleton v-if="isLoading" class="h-4 w-20 mb-1" />
-                                <FieldLabel v-else class="font-normal">TIN Number:</FieldLabel>
-                                <Skeleton v-if="isLoading" class="h-9 w-full" />
-                                <Input v-else v-model="form.tin" />
+                            <Field class="col-span-4">
+                                <FieldLabel class="font-normal">TIN Number:</FieldLabel>
+                                <Input v-model="form.tin" />
                             </Field>
 
-                            <Field class="col-span-15">
-                                <Skeleton v-if="isLoading" class="h-4 w-16 mb-1" />
-                                <FieldLabel v-else class="font-normal">Address:</FieldLabel>
-                                <Skeleton v-if="isLoading" class="h-9 w-full" />
-                                <div v-else class="grid grid-cols-3 gap-4">
+                            <Field class="col-span-12">
+                                <FieldLabel class="font-normal">Address:</FieldLabel>
+                                <div class="grid grid-cols-3 gap-4">
                                     <BaseCombobox v-model="selectedProvince" placeholder="Province"
                                         empty-message="No province found" width="w-full" />
                                     <BaseCombobox v-model="selectedCity" placeholder="Municipality"
@@ -260,11 +256,9 @@ onMounted(() => {
                                 </div>
                             </Field>
 
-                            <Field class="col-span-15 mb-6">
-                                <Skeleton v-if="isLoading" class="h-4 w-40 mb-1" />
-                                <FieldLabel v-else class="font-normal">Street Address / Unit / Building:</FieldLabel>
-                                <Skeleton v-if="isLoading" class="h-9 w-full" />
-                                <Input v-else v-model="form.address"
+                            <Field class="col-span-12 mb-6">
+                                <FieldLabel class="font-normal">Street Address / Unit / Building:</FieldLabel>
+                                <Input v-model="form.address"
                                     placeholder="Enter street address, unit number, building name, etc." />
                             </Field>
                         </div>
@@ -278,7 +272,8 @@ onMounted(() => {
         </form>
         <template #footer>
             <Skeleton v-if="isLoading" class="h-9 w-20" />
-            <BaseButton v-else type="button" :disabled="isProcessing" @click="emit('member-form-closed')" transactionType="cancel">
+            <BaseButton v-else type="button" :disabled="isProcessing" @click="emit('form-closed')"
+                transactionType="cancel">
             </BaseButton>
             <Skeleton v-if="isLoading" class="h-9 w-20" />
             <BaseButton v-else type="button" @click="openConfirmDialog" :transactionType="props.transactionType"

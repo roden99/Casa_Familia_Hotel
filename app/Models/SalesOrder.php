@@ -5,41 +5,28 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Delivery extends Model
+class SalesOrder extends Model
 {
-    /** @use HasFactory<\Database\Factories\DeliveryFactory> */
     use HasFactory;
 
     protected $fillable = [
-        'purchase_order_id',
-        'supplier_id',
+        'customer_sales_account_id',
         'invoice_no',
         'invoice_date',
         'delivery_date',
+        'discount_percentage',
         'created_by',
         'updated_by',
-        'invoice_date',
-        'delivery_date'
     ];
 
-    // protected $casts = [
-    //     'invoice_date' => 'date',
-    //     'delivery_date' => 'date',
-    // ];
-
-    public function purchaseOrder()
+    public function customerSalesAccount()
     {
-        return $this->belongsTo(PurchaseOrder::class);
-    }
-
-    public function supplier()
-    {
-        return $this->belongsTo(Supplier::class);
+        return $this->belongsTo(CustomerSalesAccount::class);
     }
 
     public function items()
     {
-        return $this->hasMany(DeliveryItem::class);
+        return $this->hasMany(SalesOrderItem::class);
     }
 
     public function creator()

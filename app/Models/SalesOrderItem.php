@@ -5,34 +5,29 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class DeliveryItem extends Model
+class SalesOrderItem extends Model
 {
-    /** @use HasFactory<\Database\Factories\DeliveryItemFactory> */
     use HasFactory;
 
     protected $fillable = [
-        'delivery_id',
+        'sales_order_id',
         'product_id',
-        'quantity_received',
+        'quantity',
         'unit_price',
-        'warehouse_id',
+        'discount_percentage',
+        'total_price',
         'created_by',
         'updated_by',
     ];
 
-    public function delivery()
+    public function salesOrder()
     {
-        return $this->belongsTo(Delivery::class);
+        return $this->belongsTo(SalesOrder::class);
     }
 
     public function product()
     {
         return $this->belongsTo(product::class);
-    }
-
-    public function warehouse()
-    {
-        return $this->belongsTo(warehouse::class);
     }
 
     public function creator()

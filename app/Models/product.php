@@ -19,13 +19,19 @@ class product extends Model
         'strength_id',
         'drugform_id',
         'status',
+        'product_qty',
+        'reorder_level',
+        'initial_date',
+        'initial_qty',
+        'is_inventory',
         'created_by',
         'updated_by',
     ];
 
     protected $casts = [
-        'isgeneric' => 'boolean',
-        'status' => 'boolean',
+        'isgeneric'    => 'boolean',
+        'status'       => 'boolean',
+        'is_inventory' => 'boolean',
     ];
 
     /**

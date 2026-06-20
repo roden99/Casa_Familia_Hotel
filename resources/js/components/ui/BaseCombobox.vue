@@ -146,8 +146,8 @@ watch(searchQuery, (newQuery) => {
             <InputGroup :class="cn(width, 'cursor-pointer', props.disabled && 'opacity-50 pointer-events-none')"
                 role="combobox" :aria-expanded="open && !props.disablepop" :aria-required="props.required"
                 @click="props.disablepop && $event.preventDefault()">
-                <InputGroupInput readonly :value="selectedLabel || selected?.label || ''" :placeholder="placeholder"
-                    class="cursor-pointer" />
+                <InputGroupInput readonly :model-value="selectedLabel || selected?.label || ''"
+                    :placeholder="placeholder" class="cursor-pointer" />
                 <InputGroupAddon align="inline-end">
                     <ChevronsUpDown class="opacity-50" />
                 </InputGroupAddon>

@@ -24,6 +24,7 @@ const actionConfig: Record<string, { label: string; icon: any; class: string }> 
   history: { label: 'History', icon: History, class: 'text-yellow-600' },
   clients: { label: 'Clients', icon: Users, class: 'text-indigo-600' },
   customers: { label: 'View Customers', icon: UserSearch, class: 'text-indigo-600' },
+  initial: { label: 'Initial Inventory', icon: PlusCircle, class: 'text-blue-600' }
 }
 
 const emit = defineEmits<{
