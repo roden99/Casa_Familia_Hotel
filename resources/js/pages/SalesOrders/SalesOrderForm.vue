@@ -184,6 +184,13 @@ watch(selectedProduct, (newVal) => {
 
 const orderItems = ref([]);
 
+const totalAmount = computed(() =>
+    orderItems.value.reduce((sum, item) => {
+        const disc = Number(item.discount_percentage) || 0;
+        return sum + Number(item.quantity) * Number(item.unit_price) * (1 - disc / 100);
+    }, 0).toFixed(2)
+);
+
 const addItem = () => {
     if (!selectedProduct.value) {
         toast.error('Please select a product.');
@@ -235,7 +242,7 @@ async function loadProducts(searchQuery = '') {
                     <FieldGroup :skeleton="isLoading" :skeleton-layout="skeletonLayout">
 
                         <div class="grid w-full grid-cols-12 gap-4">
-                            <Field class="col-span-10">
+                            <Field class="col-span-8">
                                 <FieldLabel class="font-normal">Customer / Account:</FieldLabel>
                                 <BaseCombobox v-model="form.customer_sales_account_id" :options="accountOptions"
                                     empty-message="Search customer or account" width="w-full"
@@ -247,6 +254,12 @@ async function loadProducts(searchQuery = '') {
                                 <Input v-model="form.discount_percentage" type="number" min="0" max="100" step="0.01"
                                     placeholder="0.00" />
                             </Field>
+
+                            <Field class="col-span-2">
+                                <FieldLabel class="font-normal">Terms:</FieldLabel>
+                                <Input v-model="form.terms" placeholder="e.g. Net 30" />
+                            </Field>
+
                         </div>
 
                         <div class="grid w-full grid-cols-12 gap-4">
@@ -266,14 +279,6 @@ async function loadProducts(searchQuery = '') {
                             </Field>
 
                         </div>
-
-                        <div class="grid w-full grid-cols-12 gap-4">
-                            <Field class="col-span-6">
-                                <FieldLabel class="font-normal">Terms:</FieldLabel>
-                                <Input v-model="form.terms" placeholder="e.g. Net 30" />
-                            </Field>
-                        </div>
-
 
 
                         <FieldSeparator />
@@ -296,16 +301,10 @@ async function loadProducts(searchQuery = '') {
                                         <Input v-model="itemQuantity" type="number" min="1" placeholder="0" />
                                     </Field>
 
-                                    <Field class="col-span-2">
+                                    <Field class="col-span-3">
                                         <FieldLabel class="font-normal">UP</FieldLabel>
                                         <Input v-model="itemPrice" type="number" min="0" step="0.01"
                                             placeholder="0.00" />
-                                    </Field>
-
-                                    <Field class="col-span-1">
-                                        <FieldLabel class="font-normal">Disc %</FieldLabel>
-                                        <Input v-model="itemDiscount" type="number" min="0" max="100" step="0.01"
-                                            placeholder="0" />
                                     </Field>
 
                                     <Field class="col-span-1">
@@ -324,6 +323,11 @@ async function loadProducts(searchQuery = '') {
         </form>
 
         <template #footer>
+            <div class="mr-auto flex flex-col">
+                <span class="text-xs text-muted-foreground uppercase tracking-wide">Total Amount</span>
+                <span class="text-lg font-bold">{{ totalAmount }}</span>
+            </div>
+
             <BaseButton type="button" :disabled="isBusy" @click="emit('form-closed')" transactionType="cancel"
                 :skeleton="isLoading" />
 

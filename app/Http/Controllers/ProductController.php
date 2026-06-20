@@ -22,7 +22,12 @@ class ProductController extends Controller
             $includeId = $request->input('include_id');
             $query = product::with(['brand', 'unit', 'drugform', 'strength'])->where('status', true);
             if (!empty($search)) {
-                $query->where('productname', 'like', "%{$search}%");
+                $query->where(function ($q) use ($search) {
+                    $q->where('productname', 'like', "%{$search}%")
+                        ->orWhereHas('brand', function ($b) use ($search) {
+                            $b->where('brandname', 'like', "%{$search}%");
+                        });
+                });
             }
             if (!empty($includeId)) {
                 $query->orWhere('id', $includeId);

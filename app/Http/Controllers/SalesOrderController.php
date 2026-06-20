@@ -26,6 +26,7 @@ class SalesOrderController extends Controller
                 'so.invoice_date',
                 'so.delivery_date',
                 'so.discount_percentage',
+                'so.terms',
                 'so.customer_sales_account_id',
                 'c.company',
                 'c.first_name',
@@ -61,6 +62,7 @@ class SalesOrderController extends Controller
                 'invoice_date'              => $item->invoice_date ? Carbon::parse($item->invoice_date)->format('m-d-Y') : null,
                 'delivery_date'             => $item->delivery_date ? Carbon::parse($item->delivery_date)->format('m-d-Y') : null,
                 'discount_percentage'       => $item->discount_percentage,
+                'terms'                     => $item->terms ?? '',
             ];
         });
 
@@ -71,7 +73,8 @@ class SalesOrderController extends Controller
             ['accessorKey' => 'invoice_no',           'header' => 'INVOICE NO.',   'isVisible' => true,  'isParameter' => true],
             ['accessorKey' => 'invoice_date',         'header' => 'INVOICE DATE',  'isVisible' => true,  'isParameter' => false],
             ['accessorKey' => 'delivery_date',        'header' => 'DELIVERY DATE', 'isVisible' => false, 'isParameter' => false],
-            ['accessorKey' => 'discount_percentage',  'header' => 'DISC %',        'isVisible' => false, 'isParameter' => false],
+            ['accessorKey' => 'discount_percentage',  'header' => 'DISC %',        'isVisible' => true,  'isParameter' => false],
+            ['accessorKey' => 'terms',                'header' => 'TERMS',         'isVisible' => true,  'isParameter' => false],
         ];
 
         return inertia('SalesOrders/SalesOrderIndex', [

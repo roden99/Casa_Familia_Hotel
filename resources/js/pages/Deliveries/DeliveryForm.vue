@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useForm } from '@inertiajs/vue3';
-import { onMounted, ref, computed, watch, nextTick } from 'vue';
+import { onMounted, ref, computed, watch } from 'vue';
 import { toast } from 'vue-sonner';
 import { Field, FieldGroup, FieldLabel, FieldSet, FieldSeparator } from '@/components/ui/field';
 import BaseField from '@/components/BaseField.vue';
@@ -59,7 +59,7 @@ const props = defineProps({
 
 
 const form = useForm({
-    supplier_id: '',
+    supplier_id: props.delivery?.supplier_id ? String(props.delivery.supplier_id) : '',
     invoice_date: null,
     invoice_no: props.delivery ? props.delivery.invoice_no : '',
     delivery_date: null,
@@ -122,11 +122,11 @@ onMounted(async () => {
         isDialogOpen.value = true;
     }
     isLoading.value = true;
-    if (props.transactionType === 'update' && props.delivery?.id) {
-        await Promise.all([loadProducts(), loadDeliveryItems()]);
-    } else {
-        await Promise.all([loadSuppliers(), loadProducts()]);
-    }
+    await Promise.all([
+        loadSuppliers(),
+        loadProducts(),
+        props.transactionType === 'update' && props.delivery?.id ? loadDeliveryItems() : Promise.resolve(),
+    ]);
     isLoading.value = false;
 });
 
@@ -141,11 +141,7 @@ async function loadDeliveryItems() {
         const d = res.data.delivery;
         if (d.invoice_date) form.invoice_date = reverseDate(d.invoice_date.slice(0, 10));
         if (d.delivery_date) form.delivery_date = reverseDate(d.delivery_date.slice(0, 10));
-        // Ensure the existing supplier appears in the combobox options
-        if (d.supplier_id) {
-            await loadSuppliers('', d.supplier_id);
-            form.supplier_id = String(d.supplier_id);
-        }    } catch (error) {
+    } catch (error) {
         console.error('Failed to load delivery items:', error);
         toast.error('Failed to load delivery items.');
     }
@@ -158,12 +154,12 @@ async function loadDeliveryItems() {
 
 const suppliers = ref([]);
 const supplierOptions = ref([]);
-async function loadSuppliers(searchQuery = '', includeId = null) {
+async function loadSuppliers(searchQuery = '') {
     // isLoading.value = true;
     try {
         const res = await axios.get('/suppliers', {
             headers: { Accept: 'application/json' },
-            params: { search: searchQuery, include_id: includeId },
+            params: { search: searchQuery },
         });
         const supplierArr = Array.isArray(res.data.suppliers) ? res.data.suppliers : [];
         suppliers.value = supplierArr;
@@ -187,6 +183,12 @@ const itemQuantity = ref(1);
 const itemPrice = ref(0);
 
 const deliveryItems = ref([]);
+
+const totalAmount = computed(() =>
+    deliveryItems.value.reduce((sum, item) =>
+        sum + Number(item.quantity) * Number(item.unit_price), 0
+    ).toFixed(2)
+);
 
 const addItem = () => {
     if (!selectedProducts.value) {
@@ -336,6 +338,11 @@ async function loadProducts(searchQuery = '', includeId = null) {
         </form>
 
         <template #footer>
+            <div class="mr-auto flex flex-col">
+                <span class="text-xs text-muted-foreground uppercase tracking-wide">Total Amount</span>
+                <span class="text-lg font-bold">{{ totalAmount }}</span>
+            </div>
+
             <BaseButton type="button" :disabled="isBusy" @click="emit('form-closed')" transactionType="cancel"
                 :skeleton="isLoading">
             </BaseButton>
