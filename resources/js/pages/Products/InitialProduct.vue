@@ -1,6 +1,6 @@
 <script setup>
 import InitialProductForm from './InitialProductForm.vue';
-import { ref, onMounted } from 'vue';
+import { ref } from 'vue';
 import { toast } from 'vue-sonner';
 import { router } from '@inertiajs/vue3';
 
@@ -14,15 +14,6 @@ const props = defineProps({
 const emit = defineEmits(['form-closed']);
 
 const isProcessing = ref(false);
-
-onMounted(() => {
-    if (props.product?.is_inventory) {
-        toast.warning('Already initialized', {
-            description: `${props.product.display_name ?? props.product.productname} already has an initial inventory.`,
-        });
-        emit('form-closed');
-    }
-});
 
 const handleSubmit = (formData) => {
     isProcessing.value = true;
