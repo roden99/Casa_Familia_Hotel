@@ -25,7 +25,7 @@ class SalesOrderController extends Controller
                 'so.invoice_no',
                 'so.invoice_date',
                 'so.delivery_date',
-                'so.discount_percentage',
+                // 'so.discount_percentage',
                 'so.terms',
                 'so.customer_sales_account_id',
                 'c.company',
@@ -61,7 +61,7 @@ class SalesOrderController extends Controller
                 'invoice_no'                => $item->invoice_no ?? '',
                 'invoice_date'              => $item->invoice_date ? Carbon::parse($item->invoice_date)->format('m-d-Y') : null,
                 'delivery_date'             => $item->delivery_date ? Carbon::parse($item->delivery_date)->format('m-d-Y') : null,
-                'discount_percentage'       => $item->discount_percentage,
+                // 'discount_percentage'       => $item->discount_percentage,
                 'terms'                     => $item->terms ?? '',
             ];
         });
@@ -73,7 +73,7 @@ class SalesOrderController extends Controller
             ['accessorKey' => 'invoice_no',           'header' => 'INVOICE NO.',   'isVisible' => true,  'isParameter' => true],
             ['accessorKey' => 'invoice_date',         'header' => 'INVOICE DATE',  'isVisible' => true,  'isParameter' => false],
             ['accessorKey' => 'delivery_date',        'header' => 'DELIVERY DATE', 'isVisible' => false, 'isParameter' => false],
-            ['accessorKey' => 'discount_percentage',  'header' => 'DISC %',        'isVisible' => true,  'isParameter' => false],
+            // ['accessorKey' => 'discount_percentage',  'header' => 'DISC %',        'isVisible' => true,  'isParameter' => false],
             ['accessorKey' => 'terms',                'header' => 'TERMS',         'isVisible' => true,  'isParameter' => false],
         ];
 
@@ -90,7 +90,7 @@ class SalesOrderController extends Controller
             'invoice_no'                    => 'nullable|string|max:255',
             'invoice_date'                  => 'nullable|date',
             'delivery_date'                 => 'nullable|date',
-            'discount_percentage'           => 'nullable|numeric|min:0|max:100',
+            // 'discount_percentage'           => 'nullable|numeric|min:0|max:100',
             'terms'                         => 'nullable|string|max:255',
             'items'                         => 'required|array|min:1',
             'items.*.product_id'            => 'required|exists:products,id',

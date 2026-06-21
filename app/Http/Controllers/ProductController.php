@@ -21,16 +21,23 @@ class ProductController extends Controller
             $search = $request->input('search');
             $includeId = $request->input('include_id');
             $query = product::with(['brand', 'unit', 'drugform', 'strength'])->where('status', true);
-            if (!empty($search)) {
+
+            if ($includeId) {
+                $query->where(function ($q) use ($search) {
+                    if (!empty($search)) {
+                        $q->where('productname', 'like', "%{$search}%")
+                            ->orWhereHas('brand', function ($b) use ($search) {
+                                $b->where('brandname', 'like', "%{$search}%");
+                            });
+                    }
+                })->orWhere('id', $includeId);
+            } elseif (!empty($search)) {
                 $query->where(function ($q) use ($search) {
                     $q->where('productname', 'like', "%{$search}%")
                         ->orWhereHas('brand', function ($b) use ($search) {
                             $b->where('brandname', 'like', "%{$search}%");
                         });
                 });
-            }
-            if (!empty($includeId)) {
-                $query->orWhere('id', $includeId);
             }
 
             return response()->json([
@@ -212,20 +219,32 @@ class ProductController extends Controller
     public function initialInventory(Request $request, product $product)
     {
         $validated = $request->validate([
-            'product_qty'   => 'required|integer|min:0',
+            'product_qty' => 'required|integer|min:0',
+        ]);
+
+        $product->update([
+            'product_qty'  => $validated['product_qty'],
+            'initial_qty'  => $validated['product_qty'],
+            'is_inventory' => true,
+            'initial_date' => now()->startOfDay(),
+            'updated_by'   => $request->user()->id,
+        ]);
+
+        return redirect()->route('products.index')->with('success', 'Initial inventory set successfully!');
+    }
+
+    public function reorderLevel(Request $request, product $product)
+    {
+        $validated = $request->validate([
             'reorder_level' => 'required|integer|min:0',
         ]);
 
         $product->update([
-            'product_qty'   => $validated['product_qty'],
-            'initial_qty'   => $validated['product_qty'],
             'reorder_level' => $validated['reorder_level'],
-            'is_inventory'  => true,
-            'initial_date'  => now()->startOfDay(),
             'updated_by'    => $request->user()->id,
         ]);
 
-        return redirect()->route('products.index')->with('success', 'Initial inventory set successfully!');
+        return redirect()->route('products.index')->with('success', 'Reorder level updated successfully!');
     }
 
     public function history(product $product)

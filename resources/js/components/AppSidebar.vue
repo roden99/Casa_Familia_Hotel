@@ -35,40 +35,28 @@ const mainNavItems: NavItem[] = [
   },
 
   {
+
     title: 'Inventory',
-    icon: Boxes,
-    children: [
-      {
-        title: 'Products',
-        href: '/products',
-        icon: Package,
-      },
-    ],
+    href: '/products',
+    icon: Package,
+
   },
 
   {
-    title: 'Purchase Order',
-    icon: ShoppingCart,
-    children: [
-      {
-        title: 'Delivery',
-        href: '/deliveries',
-        icon: Truck,
-      },
-    ],
+
+    title: 'Stock Receiving',
+    href: '/deliveries',
+    icon: Truck,
+
+
   },
 
   {
-    title: 'Sales Management',
-    icon: ClipboardList,
-    href: '/under-construction',
-    children: [
-      {
-        title: 'Sales Orders',
-        href: '/sales-orders',
-        icon: Package,
-      },
-    ],
+
+    title: 'Sales Orders',
+    href: '/sales-orders',
+    icon: Package,
+
   },
 
   {

@@ -184,12 +184,13 @@ watch(selectedProduct, (newVal) => {
 
 const orderItems = ref([]);
 
-const totalAmount = computed(() =>
-    orderItems.value.reduce((sum, item) => {
+const totalAmount = computed(() => {
+    const raw = orderItems.value.reduce((sum, item) => {
         const disc = Number(item.discount_percentage) || 0;
         return sum + Number(item.quantity) * Number(item.unit_price) * (1 - disc / 100);
-    }, 0).toFixed(2)
-);
+    }, 0);
+    return raw.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+});
 
 const addItem = () => {
     if (!selectedProduct.value) {
@@ -207,6 +208,7 @@ const addItem = () => {
     selectedProduct.value = null;
     itemQuantity.value = 1;
     itemPrice.value = 0;
+    itemDiscount.value = 0;
 };
 
 const removeItem = (index) => {
@@ -249,15 +251,15 @@ async function loadProducts(searchQuery = '') {
                                     @search="loadCustomerAccounts" />
                             </Field>
 
-                            <Field class="col-span-2">
+                            <!-- <Field class="col-span-2">
                                 <FieldLabel class="font-normal">Discount (%):</FieldLabel>
                                 <Input v-model="form.discount_percentage" type="number" min="0" max="100" step="0.01"
                                     placeholder="0.00" />
-                            </Field>
+                            </Field> -->
 
-                            <Field class="col-span-2">
-                                <FieldLabel class="font-normal">Terms:</FieldLabel>
-                                <Input v-model="form.terms" placeholder="e.g. Net 30" />
+                            <Field class="col-span-4">
+                                <FieldLabel class="font-normal">Terms(Days):</FieldLabel>
+                                <Input v-model="form.terms" placeholder="e.g. 30" />
                             </Field>
 
                         </div>
@@ -289,7 +291,7 @@ async function loadProducts(searchQuery = '') {
                         <div class="grid w-full grid-cols-12 gap-4">
                             <Field class="col-span-12">
                                 <div class="grid grid-cols-12 items-start gap-2">
-                                    <Field class="col-span-6">
+                                    <Field class="col-span-5">
                                         <FieldLabel class="font-normal">Select Item:</FieldLabel>
                                         <BaseCombobox v-model="selectedProduct" :options="productsOptions"
                                             empty-message="No products found" width="w-full" @search="loadProducts"
@@ -301,9 +303,15 @@ async function loadProducts(searchQuery = '') {
                                         <Input v-model="itemQuantity" type="number" min="1" placeholder="0" />
                                     </Field>
 
-                                    <Field class="col-span-3">
+                                    <Field class="col-span-2">
                                         <FieldLabel class="font-normal">UP</FieldLabel>
                                         <Input v-model="itemPrice" type="number" min="0" step="0.01"
+                                            placeholder="0.00" />
+                                    </Field>
+
+                                    <Field class="col-span-2">
+                                        <FieldLabel class="font-normal">Disc %</FieldLabel>
+                                        <Input v-model="itemDiscount" type="number" min="0" max="100" step="0.01"
                                             placeholder="0.00" />
                                     </Field>
 

@@ -46,6 +46,7 @@ Route::resource('product-units', ProductUnitController::class);
 Route::resource('product-types', ProductTypeController::class);
 Route::resource('products', ProductController::class);
 Route::patch('products/{product}/initial-inventory', [ProductController::class, 'initialInventory'])->name('products.initialInventory');
+Route::patch('products/{product}/reorder-level', [ProductController::class, 'reorderLevel'])->name('products.reorderLevel');
 Route::get('products/{product}/history', [ProductController::class, 'history'])->name('products.history');
 Route::resource('warehouses', WarehouseController::class);
 Route::resource('warehouse-items', WarehouseItemController::class);

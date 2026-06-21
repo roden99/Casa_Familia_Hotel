@@ -28,16 +28,14 @@ class CustomerAccountController extends Controller
             if ($includeId) {
                 $query->where(function ($q) use ($search) {
                     if (!empty($search)) {
-                        $q->where('c.last_name', 'like', "{$search}%")
-                            ->orWhere('c.company', 'like', "{$search}%")
-                            ->orWhere('sa.account_name', 'like', "{$search}%");
+                        $q->where('c.last_name', 'like', "%{$search}%")
+                            ->orWhere('c.company', 'like', "%{$search}%");
                     }
                 })->orWhere('csa.id', $includeId);
             } elseif (!empty($search)) {
                 $query->where(function ($q) use ($search) {
-                    $q->where('c.last_name', 'like', "{$search}%")
-                        ->orWhere('c.company', 'like', "{$search}%")
-                        ->orWhere('sa.account_name', 'like', "{$search}%");
+                    $q->where('c.last_name', 'like', "%{$search}%")
+                        ->orWhere('c.company', 'like', "%{$search}%");
                 });
             }
 

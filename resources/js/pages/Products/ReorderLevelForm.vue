@@ -16,22 +16,18 @@ const props = defineProps({
     },
     cardTitle: {
         type: String,
-        default: 'Initial Inventory',
+        default: 'Reorder Level',
     },
     product: {
         type: Object,
         default: null,
-    },
-    transactionType: {
-        type: String,
-        default: 'create',
     },
 });
 
 const emit = defineEmits(['handleSubmit', 'form-closed']);
 
 const form = useForm({
-    product_qty: props.product?.product_qty ?? 0,
+    reorder_level: props.product?.reorder_level ?? 0,
 });
 
 const isLoading = ref(true);
@@ -44,8 +40,8 @@ const handleAlertClose = () => {
 };
 
 const isFormValidated = () => {
-    if (form.product_qty === '' || form.product_qty < 0) {
-        toast.error('Please enter a valid quantity.');
+    if (form.reorder_level === '' || form.reorder_level < 0) {
+        toast.error('Please enter a valid reorder level.');
         return false;
     }
     return true;
@@ -74,7 +70,7 @@ onMounted(() => {
 <template>
     <FormCard :loading="isProcessing" size="md">
         <form @submit.prevent class="space-y-4 mt-4">
-            <BaseField legend="Initial Inventory" description="Set the initial inventory quantity for this product">
+            <BaseField legend="Reorder Level" description="Set the reorder level for this product">
                 <template #fields>
                     <FieldGroup :skeleton="isLoading" :skeleton-rows="1" :skeleton-cols="1">
                         <div class="grid w-full grid-cols-12 gap-4">
@@ -84,10 +80,9 @@ onMounted(() => {
                                     '—' }}</span>
                             </Field>
                             <Field class="col-span-12">
-                                <FieldLabel class="font-normal">Initial Quantity:</FieldLabel>
-                                <Input v-model.number="form.product_qty" type="number" min="0" required />
+                                <FieldLabel class="font-normal">Reorder Level:</FieldLabel>
+                                <Input v-model.number="form.reorder_level" type="number" min="0" required />
                             </Field>
-
                         </div>
                     </FieldGroup>
                 </template>
@@ -97,11 +92,11 @@ onMounted(() => {
         <template #footer>
             <BaseButton type="button" :disabled="isBusy" @click="emit('form-closed')" transactionType="cancel"
                 :skeleton="isLoading" />
-            <BaseButton type="button" :disabled="isBusy" @click="openConfirmDialog" transactionType="create"
+            <BaseButton type="button" :disabled="isBusy" @click="openConfirmDialog" transactionType="update"
                 :loading="isProcessing" :skeleton="isLoading" />
         </template>
 
-        <BaseAlertDialog v-model:open="isDialogOpen" :loading="isProcessing" transaction-type="create"
+        <BaseAlertDialog v-model:open="isDialogOpen" :loading="isProcessing" transaction-type="update"
             @cancel="handleAlertClose" @confirm="handleSubmit" />
     </FormCard>
 </template>

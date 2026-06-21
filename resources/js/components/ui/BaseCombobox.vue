@@ -83,10 +83,10 @@ const listHeight = computed(() => {
     if (props.options.length === 0) return { maxHeight: '80px' }
     const itemHeight = 32 // Each item is approximately 32px (py-1.5 + text)
     const calculatedHeight = props.options.length * itemHeight + 8 // +8 for padding
-    const maxHeight = 300
+    const maxHeight = 256
     const minHeight = 100
 
-    if (calculatedHeight > maxHeight) return { maxHeight: '300px' }
+    if (calculatedHeight > maxHeight) return { height: '256px', maxHeight: '256px' }
     if (calculatedHeight < minHeight) return { height: '100px', maxHeight: '100px' }
     return { height: `${calculatedHeight}px`, maxHeight: `${calculatedHeight}px` }
 })

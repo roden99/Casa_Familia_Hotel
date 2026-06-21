@@ -14,6 +14,7 @@ import CreateProduct from '@/pages/Products/CreateProduct.vue';
 import UpdateProduct from '@/pages/Products/UpdateProduct.vue';
 import DeleteProduct from '@/pages/Products/DeleteProduct.vue';
 import InitialProduct from '@/pages/Products/InitialProduct.vue';
+import ReorderLevel from '@/pages/Products/ReorderLevel.vue';
 import ProductHistory from '@/pages/Products/ProductHistory.vue';
 
 
@@ -91,6 +92,7 @@ const showCreateProductModal = ref(false);
 const showUpdateProductModal = ref(false);
 const showDeleteProductModal = ref(false);
 const showInitialProductModal = ref(false);
+const showReorderLevelModal = ref(false);
 const showHistoryModal = ref(false);
 const selectedProduct = ref(null);
 
@@ -142,6 +144,11 @@ const handleAction = ({ type, data }) => {
 
         case 'initial':
             showInitialProductModal.value = true;
+            selectedProduct.value = data;
+            break;
+
+        case 'reorder':
+            showReorderLevelModal.value = true;
             selectedProduct.value = data;
             break;
 
@@ -231,6 +238,9 @@ const handleAction = ({ type, data }) => {
 
             <InitialProduct v-if="showInitialProductModal" :product="selectedProduct"
                 @form-closed="showInitialProductModal = false" />
+
+            <ReorderLevel v-if="showReorderLevelModal" :product="selectedProduct"
+                @form-closed="showReorderLevelModal = false" />
 
             <ProductHistory v-if="showHistoryModal" :product="selectedProduct"
                 @form-closed="showHistoryModal = false" />

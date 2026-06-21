@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { MoreHorizontal, Pencil, Trash2, Eye, Copy, Download, PlusCircle, Users, ShieldCheck, History, UserSearch } from 'lucide-vue-next'
+import { MoreHorizontal, Pencil, Trash2, Eye, Copy, Download, PlusCircle, Users, ShieldCheck, History, UserSearch, TrendingDown } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
@@ -24,7 +24,8 @@ const actionConfig: Record<string, { label: string; icon: any; class: string }> 
   history: { label: 'History', icon: History, class: 'text-yellow-600' },
   clients: { label: 'Clients', icon: Users, class: 'text-indigo-600' },
   customers: { label: 'View Customers', icon: UserSearch, class: 'text-indigo-600' },
-  initial: { label: 'Initial Inventory', icon: PlusCircle, class: 'text-blue-600' }
+  initial: { label: 'Initial Inventory', icon: PlusCircle, class: 'text-blue-600' },
+  reorder: { label: 'Reorder Level', icon: TrendingDown, class: 'text-orange-600' }
 }
 
 const emit = defineEmits<{
