@@ -34,7 +34,7 @@ class ProductController extends Controller
             }
 
             return response()->json([
-                'products' => $query->orderBy('productname')->limit(5)->get()->map(function ($product) {
+                'products' => $query->orderBy('productname')->limit(20)->get()->map(function ($product) {
                     $parts = [$product->productname];
                     if ($product->drugform) {
                         $parts[] = $product->drugform->drugformname;

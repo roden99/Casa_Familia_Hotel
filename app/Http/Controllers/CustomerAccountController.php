@@ -41,7 +41,7 @@ class CustomerAccountController extends Controller
                 });
             }
 
-            $accounts = $query->orderBy('sa.account_name')->orderBy('c.last_name')->limit(10)->get()
+            $accounts = $query->orderBy('sa.account_name')->orderBy('c.last_name')->limit(20)->get()
                 ->map(fn($row) => [
                     'value'               => (string) $row->id,
                     'label'               => strtoupper($row->account_name) . ' - ' . (
