@@ -181,6 +181,7 @@ const confirmDelete = () => {
                             <TableHead class="w-28 font-semibold">Type</TableHead>
                             <TableHead class="font-semibold">Reference</TableHead>
                             <TableHead class="w-36 font-semibold">Invoice #</TableHead>
+                            <TableHead class="font-semibold">Notes</TableHead>
                             <TableHead class="text-right w-32 font-semibold text-destructive">Debit</TableHead>
                             <TableHead class="text-right w-32 font-semibold text-green-700 dark:text-green-400">Credit
                             </TableHead>
@@ -222,6 +223,9 @@ const confirmDelete = () => {
                                 </div>
                             </TableCell>
                             <TableCell class="text-sm text-muted-foreground">{{ entry.invoice_no }}</TableCell>
+                            <TableCell class="text-sm text-muted-foreground italic">
+                                {{ entry.notes || '' }}
+                            </TableCell>
                             <TableCell class="text-right font-mono text-sm font-medium text-destructive">
                                 {{ entry.type === 'INVOICE' ? entry.amount : '' }}
                             </TableCell>
