@@ -43,7 +43,7 @@ const form = useForm({
     invoice_no: props.order?.invoice_no ?? '',
     invoice_date: null,
     discount_percentage: props.order?.discount_percentage ?? 0,
-    terms: props.order?.terms ?? '',,
+    terms: props.order?.terms ?? '',
 });
 
 const emit = defineEmits(['handleSubmit', 'form-closed']);
