@@ -7,6 +7,7 @@ import { Head } from '@inertiajs/vue3';
 
 import CreateSalesOrder from '@/pages/SalesOrders/CreateSalesOrder.vue';
 import UpdateSalesOrder from '@/pages/SalesOrders/UpdateSalesOrder.vue';
+import ViewSalesOrder from '@/pages/SalesOrders/ViewSalesOrder.vue';
 
 const breadcrumbs = [
     { title: 'Dashboard', href: '/dashboard' },
@@ -33,10 +34,15 @@ const selectModelValue = ref(
 
 const showCreateModal = ref(false);
 const showUpdateModal = ref(false);
+const showViewModal = ref(false);
 const selectedOrder = ref(null);
 
 const handleAction = ({ type, data }) => {
     switch (type) {
+        case 'view':
+            selectedOrder.value = data;
+            showViewModal.value = true;
+            break;
         case 'edit':
             selectedOrder.value = data;
             showUpdateModal.value = true;
@@ -69,6 +75,9 @@ const handleAction = ({ type, data }) => {
 
             <UpdateSalesOrder v-if="showUpdateModal" :order="selectedOrder"
                 @item-form-closed="showUpdateModal = false" />
+
+            <ViewSalesOrder v-if="showViewModal" :order="selectedOrder"
+                @form-closed="showViewModal = false" />
         </div>
     </AppLayout>
 </template>
