@@ -43,7 +43,6 @@ const handleAction = (action: string, row: Record<string, any>) => {
 }
 
 const isActionDisabled = (action: string, row: Record<string, any>): boolean => {
-  if (action === 'initial' && row.is_inventory) return true
   return false
 }
 
