@@ -237,84 +237,80 @@ async function loadProducts(searchQuery = '') {
 </script>
 
 <template>
-    <FormCard :loading="false" size="lg">
+    <FormCard :loading="false" size="3xl">
         <form @submit.prevent class="space-y-4 mt-4">
-            <BaseField legend="Sales Order Information" description="Enter order details">
-                <template #fields>
-                    <FieldGroup :skeleton="isLoading" :skeleton-layout="skeletonLayout">
+            <div class="grid grid-cols-12 gap-6 items-stretch">
 
-                        <div class="grid w-full grid-cols-12 gap-4">
-                            <Field class="col-span-8">
-                                <FieldLabel class="font-normal">Customer / Account:</FieldLabel>
-                                <BaseCombobox v-model="form.customer_sales_account_id" :options="accountOptions"
-                                    empty-message="Search customer or account" width="w-full"
-                                    @search="loadCustomerAccounts" />
-                            </Field>
+                <!-- Left: Sales Order Info -->
+                <div class="col-span-4">
+                    <BaseField legend="Sales Order Information" description="Enter order details">
+                        <template #fields>
+                            <FieldGroup :skeleton="isLoading" :skeleton-layout="skeletonLayout">
 
-                            <!-- <Field class="col-span-2">
-                                <FieldLabel class="font-normal">Discount (%):</FieldLabel>
-                                <Input v-model="form.discount_percentage" type="number" min="0" max="100" step="0.01"
-                                    placeholder="0.00" />
-                            </Field> -->
+                                <div class="grid w-full grid-cols-12 gap-4">
+                                    <Field class="col-span-12">
+                                        <FieldLabel class="font-normal">Customer / Account:</FieldLabel>
+                                        <BaseCombobox v-model="form.customer_sales_account_id" :options="accountOptions"
+                                            empty-message="Search customer or account" width="w-full"
+                                            @search="loadCustomerAccounts" />
+                                    </Field>
 
-                            <Field class="col-span-4">
-                                <FieldLabel class="font-normal">Terms(Days):</FieldLabel>
-                                <Input v-model="form.terms" placeholder="e.g. 30" />
-                            </Field>
+                                    <Field class="col-span-12">
+                                        <FieldLabel class="font-normal">Terms (Days):</FieldLabel>
+                                        <Input v-model="form.terms" placeholder="e.g. 30" />
+                                    </Field>
 
-                        </div>
+                                    <Field class="col-span-12">
+                                        <FieldLabel class="font-normal">Invoice No.:</FieldLabel>
+                                        <Input v-model="form.invoice_no" placeholder="e.g. INV-001" />
+                                    </Field>
 
-                        <div class="grid w-full grid-cols-12 gap-4">
-                            <Field class="col-span-4">
-                                <FieldLabel class="font-normal">Invoice No.:</FieldLabel>
-                                <Input v-model="form.invoice_no" placeholder="e.g. INV-001" />
-                            </Field>
+                                    <Field class="col-span-12">
+                                        <FieldLabel class="font-normal">Invoice Date:</FieldLabel>
+                                        <BaseDatePick v-model="form.invoice_date" class="w-32" />
+                                    </Field>
 
-                            <Field class="col-span-4">
-                                <FieldLabel class="font-normal">Invoice Date:</FieldLabel>
-                                <BaseDatePick v-model="form.invoice_date" class="w-32" />
-                            </Field>
+                                    <Field class="col-span-12">
+                                        <FieldLabel class="font-normal">Delivery Date:</FieldLabel>
+                                        <BaseDatePick v-model="form.delivery_date" class="w-32" />
+                                    </Field>
+                                </div>
 
-                            <Field class="col-span-4">
-                                <FieldLabel class="font-normal">Delivery Date:</FieldLabel>
-                                <BaseDatePick v-model="form.delivery_date" class="w-32" />
-                            </Field>
+                                <FieldSeparator />
 
-                        </div>
+                            </FieldGroup>
+                        </template>
+                    </BaseField>
+                </div>
 
-
-                        <FieldSeparator />
-
-                    </FieldGroup>
-
-                    <FieldGroup :skeleton="isLoading" :skeleton-layout="skeletonLayoutItems">
-                        <div class="grid w-full grid-cols-12 gap-4">
-                            <Field class="col-span-12">
-                                <div class="grid grid-cols-12 items-start gap-2">
+                <!-- Right: Add Item + Items Table -->
+                <div class="col-span-8 flex flex-col">
+                    <BaseField legend="Order Items" description="Add and manage items for this order"
+                        class="flex flex-col flex-1">
+                        <template #fields>
+                            <FieldGroup :skeleton="isLoading" :skeleton-layout="skeletonLayoutItems"
+                                class="flex flex-col flex-1">
+                                <div class="grid w-full grid-cols-12 gap-3">
                                     <Field class="col-span-5">
                                         <FieldLabel class="font-normal">Select Item:</FieldLabel>
                                         <BaseCombobox v-model="selectedProduct" :options="productsOptions"
                                             empty-message="No products found" width="w-full" @search="loadProducts"
                                             placeholder="Search product..." />
                                     </Field>
-
                                     <Field class="col-span-2">
                                         <FieldLabel class="font-normal">Qty</FieldLabel>
                                         <Input v-model="itemQuantity" type="number" min="1" placeholder="0" />
                                     </Field>
-
                                     <Field class="col-span-2">
                                         <FieldLabel class="font-normal">UP</FieldLabel>
                                         <Input v-model="itemPrice" type="number" min="0" step="0.01"
                                             placeholder="0.00" />
                                     </Field>
-
                                     <Field class="col-span-2">
                                         <FieldLabel class="font-normal">Disc %</FieldLabel>
                                         <Input v-model="itemDiscount" type="number" min="0" max="100" step="0.01"
                                             placeholder="0.00" />
                                     </Field>
-
                                     <Field class="col-span-1">
                                         <FieldLabel class="invisible">-</FieldLabel>
                                         <BaseButton type="button" @click="addItem" :transactionType="'add'"
@@ -322,12 +318,13 @@ async function loadProducts(searchQuery = '') {
                                     </Field>
                                 </div>
 
-                                <SalesOrderItemsTable :items="orderItems" @remove="removeItem" />
-                            </Field>
-                        </div>
-                    </FieldGroup>
-                </template>
-            </BaseField>
+                                <SalesOrderItemsTable :items="orderItems" @remove="removeItem" class="flex-1 min-h-0" />
+                            </FieldGroup>
+                        </template>
+                    </BaseField>
+                </div>
+
+            </div>
         </form>
 
         <template #footer>

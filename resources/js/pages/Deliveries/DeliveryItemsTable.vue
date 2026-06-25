@@ -22,7 +22,7 @@ const emit = defineEmits(['remove']);
 </script>
 
 <template>
-    <div class="max-h-64 overflow-y-auto rounded-md border">
+    <div class="overflow-y-auto rounded-md border flex-1 min-h-0">
         <Table>
             <TableCaption>List of delivery items</TableCaption>
             <TableHeader>
