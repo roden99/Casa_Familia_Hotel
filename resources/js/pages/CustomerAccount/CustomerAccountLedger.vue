@@ -12,6 +12,10 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Pencil } from 'lucide-vue-next';
+import CustomerAccountInvoiceEdit from './CustomerAccountInvoiceEdit.vue';
+import CustomerAccountPaymentEdit from './CustomerAccountPaymentEdit.vue';
 
 const props = defineProps({
     account: {
@@ -55,6 +59,46 @@ const balanceClass = computed(() => {
     if (bal < 0) return 'text-green-600 dark:text-green-400';
     return 'text-foreground';
 });
+
+const showEditInvoiceModal = ref(false);
+const selectedInvoice = ref(null);
+const showEditPaymentModal = ref(false);
+const selectedPayment = ref(null);
+
+const openEditInvoice = (entry) => {
+    selectedInvoice.value = entry;
+    showEditInvoiceModal.value = true;
+};
+
+const openEditPayment = (entry) => {
+    selectedPayment.value = entry;
+    showEditPaymentModal.value = true;
+};
+
+const reloadLedger = async () => {
+    isLoading.value = true;
+    try {
+        const res = await axios.get(`/customer-accounts/${props.account.csa_id}/ledger`, {
+            headers: { Accept: 'application/json' },
+        });
+        accountInfo.value = res.data.account;
+        ledger.value = res.data.ledger;
+    } catch {
+        toast.error('Failed to reload ledger.');
+    } finally {
+        isLoading.value = false;
+    }
+};
+
+const handleInvoiceEditClosed = async () => {
+    showEditInvoiceModal.value = false;
+    await reloadLedger();
+};
+
+const handlePaymentEditClosed = async () => {
+    showEditPaymentModal.value = false;
+    await reloadLedger();
+};
 </script>
 
 <template>
@@ -114,7 +158,21 @@ const balanceClass = computed(() => {
                                     {{ entry.type }}
                                 </Badge>
                             </TableCell>
-                            <TableCell class="text-sm">{{ entry.reference }}</TableCell>
+                            <TableCell class="text-sm">
+                                <div class="flex items-center gap-2">
+                                    <span>{{ entry.reference }}</span>
+                                    <Button v-if="entry.is_manual" variant="ghost" size="icon"
+                                        class="h-6 w-6 text-muted-foreground hover:text-primary"
+                                        @click="openEditInvoice(entry)">
+                                        <Pencil class="h-3 w-3" />
+                                    </Button>
+                                    <Button v-if="entry.is_payment" variant="ghost" size="icon"
+                                        class="h-6 w-6 text-muted-foreground hover:text-primary"
+                                        @click="openEditPayment(entry)">
+                                        <Pencil class="h-3 w-3" />
+                                    </Button>
+                                </div>
+                            </TableCell>
                             <TableCell class="text-sm text-muted-foreground">{{ entry.invoice_no }}</TableCell>
                             <TableCell class="text-right font-mono text-sm font-medium text-destructive">
                                 {{ entry.type === 'INVOICE' ? entry.amount : '' }}
@@ -144,4 +202,10 @@ const balanceClass = computed(() => {
             </button>
         </template>
     </FormCard>
+
+    <CustomerAccountInvoiceEdit v-if="showEditInvoiceModal" :account="account" :invoice="selectedInvoice"
+        @form-closed="handleInvoiceEditClosed" />
+
+    <CustomerAccountPaymentEdit v-if="showEditPaymentModal" :account="account" :payment="selectedPayment"
+        @form-closed="handlePaymentEditClosed" />
 </template>

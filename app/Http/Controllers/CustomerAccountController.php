@@ -294,9 +294,14 @@ class CustomerAccountController extends Controller
             ->get()
             ->map(fn($row) => [
                 'type'       => 'INVOICE',
+                'is_manual'  => true,
+                'invoice_id' => $row->id,
                 'reference'  => 'INV #' . $row->id,
                 'invoice_no' => $row->reference_no ?? '—',
                 'amount'     => (float) $row->amount,
+                'raw_amount' => (float) $row->amount,
+                'raw_date'   => $row->date,
+                'notes'      => $row->notes ?? '',
                 'date'       => $row->date ? \Carbon\Carbon::parse($row->date) : null,
             ]);
 
@@ -306,11 +311,17 @@ class CustomerAccountController extends Controller
             ->select('id', 'amount', 'payment_date as date', 'reference_no', 'payment_method', 'notes')
             ->get()
             ->map(fn($row) => [
-                'type'       => 'PAYMENT',
-                'reference'  => 'PMT #' . $row->id,
-                'invoice_no' => $row->reference_no ?? '—',
-                'amount'     => (float) $row->amount,
-                'date'       => $row->date ? \Carbon\Carbon::parse($row->date) : null,
+                'type'           => 'PAYMENT',
+                'is_payment'     => true,
+                'payment_id'     => $row->id,
+                'reference'      => 'PMT #' . $row->id,
+                'invoice_no'     => $row->reference_no ?? '—',
+                'amount'         => (float) $row->amount,
+                'raw_amount'     => (float) $row->amount,
+                'raw_date'       => $row->date,
+                'payment_method' => $row->payment_method ?? 'Cash',
+                'notes'          => $row->notes ?? '',
+                'date'           => $row->date ? \Carbon\Carbon::parse($row->date) : null,
             ]);
 
         // ── Merge & sort by date ──────────────────────────────────────────
@@ -393,5 +404,63 @@ class CustomerAccountController extends Controller
 
         return redirect()->route('customer-accounts.index')
             ->with('success', 'Invoice recorded successfully!');
+    }
+
+    /**
+     * Update a manual invoice for a customer sales account.
+     */
+    public function updateInvoice(Request $request, int $csaId, int $invoiceId)
+    {
+        $validated = $request->validate([
+            'reference_no' => 'nullable|string|max:255',
+            'invoice_date' => 'required|date',
+            'amount'       => 'required|numeric|min:0.01',
+            'notes'        => 'nullable|string',
+        ]);
+
+        DB::table('customer_account_invoices')
+            ->where('id', $invoiceId)
+            ->where('customer_sales_account_id', $csaId)
+            ->update([
+                'reference_no' => $validated['reference_no'] ?? null,
+                'invoice_date' => $validated['invoice_date'],
+                'amount'       => $validated['amount'],
+                'notes'        => $validated['notes'] ?? null,
+                'updated_by'   => $request->user()->id,
+                'updated_at'   => now(),
+            ]);
+
+        return redirect()->route('customer-accounts.index')
+            ->with('success', 'Invoice updated successfully!');
+    }
+
+    /**
+     * Update a payment for a customer sales account.
+     */
+    public function updatePayment(Request $request, int $csaId, int $paymentId)
+    {
+        $validated = $request->validate([
+            'amount'         => 'required|numeric|min:0.01',
+            'payment_date'   => 'required|date',
+            'reference_no'   => 'nullable|string|max:255',
+            'payment_method' => 'nullable|string|max:100',
+            'notes'          => 'nullable|string',
+        ]);
+
+        DB::table('customer_sales_account_payments')
+            ->where('id', $paymentId)
+            ->where('customer_sales_account_id', $csaId)
+            ->update([
+                'amount'         => $validated['amount'],
+                'payment_date'   => $validated['payment_date'],
+                'reference_no'   => $validated['reference_no'] ?? null,
+                'payment_method' => $validated['payment_method'] ?? null,
+                'notes'          => $validated['notes'] ?? null,
+                'updated_by'     => $request->user()->id,
+                'updated_at'     => now(),
+            ]);
+
+        return redirect()->route('customer-accounts.index')
+            ->with('success', 'Payment updated successfully!');
     }
 }

@@ -41,6 +41,8 @@ Route::get('customer-accounts/{id}/ledger', [CustomerAccountController::class, '
 Route::post('customer-accounts/{id}/payments', [CustomerAccountController::class, 'storePayment'])->name('customer-accounts.payments.store');
 Route::patch('customer-accounts/{id}/forward-balance', [CustomerAccountController::class, 'setForwardBalance'])->name('customer-accounts.forward-balance');
 Route::post('customer-accounts/{id}/invoices', [CustomerAccountController::class, 'storeInvoice'])->name('customer-accounts.invoices.store');
+Route::patch('customer-accounts/{csaId}/invoices/{invoiceId}', [CustomerAccountController::class, 'updateInvoice'])->name('customer-accounts.invoices.update');
+Route::patch('customer-accounts/{csaId}/payments/{paymentId}', [CustomerAccountController::class, 'updatePayment'])->name('customer-accounts.payments.update');
 Route::resource('sales-accounts', SalesAccountController::class);
 
 Route::resource('brands', BrandController::class);
