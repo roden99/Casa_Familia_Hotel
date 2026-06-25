@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue';
 import { toast } from 'vue-sonner';
 import axios from 'axios';
 import FormCard from '@/components/FormCard.vue';
+import BaseAlertDialog from '@/components/ui/BaseAlertDialog.vue';
 import {
     Table,
     TableBody,
@@ -13,7 +14,8 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Pencil } from 'lucide-vue-next';
+import { Pencil, Trash2 } from 'lucide-vue-next';
+import { router } from '@inertiajs/vue3';
 import CustomerAccountInvoiceEdit from './CustomerAccountInvoiceEdit.vue';
 import CustomerAccountPaymentEdit from './CustomerAccountPaymentEdit.vue';
 
@@ -99,6 +101,42 @@ const handlePaymentEditClosed = async () => {
     showEditPaymentModal.value = false;
     await reloadLedger();
 };
+
+// ── Delete ────────────────────────────────────────────────────────────────────
+const showDeleteDialog = ref(false);
+const isDeleting = ref(false);
+const deleteTarget = ref(null); // { type: 'invoice'|'payment', id, reference }
+
+const openDelete = (entry) => {
+    deleteTarget.value = entry;
+    showDeleteDialog.value = true;
+};
+
+const confirmDelete = () => {
+    if (!deleteTarget.value) return;
+    const { type, invoice_id, payment_id, reference } = deleteTarget.value;
+    const url = type === 'INVOICE'
+        ? `/customer-accounts/${props.account.csa_id}/invoices/${invoice_id}`
+        : `/customer-accounts/${props.account.csa_id}/payments/${payment_id}`;
+
+    isDeleting.value = true;
+    router.delete(url, {
+        preserveScroll: true,
+        preserveState: 'errors',
+        onSuccess: async () => {
+            toast.success('Deleted', { description: `${reference} removed.` });
+            showDeleteDialog.value = false;
+            deleteTarget.value = null;
+            await reloadLedger();
+        },
+        onError: () => {
+            toast.error('Failed to delete entry.');
+        },
+        onFinish: () => {
+            isDeleting.value = false;
+        },
+    });
+};
 </script>
 
 <template>
@@ -166,10 +204,20 @@ const handlePaymentEditClosed = async () => {
                                         @click="openEditInvoice(entry)">
                                         <Pencil class="h-3 w-3" />
                                     </Button>
+                                    <Button v-if="entry.is_manual" variant="ghost" size="icon"
+                                        class="h-6 w-6 text-muted-foreground hover:text-destructive"
+                                        @click="openDelete(entry)">
+                                        <Trash2 class="h-3 w-3" />
+                                    </Button>
                                     <Button v-if="entry.is_payment" variant="ghost" size="icon"
                                         class="h-6 w-6 text-muted-foreground hover:text-primary"
                                         @click="openEditPayment(entry)">
                                         <Pencil class="h-3 w-3" />
+                                    </Button>
+                                    <Button v-if="entry.is_payment" variant="ghost" size="icon"
+                                        class="h-6 w-6 text-muted-foreground hover:text-destructive"
+                                        @click="openDelete(entry)">
+                                        <Trash2 class="h-3 w-3" />
                                     </Button>
                                 </div>
                             </TableCell>
@@ -208,4 +256,7 @@ const handlePaymentEditClosed = async () => {
 
     <CustomerAccountPaymentEdit v-if="showEditPaymentModal" :account="account" :payment="selectedPayment"
         @form-closed="handlePaymentEditClosed" />
+
+    <BaseAlertDialog v-model:open="showDeleteDialog" :loading="isDeleting" transaction-type="delete"
+        @cancel="showDeleteDialog = false" @confirm="confirmDelete" />
 </template>

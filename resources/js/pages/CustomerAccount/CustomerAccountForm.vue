@@ -41,10 +41,15 @@ async function loadCustomers(searchQuery = '') {
             headers: { Accept: 'application/json' },
             params: { search: searchQuery },
         });
-        customerOptions.value = res.data.customers.map((c) => ({
-            value: String(c.id),
-            label: c.display_name,
-        }));
+        customerOptions.value = res.data.customers.map((c) => {
+            const name = c.is_drugstore
+                ? c.display_name
+                : c.display_name + (c.company ? ' — ' + c.company.toUpperCase() : '');
+            return {
+                value: String(c.id),
+                label: name,
+            };
+        });
     } catch {
         toast.error('Failed to load customers.');
     }

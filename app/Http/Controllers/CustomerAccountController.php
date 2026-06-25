@@ -463,4 +463,32 @@ class CustomerAccountController extends Controller
         return redirect()->route('customer-accounts.index')
             ->with('success', 'Payment updated successfully!');
     }
+
+    /**
+     * Delete a manual invoice.
+     */
+    public function destroyInvoice(int $csaId, int $invoiceId)
+    {
+        DB::table('customer_account_invoices')
+            ->where('id', $invoiceId)
+            ->where('customer_sales_account_id', $csaId)
+            ->delete();
+
+        return redirect()->route('customer-accounts.index')
+            ->with('success', 'Invoice deleted successfully!');
+    }
+
+    /**
+     * Delete a payment.
+     */
+    public function destroyPayment(int $csaId, int $paymentId)
+    {
+        DB::table('customer_sales_account_payments')
+            ->where('id', $paymentId)
+            ->where('customer_sales_account_id', $csaId)
+            ->delete();
+
+        return redirect()->route('customer-accounts.index')
+            ->with('success', 'Payment deleted successfully!');
+    }
 }
