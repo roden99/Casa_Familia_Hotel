@@ -75,7 +75,7 @@ const df = new DateFormatter(props.locale, {
         <Popover v-if="!props.disablepop">
             <PopoverTrigger as-child>
                 <Button type="button" variant="outline" :disabled="props.disabled" :readonly="props.readonly"
-                    :class="cn('w-full justify-start text-left font-normal sm:min-w-[240px]', !value && 'text-muted-foreground')">
+                    :class="cn('w-full justify-start text-left font-normal', !value && 'text-muted-foreground')">
                     <CalendarIcon class="mr-2 h-4 w-4 truncate overflow-hidden" />
                     {{ value ? df.format(value.toDate(getLocalTimeZone())) : placeholder }}
                 </Button>
@@ -86,7 +86,7 @@ const df = new DateFormatter(props.locale, {
             </PopoverContent>
         </Popover>
         <Button v-else type="button" variant="outline" :disabled="props.disabled" :readonly="props.readonly"
-            :class="cn('w-full justify-start text-left font-normal sm:min-w-[240px]', !value && 'text-muted-foreground')">
+            :class="cn('w-full justify-start text-left font-normal', !value && 'text-muted-foreground')">
             <CalendarIcon class="mr-2 h-4 w-4 truncate overflow-hidden" />
             {{ value ? df.format(value.toDate(getLocalTimeZone())) : placeholder }}
         </Button>

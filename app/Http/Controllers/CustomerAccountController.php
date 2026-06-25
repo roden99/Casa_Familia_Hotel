@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Customer;
 use App\Models\SalesAccount;
+use App\Models\CustomerSalesAccount;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -63,6 +64,7 @@ class CustomerAccountController extends Controller
             ->join('sales_accounts as sa', 'sa.id', '=', 'csa.sales_account_id')
             ->where('c.status', 'active')
             ->select(
+                'csa.id as csa_id',
                 'c.id',
                 'c.company',
                 'c.last_name',
@@ -70,7 +72,19 @@ class CustomerAccountController extends Controller
                 'c.is_drugstore',
                 'c.phone',
                 'c.address',
-                'sa.account_name'
+                'sa.account_name',
+                DB::raw('IFNULL(csa.forward_balance, 0)
+                    + IFNULL((
+                        SELECT SUM(soi.quantity * soi.unit_price * (1 - IFNULL(soi.discount_percentage,0)/100))
+                        FROM sales_orders so
+                        JOIN sales_order_items soi ON soi.sales_order_id = so.id
+                        WHERE so.customer_sales_account_id = csa.id
+                    ), 0)
+                    - IFNULL((
+                        SELECT SUM(p.amount)
+                        FROM customer_sales_account_payments p
+                        WHERE p.customer_sales_account_id = csa.id
+                    ), 0) AS balance')
             );
 
         if (!empty($accountId) && is_numeric($accountId)) {
@@ -93,6 +107,7 @@ class CustomerAccountController extends Controller
         $customers = $query->orderBy('sa.account_name')->orderBy('c.last_name')->paginate(15)->through(function ($row) {
             return [
                 'id'           => $row->id,
+                'csa_id'       => $row->csa_id,
                 'display_name' => $row->is_drugstore
                     ? strtoupper($row->company)
                     : trim(strtoupper($row->last_name) . ', ' . strtoupper($row->first_name)),
@@ -102,6 +117,7 @@ class CustomerAccountController extends Controller
                 'address'      => strtoupper($row->address),
                 'account_name' => strtoupper($row->account_name),
                 'is_drugstore' => $row->is_drugstore ? 'YES' : 'NO',
+                'balance'      => number_format((float) $row->balance, 2),
             ];
         });
 
@@ -114,6 +130,7 @@ class CustomerAccountController extends Controller
             ['accessorKey' => 'last_name',     'header' => 'LAST NAME',      'isVisible' => false, 'isParameter' => false],
             ['accessorKey' => 'phone',         'header' => 'PHONE',          'isVisible' => true,  'isParameter' => false],
             ['accessorKey' => 'address',       'header' => 'ADDRESS',        'isVisible' => true,  'isParameter' => false],
+            ['accessorKey' => 'balance',       'header' => 'BALANCE',        'isVisible' => true,  'isParameter' => false],
             ['accessorKey' => 'status',        'header' => 'STATUS',         'isVisible' => false, 'isParameter' => false],
         ];
 
@@ -165,6 +182,170 @@ class CustomerAccountController extends Controller
         return response()->json([
             'message' => "{$successCount} customer(s) assigned successfully.",
             'results' => $results,
+        ]);
+    }
+
+    /**
+     * Record a payment for a customer sales account.
+     */
+    public function storePayment(Request $request, int $id)
+    {
+        $validated = $request->validate([
+            'amount'         => 'required|numeric|min:0.01',
+            'payment_date'   => 'required|date',
+            'reference_no'   => 'nullable|string|max:255',
+            'payment_method' => 'nullable|string|max:100',
+            'notes'          => 'nullable|string',
+        ]);
+
+        DB::table('customer_sales_account_payments')->insert([
+            'customer_sales_account_id' => $id,
+            'amount'                    => $validated['amount'],
+            'payment_date'              => $validated['payment_date'],
+            'reference_no'              => $validated['reference_no'] ?? null,
+            'payment_method'            => $validated['payment_method'] ?? null,
+            'notes'                     => $validated['notes'] ?? null,
+            'created_by'                => $request->user()->id,
+            'updated_by'                => $request->user()->id,
+            'created_at'                => now(),
+            'updated_at'                => now(),
+        ]);
+
+        return redirect()->route('customer-accounts.index')
+            ->with('success', 'Payment recorded successfully!');
+    }
+
+    /**
+     * Set the forward (opening) balance for a customer sales account.
+     */
+    public function setForwardBalance(Request $request, int $id)
+    {
+        $validated = $request->validate([
+            'forward_balance'      => 'required|numeric|min:0',
+            'forward_balance_date' => 'required|date',
+        ]);
+
+        DB::table('customer_sales_account')
+            ->where('id', $id)
+            ->update([
+                'forward_balance'      => $validated['forward_balance'],
+                'forward_balance_date' => $validated['forward_balance_date'],
+                'updated_at'           => now(),
+            ]);
+
+        return redirect()->route('customer-accounts.index')
+            ->with('success', 'Forward balance set successfully!');
+    }
+
+    /**
+     * Return ledger entries for a customer sales account.
+     */
+    public function ledger(int $id)
+    {
+        $csa = DB::table('customer_sales_account as csa')
+            ->join('customers as c', 'c.id', '=', 'csa.customer_id')
+            ->join('sales_accounts as sa', 'sa.id', '=', 'csa.sales_account_id')
+            ->where('csa.id', $id)
+            ->select(
+                'csa.id',
+                'sa.account_name',
+                'c.company',
+                'c.last_name',
+                'c.first_name',
+                'c.is_drugstore',
+                'csa.forward_balance',
+                'csa.forward_balance_date'
+            )
+            ->first();
+
+        if (!$csa) {
+            return response()->json(['error' => 'Account not found.'], 404);
+        }
+
+        // ── INVOICES from sales orders ────────────────────────────────────
+        $invoices = DB::table('sales_orders as so')
+            ->join('sales_order_items as soi', 'soi.sales_order_id', '=', 'so.id')
+            ->where('so.customer_sales_account_id', $id)
+            ->select(
+                'so.id as order_id',
+                'so.invoice_no',
+                'so.invoice_date as date',
+                DB::raw('SUM(soi.quantity * soi.unit_price * (1 - IFNULL(soi.discount_percentage,0)/100)) as amount')
+            )
+            ->groupBy('so.id', 'so.invoice_no', 'so.invoice_date')
+            ->get()
+            ->map(fn($row) => [
+                'type'       => 'INVOICE',
+                'reference'  => 'SO #' . $row->order_id,
+                'invoice_no' => $row->invoice_no ?? '—',
+                'amount'     => (float) $row->amount,
+                'date'       => $row->date ? \Carbon\Carbon::parse($row->date) : null,
+            ]);
+
+        // ── PAYMENTS ──────────────────────────────────────────────────────
+        $payments = DB::table('customer_sales_account_payments')
+            ->where('customer_sales_account_id', $id)
+            ->select('id', 'amount', 'payment_date as date', 'reference_no', 'payment_method', 'notes')
+            ->get()
+            ->map(fn($row) => [
+                'type'       => 'PAYMENT',
+                'reference'  => 'PMT #' . $row->id,
+                'invoice_no' => $row->reference_no ?? '—',
+                'amount'     => (float) $row->amount,
+                'date'       => $row->date ? \Carbon\Carbon::parse($row->date) : null,
+            ]);
+
+        // ── Merge & sort by date ──────────────────────────────────────────
+        $entries = $invoices->concat($payments)
+            ->sortBy(fn($e) => $e['date'] ?? \Carbon\Carbon::minValue())
+            ->values();
+
+        // ── Running balance (debit = invoice, credit = payment) ───────────
+        $balance = (float) ($csa->forward_balance ?? 0);
+
+        // Prepend FORWARD entry if set
+        $forwardEntry = null;
+        if ($balance > 0 && $csa->forward_balance_date) {
+            $forwardEntry = [
+                'type'       => 'FORWARD',
+                'reference'  => 'Forward Balance',
+                'invoice_no' => '—',
+                'amount'     => number_format($balance, 2),
+                'balance'    => number_format($balance, 2),
+                'date'       => \Carbon\Carbon::parse($csa->forward_balance_date)->format('m-d-Y'),
+            ];
+        }
+
+        $ledger = $entries->map(function ($entry) use (&$balance) {
+            if ($entry['type'] === 'INVOICE') {
+                $balance += $entry['amount'];
+            } else {
+                $balance -= $entry['amount'];
+            }
+            return array_merge($entry, [
+                'balance' => number_format($balance, 2),
+                'amount'  => number_format($entry['amount'], 2),
+                'date'    => $entry['date'] ? $entry['date']->format('m-d-Y') : '—',
+            ]);
+        });
+
+        if ($forwardEntry) {
+            $ledger = collect([$forwardEntry])->concat($ledger);
+        }
+
+        $customerName = $csa->is_drugstore
+            ? strtoupper($csa->company)
+            : trim(strtoupper($csa->last_name) . ', ' . strtoupper($csa->first_name));
+
+        return response()->json([
+            'account' => [
+                'id'           => $csa->id,
+                'account_name' => strtoupper($csa->account_name),
+                'customer'     => $customerName,
+                'balance'      => number_format($balance, 2),
+                'forward_balance' => number_format((float) ($csa->forward_balance ?? 0), 2),
+            ],
+            'ledger' => $ledger,
         ]);
     }
 }

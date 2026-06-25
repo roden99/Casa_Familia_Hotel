@@ -4,6 +4,9 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import BaseIndex from '@/components/BaseIndex.vue';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import CustomerAccountCreate from './CustomerAccountCreate.vue';
+import CustomerAccountLedger from './CustomerAccountLedger.vue';
+import CustomerAccountPayment from './CustomerAccountPayment.vue';
+import CustomerAccountForwardBalance from './CustomerAccountForwardBalance.vue';
 import { ref, computed, h } from 'vue';
 import { router, Head } from '@inertiajs/vue3';
 import { Hospital, User } from 'lucide-vue-next';
@@ -70,7 +73,20 @@ const selectModelValue = ref(
 );
 
 const handleAction = ({ type, data }) => {
-    // actions can be wired up here
+    switch (type) {
+        case 'ledger':
+            selectedAccount.value = data;
+            showLedgerModal.value = true;
+            break;
+        case 'payment':
+            selectedAccount.value = data;
+            showPaymentModal.value = true;
+            break;
+        case 'forward':
+            selectedAccount.value = data;
+            showForwardBalanceModal.value = true;
+            break;
+    }
 };
 
 const enrichedColumns = computed(() =>
@@ -89,11 +105,26 @@ const enrichedColumns = computed(() =>
                 },
             };
         }
+        if (col.accessorKey === 'balance') {
+            return {
+                ...col,
+                cell: ({ row }) => {
+                    const bal = parseFloat((row.original.balance ?? '0').toString().replace(/,/g, ''));
+                    const color = bal > 0 ? 'text-destructive font-semibold' : 'text-green-600 dark:text-green-400 font-semibold';
+                    return h('span', { class: `font-mono ${color}` }, row.original.balance);
+                },
+            };
+        }
         return col;
     })
 );
 
 const showCreateModal = ref(false);
+const showLedgerModal = ref(false);
+const showPaymentModal = ref(false);
+const showForwardBalanceModal = ref(false);
+const selectedAccount = ref(null);
+
 </script>
 
 <template>
@@ -146,6 +177,15 @@ const showCreateModal = ref(false);
 
             <CustomerAccountCreate v-if="showCreateModal" @member-form-closed="showCreateModal = false"
                 @customer-account-created="() => { showCreateModal = false; router.reload({ preserveScroll: true }); }" />
+
+            <CustomerAccountLedger v-if="showLedgerModal" :account="selectedAccount"
+                @form-closed="showLedgerModal = false" />
+
+            <CustomerAccountPayment v-if="showPaymentModal" :account="selectedAccount"
+                @form-closed="showPaymentModal = false" />
+
+            <CustomerAccountForwardBalance v-if="showForwardBalanceModal" :account="selectedAccount"
+                @form-closed="showForwardBalanceModal = false" />
 
         </div>
     </AppLayout>

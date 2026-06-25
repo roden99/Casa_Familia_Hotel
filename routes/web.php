@@ -37,6 +37,9 @@ Route::resource('suppliers', SupplierController::class);
 Route::resource('customers', CustomerController::class);
 Route::get('customer-accounts', [CustomerAccountController::class, 'index'])->name('customer-accounts.index');
 Route::post('customer-accounts', [CustomerAccountController::class, 'store'])->name('customer-accounts.store');
+Route::get('customer-accounts/{id}/ledger', [CustomerAccountController::class, 'ledger'])->name('customer-accounts.ledger');
+Route::post('customer-accounts/{id}/payments', [CustomerAccountController::class, 'storePayment'])->name('customer-accounts.payments.store');
+Route::patch('customer-accounts/{id}/forward-balance', [CustomerAccountController::class, 'setForwardBalance'])->name('customer-accounts.forward-balance');
 Route::resource('sales-accounts', SalesAccountController::class);
 
 Route::resource('brands', BrandController::class);
