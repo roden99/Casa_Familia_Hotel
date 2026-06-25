@@ -24,7 +24,7 @@ class SalesOrderController extends Controller
                 'so.id',
                 'so.invoice_no',
                 'so.invoice_date',
-                'so.delivery_date',
+                // 'so.delivery_date',
                 // 'so.discount_percentage',
                 'so.terms',
                 'so.customer_sales_account_id',
@@ -60,7 +60,7 @@ class SalesOrderController extends Controller
                 'account_name'              => strtoupper($item->account_name),
                 'invoice_no'                => $item->invoice_no ?? '',
                 'invoice_date'              => $item->invoice_date ? Carbon::parse($item->invoice_date)->format('m-d-Y') : null,
-                'delivery_date'             => $item->delivery_date ? Carbon::parse($item->delivery_date)->format('m-d-Y') : null,
+                // 'delivery_date'          => ...
                 // 'discount_percentage'       => $item->discount_percentage,
                 'terms'                     => $item->terms ?? '',
             ];
@@ -72,7 +72,7 @@ class SalesOrderController extends Controller
             ['accessorKey' => 'customer_name',        'header' => 'CUSTOMER',      'isVisible' => true,  'isParameter' => true],
             ['accessorKey' => 'invoice_no',           'header' => 'INVOICE NO.',   'isVisible' => true,  'isParameter' => true],
             ['accessorKey' => 'invoice_date',         'header' => 'INVOICE DATE',  'isVisible' => true,  'isParameter' => false],
-            ['accessorKey' => 'delivery_date',        'header' => 'DELIVERY DATE', 'isVisible' => false, 'isParameter' => false],
+            // ['accessorKey' => 'delivery_date', ...]
             // ['accessorKey' => 'discount_percentage',  'header' => 'DISC %',        'isVisible' => true,  'isParameter' => false],
             ['accessorKey' => 'terms',                'header' => 'TERMS',         'isVisible' => true,  'isParameter' => false],
         ];
@@ -89,7 +89,7 @@ class SalesOrderController extends Controller
             'customer_sales_account_id'     => 'required|exists:customer_sales_account,id',
             'invoice_no'                    => 'nullable|string|max:255',
             'invoice_date'                  => 'nullable|date',
-            'delivery_date'                 => 'nullable|date',
+            // 'delivery_date'              => 'nullable|date',
             // 'discount_percentage'           => 'nullable|numeric|min:0|max:100',
             'terms'                         => 'nullable|string|max:255',
             'items'                         => 'required|array|min:1',
@@ -119,7 +119,7 @@ class SalesOrderController extends Controller
 
             $product = product::find($item['product_id']);
             if ($product && $product->is_inventory) {
-                $docDate = $validated['delivery_date'] ?? $validated['invoice_date'] ?? null;
+                $docDate = $validated['invoice_date'] ?? null;
                 $afterInit = !$product->initial_date
                     || ($docDate && Carbon::parse($docDate)->startOfDay()->gte(Carbon::parse($product->initial_date)->startOfDay()));
                 if ($afterInit) {
@@ -163,7 +163,7 @@ class SalesOrderController extends Controller
             'customer_sales_account_id'     => 'required|exists:customer_sales_account,id',
             'invoice_no'                    => 'nullable|string|max:255',
             'invoice_date'                  => 'nullable|date',
-            'delivery_date'                 => 'nullable|date',
+            // 'delivery_date'              => 'nullable|date',
             // 'discount_percentage'           => 'nullable|numeric|min:0|max:100',
             'terms'                         => 'nullable|string|max:255',
             'items'                         => 'required|array|min:1',
@@ -179,7 +179,7 @@ class SalesOrderController extends Controller
         foreach ($order->items as $oldItem) {
             $product = product::find($oldItem->product_id);
             if ($product && $product->is_inventory) {
-                $oldDocDate = $order->delivery_date ?? $order->invoice_date ?? null;
+                $oldDocDate = $order->invoice_date ?? null;
                 $afterInit = !$product->initial_date
                     || ($oldDocDate && Carbon::parse($oldDocDate)->startOfDay()->gte(Carbon::parse($product->initial_date)->startOfDay()));
                 if ($afterInit) {
@@ -194,7 +194,7 @@ class SalesOrderController extends Controller
             'customer_sales_account_id' => $validated['customer_sales_account_id'],
             'invoice_no'                => $validated['invoice_no'],
             'invoice_date'              => $validated['invoice_date'],
-            'delivery_date'             => $validated['delivery_date'],
+            // 'delivery_date'          => ...,
             // 'discount_percentage'       => $validated['discount_percentage'] ?? 0,
             'terms'                     => $validated['terms'] ?? null,
             'updated_by'                => $request->user()->id,
@@ -216,7 +216,7 @@ class SalesOrderController extends Controller
 
             $product = product::find($item['product_id']);
             if ($product && $product->is_inventory) {
-                $docDate = $validated['delivery_date'] ?? $validated['invoice_date'] ?? null;
+                $docDate = $validated['invoice_date'] ?? null;
                 $afterInit = !$product->initial_date
                     || ($docDate && Carbon::parse($docDate)->startOfDay()->gte(Carbon::parse($product->initial_date)->startOfDay()));
                 if ($afterInit) {
@@ -236,7 +236,7 @@ class SalesOrderController extends Controller
         foreach ($order->items as $item) {
             $product = product::find($item->product_id);
             if ($product && $product->is_inventory) {
-                $docDate = $order->delivery_date ?? $order->invoice_date ?? null;
+                $docDate = $order->invoice_date ?? null;
                 $afterInit = !$product->initial_date
                     || ($docDate && Carbon::parse($docDate)->startOfDay()->gte(Carbon::parse($product->initial_date)->startOfDay()));
                 if ($afterInit) {

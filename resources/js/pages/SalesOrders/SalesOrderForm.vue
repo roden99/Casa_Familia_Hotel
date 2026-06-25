@@ -42,9 +42,8 @@ const form = useForm({
         : '',
     invoice_no: props.order?.invoice_no ?? '',
     invoice_date: null,
-    delivery_date: null,
     discount_percentage: props.order?.discount_percentage ?? 0,
-    terms: props.order?.terms ?? '',
+    terms: props.order?.terms ?? '',,
 });
 
 const emit = defineEmits(['handleSubmit', 'form-closed']);
@@ -53,8 +52,8 @@ const isDialogOpen = ref(false);
 const isLoading = ref(false);
 const isBusy = computed(() => isLoading.value || props.isProcessing);
 
-// Header: account+discount(row1) | invoice_no+invoice_date+delivery_date(row2)
-const { skeletonLayout } = useFieldGroupSkeleton([10, 2, 4, 4, 4]);
+// Header: account(row1) | invoice_no+invoice_date(row2)
+const { skeletonLayout } = useFieldGroupSkeleton([10, 2, 4, 4]);
 const { skeletonLayout: skeletonLayoutItems } = useFieldGroupSkeleton([12]);
 
 const handleAlertClose = () => {
@@ -86,7 +85,6 @@ const handleSubmit = () => {
                 ? Number(form.customer_sales_account_id)
                 : null,
             invoice_date: normalizeDate(form.invoice_date),
-            delivery_date: normalizeDate(form.delivery_date),
             items: orderItems.value.map(item => ({
                 product_id: Number(item.product_id),
                 quantity: item.quantity,
@@ -154,7 +152,6 @@ async function loadOrderItems() {
 
         const d = res.data.order;
         if (d.invoice_date) form.invoice_date = reverseDate(d.invoice_date.slice(0, 10));
-        if (d.delivery_date) form.delivery_date = reverseDate(d.delivery_date.slice(0, 10));
         form.invoice_no = d.invoice_no ?? '';
 
         if (d.customer_sales_account_id) {
@@ -269,11 +266,6 @@ async function loadProducts(searchQuery = '') {
                                         <FieldLabel class="font-normal">Invoice Date:</FieldLabel>
                                         <BaseDatePick v-model="form.invoice_date" class="w-32" />
                                     </Field>
-
-                                    <Field class="col-span-12">
-                                        <FieldLabel class="font-normal">Delivery Date:</FieldLabel>
-                                        <BaseDatePick v-model="form.delivery_date" class="w-32" />
-                                    </Field>
                                 </div>
 
                                 <FieldSeparator />
@@ -323,7 +315,6 @@ async function loadProducts(searchQuery = '') {
                         </template>
                     </BaseField>
                 </div>
-
             </div>
         </form>
 
