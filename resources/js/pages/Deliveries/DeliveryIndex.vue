@@ -10,6 +10,7 @@ import { router, usePage, Head } from '@inertiajs/vue3';
 import CreateDelivery from '@/pages/Deliveries/CreateDelivery.vue';
 import UpdateDelivery from '@/pages/Deliveries/UpdateDelivery.vue';
 import DeleteDelivery from '@/pages/Deliveries/DeleteDelivery.vue';
+import ViewDelivery from '@/pages/Deliveries/ViewDelivery.vue';
 
 const breadcrumbs = [
     {
@@ -49,33 +50,25 @@ const selectModelValue = ref(
 const showCreateDeliveryModal = ref(false);
 const showUpdateDeliveryModal = ref(false);
 const showDeleteDeliveryModal = ref(false);
+const showViewDeliveryModal = ref(false);
 const selectedDelivery = ref(null);
 
 const handleAction = ({ type, data }) => {
-    console.log('🎯 Action Clicked:', {
-        actionType: type,
-        deliveryData: data,
-        timestamp: new Date().toISOString(),
-    });
-
     switch (type) {
+        case 'view':
+            selectedDelivery.value = data;
+            showViewDeliveryModal.value = true;
+            break;
         case 'edit':
-            console.log('📄 Edit action for:', data);
             showUpdateDeliveryModal.value = true;
             selectedDelivery.value = data;
             break;
-
-        case 'download':
-            console.log('📥 Download action for:', data);
-            break;
-
         case 'delete':
             showDeleteDeliveryModal.value = true;
             selectedDelivery.value = data;
             break;
-
         default:
-            console.log(`❓ Unknown action "${type}" for:`, data);
+            break;
     }
 };
 
@@ -108,6 +101,9 @@ const handleAction = ({ type, data }) => {
 
             <DeleteDelivery v-if="showDeleteDeliveryModal" :delivery="selectedDelivery"
                 @item-form-closed="showDeleteDeliveryModal = false" />
+
+            <ViewDelivery v-if="showViewDeliveryModal" :delivery="selectedDelivery"
+                @form-closed="showViewDeliveryModal = false" />
 
         </div>
     </AppLayout>
