@@ -105,7 +105,7 @@ onMounted(async () => {
     await Promise.all([
         loadCustomerAccounts(),
         loadProducts(),
-        props.transactionType === 'update' && props.order?.id
+        (props.transactionType === 'update' || props.transactionType === 'delete') && props.order?.id
             ? loadOrderItems()
             : Promise.resolve(),
     ]);

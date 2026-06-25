@@ -232,7 +232,7 @@ class SalesOrderController extends Controller
     {
         $order = SalesOrder::with('items')->findOrFail($id);
 
-        // Restore stock
+        // Restore stock for each item before deleting
         foreach ($order->items as $item) {
             $product = product::find($item->product_id);
             if ($product && $product->is_inventory) {
@@ -245,6 +245,8 @@ class SalesOrderController extends Controller
             }
         }
 
+        // Delete items explicitly first, then the order
+        $order->items()->delete();
         $order->delete();
 
         return redirect()->route('sales-orders.index')->with('success', 'Sales order deleted successfully!');

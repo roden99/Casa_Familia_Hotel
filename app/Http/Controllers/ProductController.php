@@ -332,8 +332,9 @@ class ProductController extends Controller
         $result = $entries->map(function ($entry) use (&$balance, &$initialReached) {
             if ($entry['type'] === 'INITIAL') {
                 $initialReached = true;
-                $balance = $entry['qty'];
+                $balance = (int) $entry['qty'];
                 return array_merge($entry, [
+                    'qty'     => (int) $entry['qty'],
                     'balance' => $balance,
                     'date'    => \Carbon\Carbon::parse($entry['date'])->format('m-d-Y'),
                 ]);
@@ -341,13 +342,15 @@ class ProductController extends Controller
 
             if (!$initialReached || $entry['before_initial']) {
                 return array_merge($entry, [
+                    'qty'     => (int) $entry['qty'],
                     'balance' => 0,
                     'date'    => \Carbon\Carbon::parse($entry['date'])->format('m-d-Y'),
                 ]);
             }
 
-            $balance += $entry['type'] === 'IN' ? $entry['qty'] : -$entry['qty'];
+            $balance += $entry['type'] === 'IN' ? (int) $entry['qty'] : -(int) $entry['qty'];
             return array_merge($entry, [
+                'qty'     => (int) $entry['qty'],
                 'balance' => $balance,
                 'date'    => \Carbon\Carbon::parse($entry['date'])->format('m-d-Y'),
             ]);
@@ -358,8 +361,8 @@ class ProductController extends Controller
                 'id'           => $product->id,
                 'display_name' => $product->display_name ?? $product->productname,
                 'initial_date' => $initialDate ? \Carbon\Carbon::parse($initialDate)->format('m-d-Y') : null,
-                'product_qty'  => $product->product_qty,
-                'reorder_level' => $product->reorder_level,
+                'product_qty'   => (int) ($product->product_qty ?? 0),
+                'reorder_level' => (int) ($product->reorder_level ?? 0),
             ],
             'history' => $result,
         ]);

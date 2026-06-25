@@ -122,8 +122,10 @@ onMounted(async () => {
                                                     {{ item.product_name }}
                                                 </TableCell>
                                                 <TableCell class="text-xs text-center">{{ item.quantity }}</TableCell>
-                                                <TableCell class="text-xs text-right">{{ fmt(item.unit_price) }}</TableCell>
-                                                <TableCell class="text-xs text-right font-medium">{{ lineTotal(item) }}</TableCell>
+                                                <TableCell class="text-xs text-right">{{ fmt(item.unit_price) }}
+                                                </TableCell>
+                                                <TableCell class="text-xs text-right font-medium">{{ lineTotal(item) }}
+                                                </TableCell>
                                             </TableRow>
                                         </TableBody>
                                     </Table>
@@ -132,7 +134,8 @@ onMounted(async () => {
                                 <!-- Grand Total -->
                                 <div class="flex justify-end pt-2 pr-1">
                                     <div class="flex items-center gap-3 rounded-md bg-muted/50 px-4 py-2 border">
-                                        <span class="text-xs text-muted-foreground uppercase tracking-wide font-medium">Total</span>
+                                        <span
+                                            class="text-xs text-muted-foreground uppercase tracking-wide font-medium">Total</span>
                                         <span class="font-mono text-base font-bold">{{ fmt(grandTotal) }}</span>
                                     </div>
                                 </div>

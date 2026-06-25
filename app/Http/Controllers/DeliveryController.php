@@ -216,7 +216,23 @@ class DeliveryController extends Controller
      */
     public function destroy(string $id)
     {
-        $delivery = Delivery::findOrFail($id);
+        $delivery = Delivery::with('items')->findOrFail($id);
+
+        // Restore stock for each item before deleting
+        foreach ($delivery->items as $item) {
+            $product = \App\Models\product::find($item->product_id);
+            if ($product && $product->is_inventory) {
+                $docDate = $delivery->delivery_date ?? null;
+                $afterInit = !$product->initial_date
+                    || ($docDate && Carbon::parse($docDate)->startOfDay()->gte(Carbon::parse($product->initial_date)->startOfDay()));
+                if ($afterInit) {
+                    $product->decrement('product_qty', $item->quantity_received);
+                }
+            }
+        }
+
+        // Delete items explicitly first, then the delivery
+        $delivery->items()->delete();
         $delivery->delete();
 
         return redirect()->route('deliveries.index')->with('success', 'Delivery deleted successfully!');

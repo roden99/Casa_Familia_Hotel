@@ -8,6 +8,7 @@ import { Head } from '@inertiajs/vue3';
 import CreateSalesOrder from '@/pages/SalesOrders/CreateSalesOrder.vue';
 import UpdateSalesOrder from '@/pages/SalesOrders/UpdateSalesOrder.vue';
 import ViewSalesOrder from '@/pages/SalesOrders/ViewSalesOrder.vue';
+import DeleteSalesOrder from '@/pages/SalesOrders/DeleteSalesOrder.vue';
 
 const breadcrumbs = [
     { title: 'Dashboard', href: '/dashboard' },
@@ -35,6 +36,7 @@ const selectModelValue = ref(
 const showCreateModal = ref(false);
 const showUpdateModal = ref(false);
 const showViewModal = ref(false);
+const showDeleteModal = ref(false);
 const selectedOrder = ref(null);
 
 const handleAction = ({ type, data }) => {
@@ -46,6 +48,10 @@ const handleAction = ({ type, data }) => {
         case 'edit':
             selectedOrder.value = data;
             showUpdateModal.value = true;
+            break;
+        case 'delete':
+            selectedOrder.value = data;
+            showDeleteModal.value = true;
             break;
         default:
             break;
@@ -76,8 +82,10 @@ const handleAction = ({ type, data }) => {
             <UpdateSalesOrder v-if="showUpdateModal" :order="selectedOrder"
                 @item-form-closed="showUpdateModal = false" />
 
-            <ViewSalesOrder v-if="showViewModal" :order="selectedOrder"
-                @form-closed="showViewModal = false" />
+            <ViewSalesOrder v-if="showViewModal" :order="selectedOrder" @form-closed="showViewModal = false" />
+
+            <DeleteSalesOrder v-if="showDeleteModal" :order="selectedOrder"
+                @item-form-closed="showDeleteModal = false" />
         </div>
     </AppLayout>
 </template>

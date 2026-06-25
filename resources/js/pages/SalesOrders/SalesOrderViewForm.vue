@@ -76,7 +76,8 @@ onMounted(async () => {
                                 <div class="grid w-full grid-cols-12 gap-4">
 
                                     <Field class="col-span-12">
-                                        <FieldLabel class="font-normal text-muted-foreground">Customer / Account</FieldLabel>
+                                        <FieldLabel class="font-normal text-muted-foreground">Customer / Account
+                                        </FieldLabel>
                                         <p class="text-sm font-semibold leading-tight mt-0.5">
                                             {{ order.customer_name ?? '—' }}
                                         </p>
@@ -85,12 +86,14 @@ onMounted(async () => {
 
                                     <Field class="col-span-12">
                                         <FieldLabel class="font-normal text-muted-foreground">Terms (Days)</FieldLabel>
-                                        <p class="text-sm font-semibold mt-0.5">{{ orderDetail?.terms ?? order.terms ?? '—' }}</p>
+                                        <p class="text-sm font-semibold mt-0.5">{{ orderDetail?.terms ?? order.terms ??
+                                            '—' }}</p>
                                     </Field>
 
                                     <Field class="col-span-12">
                                         <FieldLabel class="font-normal text-muted-foreground">Invoice No.</FieldLabel>
-                                        <p class="text-sm font-semibold mt-0.5">{{ orderDetail?.invoice_no ?? order.invoice_no ?? '—' }}</p>
+                                        <p class="text-sm font-semibold mt-0.5">{{ orderDetail?.invoice_no ??
+                                            order.invoice_no ?? '—' }}</p>
                                     </Field>
 
                                     <Field class="col-span-12">
@@ -107,9 +110,11 @@ onMounted(async () => {
 
                 <!-- Right: Items table (read-only) -->
                 <div class="col-span-8 flex flex-col">
-                    <BaseField legend="Order Items" description="Items included in this order" class="flex flex-col flex-1">
+                    <BaseField legend="Order Items" description="Items included in this order"
+                        class="flex flex-col flex-1">
                         <template #fields>
-                            <FieldGroup :skeleton="isLoading" :skeleton-layout="skeletonLayoutItems" class="flex flex-col flex-1">
+                            <FieldGroup :skeleton="isLoading" :skeleton-layout="skeletonLayoutItems"
+                                class="flex flex-col flex-1">
 
                                 <div class="overflow-y-auto rounded-md border flex-1 min-h-0">
                                     <Table class="text-xs">
@@ -135,12 +140,16 @@ onMounted(async () => {
                                                     {{ item.product_name }}
                                                 </TableCell>
                                                 <TableCell class="text-xs text-center">{{ item.quantity }}</TableCell>
-                                                <TableCell class="text-xs text-right">{{ fmt(item.unit_price) }}</TableCell>
-                                                <TableCell class="text-xs text-center">
-                                                    {{ Number(item.discount_percentage) > 0 ? item.discount_percentage + '%' : '—' }}
+                                                <TableCell class="text-xs text-right">{{ fmt(item.unit_price) }}
                                                 </TableCell>
-                                                <TableCell class="text-xs text-right">{{ discountAmount(item) }}</TableCell>
-                                                <TableCell class="text-xs text-right font-medium">{{ lineTotal(item) }}</TableCell>
+                                                <TableCell class="text-xs text-center">
+                                                    {{ Number(item.discount_percentage) > 0 ? item.discount_percentage +
+                                                    '%' : '—' }}
+                                                </TableCell>
+                                                <TableCell class="text-xs text-right">{{ discountAmount(item) }}
+                                                </TableCell>
+                                                <TableCell class="text-xs text-right font-medium">{{ lineTotal(item) }}
+                                                </TableCell>
                                             </TableRow>
                                         </TableBody>
                                     </Table>
@@ -149,7 +158,8 @@ onMounted(async () => {
                                 <!-- Grand Total -->
                                 <div class="flex justify-end pt-2 pr-1">
                                     <div class="flex items-center gap-3 rounded-md bg-muted/50 px-4 py-2 border">
-                                        <span class="text-xs text-muted-foreground uppercase tracking-wide font-medium">Total</span>
+                                        <span
+                                            class="text-xs text-muted-foreground uppercase tracking-wide font-medium">Total</span>
                                         <span class="font-mono text-base font-bold">{{ fmt(grandTotal) }}</span>
                                     </div>
                                 </div>

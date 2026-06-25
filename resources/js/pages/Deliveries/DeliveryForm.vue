@@ -125,7 +125,9 @@ onMounted(async () => {
     await Promise.all([
         loadSuppliers(),
         loadProducts(),
-        props.transactionType === 'update' && props.delivery?.id ? loadDeliveryItems() : Promise.resolve(),
+        (props.transactionType === 'update' || props.transactionType === 'delete') && props.delivery?.id
+            ? loadDeliveryItems()
+            : Promise.resolve(),
     ]);
     isLoading.value = false;
 });
