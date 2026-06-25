@@ -5,6 +5,7 @@ import { Head, usePage } from '@inertiajs/vue3';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, Hospital, User, Quote, CalendarDays, Wallet, BadgeDollarSign, TrendingUp } from 'lucide-vue-next';
 import type { AppPageProps } from '@/types';
+import { computed } from 'vue';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -35,7 +36,7 @@ defineProps<{
         total_doctors: number;
         total_collectibles: string;
         payments_this_month: string;
-        sales_by_account: { account_name: string; amount: string }[];
+        sales_by_account: { account_name: string; amount: string; raw: number }[];
         month_label: string;
     };
 }>();
@@ -56,15 +57,15 @@ defineProps<{
 
                 <div class="relative flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                     <!-- Left: greeting + quote -->
-                    <div class="flex flex-col gap-2">
-                        <p class="text-sm font-medium text-primary-foreground/70 uppercase tracking-widest">Good day</p>
-                        <h1 class="text-3xl font-bold">{{ user.name }}</h1>
+                    <div class="flex flex-col gap-1">
+                        <p class="text-xs font-medium text-primary-foreground/60 uppercase tracking-widest">Good day</p>
+                        <h1 class="text-xl font-bold">{{ user.name }}</h1>
                         <div class="flex items-start gap-2 text-primary-foreground/80 mt-1 max-w-xl">
-                            <Quote class="h-4 w-4 mt-0.5 shrink-0 opacity-70" />
-                            <p class="text-sm italic leading-relaxed">
+                            <Quote class="h-3.5 w-3.5 mt-0.5 shrink-0 opacity-60" />
+                            <p class="text-xs italic leading-relaxed">
                                 "{{ quote.message }}"
                                 <span class="not-italic font-semibold text-primary-foreground ml-1">— {{ quote.author
-                                }}</span>
+                                    }}</span>
                             </p>
                         </div>
                     </div>
@@ -162,23 +163,50 @@ defineProps<{
             </div>
 
             <!-- Sales by Account this month -->
-            <Card>
-                <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle class="text-sm font-medium flex items-center gap-2">
-                        <TrendingUp class="h-4 w-4 text-primary" />
-                        Sales by Account — {{ stats.month_label }}
-                    </CardTitle>
+            <Card class="border-t-4 border-t-primary">
+                <CardHeader class="pb-3">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <CardTitle class="text-base font-semibold flex items-center gap-2">
+                                <TrendingUp class="h-5 w-5 text-primary" />
+                                Sales by Account
+                            </CardTitle>
+                            <p class="text-xs text-muted-foreground mt-0.5">{{ stats.month_label }}</p>
+                        </div>
+                        <div v-if="stats.sales_by_account.length > 0" class="text-right">
+                            <p class="text-xs text-muted-foreground">Total</p>
+                            <p class="font-mono text-base font-bold text-primary">
+                                {{stats.sales_by_account.reduce((s, r) => s + r.raw, 0).toLocaleString('en-US', {
+                                    minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+                            </p>
+                        </div>
+                    </div>
                 </CardHeader>
                 <CardContent>
                     <div v-if="stats.sales_by_account.length === 0"
-                        class="text-sm text-muted-foreground py-4 text-center">
+                        class="text-sm text-muted-foreground py-6 text-center">
                         No sales recorded this month.
                     </div>
-                    <div v-else class="divide-y divide-border rounded-md border overflow-hidden">
-                        <div v-for="row in stats.sales_by_account" :key="row.account_name"
-                            class="flex items-center justify-between px-4 py-2.5 hover:bg-muted/40 transition-colors">
-                            <span class="text-sm font-medium">{{ row.account_name }}</span>
-                            <span class="font-mono text-sm font-semibold text-primary">{{ row.amount }}</span>
+                    <div v-else class="space-y-2">
+                        <div v-for="(row, i) in stats.sales_by_account" :key="row.account_name"
+                            class="group relative rounded-lg border bg-muted/20 hover:bg-muted/50 transition-colors overflow-hidden">
+                            <!-- progress fill -->
+                            <div class="absolute inset-y-0 left-0 bg-primary/8 transition-all"
+                                :style="{ width: (stats.sales_by_account[0].raw > 0 ? (row.raw / stats.sales_by_account[0].raw) * 100 : 0) + '%' }" />
+                            <!-- content -->
+                            <div class="relative flex items-center gap-3 px-4 py-3">
+                                <div :class="[
+                                    'flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold',
+                                    i === 0 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400' :
+                                        i === 1 ? 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300' :
+                                            i === 2 ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400' :
+                                                'bg-muted text-muted-foreground'
+                                ]">
+                                    {{ i + 1 }}
+                                </div>
+                                <span class="flex-1 text-sm font-semibold tracking-wide">{{ row.account_name }}</span>
+                                <span class="font-mono text-sm font-bold text-primary">{{ row.amount }}</span>
+                            </div>
                         </div>
                     </div>
                 </CardContent>
