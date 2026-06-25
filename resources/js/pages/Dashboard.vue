@@ -65,7 +65,7 @@ defineProps<{
                             <p class="text-xs italic leading-relaxed">
                                 "{{ quote.message }}"
                                 <span class="not-italic font-semibold text-primary-foreground ml-1">— {{ quote.author
-                                    }}</span>
+                                }}</span>
                             </p>
                         </div>
                     </div>
@@ -174,10 +174,11 @@ defineProps<{
                             <p class="text-xs text-muted-foreground mt-0.5">{{ stats.month_label }}</p>
                         </div>
                         <div v-if="stats.sales_by_account.length > 0" class="text-right">
-                            <p class="text-xs text-muted-foreground">Total</p>
-                            <p class="font-mono text-base font-bold text-primary">
+                            <p class="text-xs text-muted-foreground uppercase tracking-wide font-medium">Total Sales</p>
+                            <p class="font-mono text-2xl font-bold text-emerald-600 dark:text-emerald-400">
                                 {{stats.sales_by_account.reduce((s, r) => s + r.raw, 0).toLocaleString('en-US', {
-                                    minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+                                    minimumFractionDigits: 2, maximumFractionDigits: 2
+                                })}}
                             </p>
                         </div>
                     </div>
