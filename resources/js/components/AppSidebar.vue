@@ -68,11 +68,11 @@ const mainNavItems: NavItem[] = [
 
 
 
-  {
-    title: 'Stock Movement',
-    icon: BaggageClaim,
-    href: '/under-construction',
-  },
+  // {
+  //   title: 'Stock Movement',
+  //   icon: BaggageClaim,
+  //   href: '/under-construction',
+  // },
 
   {
     title: 'Reports',

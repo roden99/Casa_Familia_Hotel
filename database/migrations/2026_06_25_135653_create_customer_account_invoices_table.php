@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->unsignedBigInteger('customer_sales_account_id');
             $table->foreign('customer_sales_account_id', 'cai_csa_fk')
-                  ->references('id')->on('customer_sales_account')->onDelete('cascade');
+                ->references('id')->on('customer_sales_account')->onDelete('cascade');
             $table->string('reference_no')->nullable();
             $table->date('invoice_date');
             $table->decimal('amount', 12, 2);

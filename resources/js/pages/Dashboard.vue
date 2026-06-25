@@ -3,7 +3,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 import { Head, usePage } from '@inertiajs/vue3';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Hospital, User, Quote, CalendarDays } from 'lucide-vue-next';
+import { Users, Hospital, User, Quote, CalendarDays, Wallet, BadgeDollarSign, TrendingUp } from 'lucide-vue-next';
 import type { AppPageProps } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -33,6 +33,10 @@ defineProps<{
         total_customers: number;
         total_drugstores: number;
         total_doctors: number;
+        total_collectibles: string;
+        payments_this_month: string;
+        sales_by_account: { account_name: string; amount: string }[];
+        month_label: string;
     };
 }>();
 </script>
@@ -60,7 +64,7 @@ defineProps<{
                             <p class="text-sm italic leading-relaxed">
                                 "{{ quote.message }}"
                                 <span class="not-italic font-semibold text-primary-foreground ml-1">— {{ quote.author
-                                    }}</span>
+                                }}</span>
                             </p>
                         </div>
                     </div>
@@ -82,7 +86,7 @@ defineProps<{
                 </div>
             </div>
 
-            <!-- Stat Cards -->
+            <!-- Customer Stat Cards -->
             <div class="grid gap-4 md:grid-cols-3">
 
                 <Card class="border-l-4 border-l-primary">
@@ -125,6 +129,60 @@ defineProps<{
                 </Card>
 
             </div>
+
+            <!-- AR / Financial Stat Cards -->
+            <div class="grid gap-4 md:grid-cols-2">
+
+                <Card class="border-l-4 border-l-destructive">
+                    <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle class="text-sm font-medium">Total Collectibles</CardTitle>
+                        <div class="rounded-lg bg-destructive/10 p-2">
+                            <Wallet class="h-4 w-4 text-destructive" />
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        <div class="text-3xl font-bold font-mono text-destructive">{{ stats.total_collectibles }}</div>
+                        <p class="text-xs text-muted-foreground mt-1">Total outstanding AR balance</p>
+                    </CardContent>
+                </Card>
+
+                <Card class="border-l-4 border-l-emerald-500">
+                    <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle class="text-sm font-medium">Payments — {{ stats.month_label }}</CardTitle>
+                        <div class="rounded-lg bg-emerald-500/10 p-2">
+                            <BadgeDollarSign class="h-4 w-4 text-emerald-600" />
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        <div class="text-3xl font-bold font-mono text-emerald-600">{{ stats.payments_this_month }}</div>
+                        <p class="text-xs text-muted-foreground mt-1">Total payments collected this month</p>
+                    </CardContent>
+                </Card>
+
+            </div>
+
+            <!-- Sales by Account this month -->
+            <Card>
+                <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle class="text-sm font-medium flex items-center gap-2">
+                        <TrendingUp class="h-4 w-4 text-primary" />
+                        Sales by Account — {{ stats.month_label }}
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div v-if="stats.sales_by_account.length === 0"
+                        class="text-sm text-muted-foreground py-4 text-center">
+                        No sales recorded this month.
+                    </div>
+                    <div v-else class="divide-y divide-border rounded-md border overflow-hidden">
+                        <div v-for="row in stats.sales_by_account" :key="row.account_name"
+                            class="flex items-center justify-between px-4 py-2.5 hover:bg-muted/40 transition-colors">
+                            <span class="text-sm font-medium">{{ row.account_name }}</span>
+                            <span class="font-mono text-sm font-semibold text-primary">{{ row.amount }}</span>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
 
         </div>
     </AppLayout>
