@@ -102,10 +102,10 @@ class CustomerAccountController extends Controller
             $query->where('c.is_drugstore', false);
         }
 
-        if (!empty($search) && strlen($search) >= 3) {
+        if (!empty($search)) {
             $query->where(function ($q) use ($search) {
-                $q->where('c.company', 'like', "{$search}%")
-                    ->orWhere('c.last_name', 'like', "{$search}%");
+                $q->where('c.company', 'like', "%{$search}%")
+                    ->orWhere('c.last_name', 'like', "%{$search}%");
             });
         }
 

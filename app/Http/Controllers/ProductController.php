@@ -78,17 +78,17 @@ class ProductController extends Controller
             $query->where('isgeneric', false);
         }
 
-        if (!empty($search) && strlen($search) >= 3 && !empty($column)) {
+        if (!empty($search) && !empty($column)) {
             if ($column === 'brand_name') {
                 $query->whereHas('brand', function ($q) use ($search) {
-                    $q->where('brandname', 'like', "{$search}%");
+                    $q->where('brandname', 'like', "%{$search}%");
                 });
             } elseif ($column === 'type_name') {
                 $query->whereHas('productType', function ($q) use ($search) {
-                    $q->where('type_name', 'like', "{$search}%");
+                    $q->where('type_name', 'like', "%{$search}%");
                 });
             } else {
-                $query->where($column, 'like', "{$search}%");
+                $query->where($column, 'like', "%{$search}%");
             }
         }
 
