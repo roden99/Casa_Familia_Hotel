@@ -92,7 +92,7 @@ class ProductController extends Controller
             }
         }
 
-        $products = $query->orderBy('created_at', 'desc')->paginate(15)->through(function ($product) {
+        $products = $query->orderBy('productname')->paginate(15)->through(function ($product) {
             $product->status_text = $product->status ? 'Active' : 'Inactive';
             $product->generic_text = $product->isgeneric ? 'Generic' : 'Branded';
             $product->brand_name = $product->brand?->brandname ?? 'N/A';

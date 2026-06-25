@@ -80,6 +80,11 @@ class CustomerAccountController extends Controller
                         JOIN sales_order_items soi ON soi.sales_order_id = so.id
                         WHERE so.customer_sales_account_id = csa.id
                     ), 0)
+                    + IFNULL((
+                        SELECT SUM(i.amount)
+                        FROM customer_account_invoices i
+                        WHERE i.customer_sales_account_id = csa.id
+                    ), 0)
                     - IFNULL((
                         SELECT SUM(p.amount)
                         FROM customer_sales_account_payments p
@@ -282,6 +287,19 @@ class CustomerAccountController extends Controller
                 'date'       => $row->date ? \Carbon\Carbon::parse($row->date) : null,
             ]);
 
+        // ── MANUAL INVOICES ───────────────────────────────────────────────
+        $manualInvoices = DB::table('customer_account_invoices')
+            ->where('customer_sales_account_id', $id)
+            ->select('id', 'reference_no', 'invoice_date as date', 'amount', 'notes')
+            ->get()
+            ->map(fn($row) => [
+                'type'       => 'INVOICE',
+                'reference'  => 'INV #' . $row->id,
+                'invoice_no' => $row->reference_no ?? '—',
+                'amount'     => (float) $row->amount,
+                'date'       => $row->date ? \Carbon\Carbon::parse($row->date) : null,
+            ]);
+
         // ── PAYMENTS ──────────────────────────────────────────────────────
         $payments = DB::table('customer_sales_account_payments')
             ->where('customer_sales_account_id', $id)
@@ -296,7 +314,7 @@ class CustomerAccountController extends Controller
             ]);
 
         // ── Merge & sort by date ──────────────────────────────────────────
-        $entries = $invoices->concat($payments)
+        $entries = $invoices->concat($manualInvoices)->concat($payments)
             ->sortBy(fn($e) => $e['date'] ?? \Carbon\Carbon::minValue())
             ->values();
 
@@ -347,5 +365,33 @@ class CustomerAccountController extends Controller
             ],
             'ledger' => $ledger,
         ]);
+    }
+
+    /**
+     * Store a manual (previous) invoice for a customer sales account.
+     */
+    public function storeInvoice(Request $request, int $id)
+    {
+        $validated = $request->validate([
+            'reference_no' => 'nullable|string|max:255',
+            'invoice_date' => 'required|date',
+            'amount'       => 'required|numeric|min:0.01',
+            'notes'        => 'nullable|string',
+        ]);
+
+        DB::table('customer_account_invoices')->insert([
+            'customer_sales_account_id' => $id,
+            'reference_no'              => $validated['reference_no'] ?? null,
+            'invoice_date'              => $validated['invoice_date'],
+            'amount'                    => $validated['amount'],
+            'notes'                     => $validated['notes'] ?? null,
+            'created_by'                => $request->user()->id,
+            'updated_by'                => $request->user()->id,
+            'created_at'                => now(),
+            'updated_at'                => now(),
+        ]);
+
+        return redirect()->route('customer-accounts.index')
+            ->with('success', 'Invoice recorded successfully!');
     }
 }

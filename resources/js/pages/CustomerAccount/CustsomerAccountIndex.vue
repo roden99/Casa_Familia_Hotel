@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import CustomerAccountCreate from './CustomerAccountCreate.vue';
 import CustomerAccountLedger from './CustomerAccountLedger.vue';
 import CustomerAccountPayment from './CustomerAccountPayment.vue';
-import CustomerAccountForwardBalance from './CustomerAccountForwardBalance.vue';
+import CustomerAccountInvoice from './CustomerAccountInvoice.vue';
 import { ref, computed, h } from 'vue';
 import { router, Head } from '@inertiajs/vue3';
 import { Hospital, User } from 'lucide-vue-next';
@@ -82,9 +82,9 @@ const handleAction = ({ type, data }) => {
             selectedAccount.value = data;
             showPaymentModal.value = true;
             break;
-        case 'forward':
+        case 'invoice':
             selectedAccount.value = data;
-            showForwardBalanceModal.value = true;
+            showInvoiceModal.value = true;
             break;
     }
 };
@@ -122,7 +122,7 @@ const enrichedColumns = computed(() =>
 const showCreateModal = ref(false);
 const showLedgerModal = ref(false);
 const showPaymentModal = ref(false);
-const showForwardBalanceModal = ref(false);
+const showInvoiceModal = ref(false);
 const selectedAccount = ref(null);
 
 </script>
@@ -184,8 +184,8 @@ const selectedAccount = ref(null);
             <CustomerAccountPayment v-if="showPaymentModal" :account="selectedAccount"
                 @form-closed="showPaymentModal = false" />
 
-            <CustomerAccountForwardBalance v-if="showForwardBalanceModal" :account="selectedAccount"
-                @form-closed="showForwardBalanceModal = false" />
+            <CustomerAccountInvoice v-if="showInvoiceModal" :account="selectedAccount"
+                @form-closed="showInvoiceModal = false" />
 
         </div>
     </AppLayout>

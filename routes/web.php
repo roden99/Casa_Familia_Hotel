@@ -40,6 +40,7 @@ Route::post('customer-accounts', [CustomerAccountController::class, 'store'])->n
 Route::get('customer-accounts/{id}/ledger', [CustomerAccountController::class, 'ledger'])->name('customer-accounts.ledger');
 Route::post('customer-accounts/{id}/payments', [CustomerAccountController::class, 'storePayment'])->name('customer-accounts.payments.store');
 Route::patch('customer-accounts/{id}/forward-balance', [CustomerAccountController::class, 'setForwardBalance'])->name('customer-accounts.forward-balance');
+Route::post('customer-accounts/{id}/invoices', [CustomerAccountController::class, 'storeInvoice'])->name('customer-accounts.invoices.store');
 Route::resource('sales-accounts', SalesAccountController::class);
 
 Route::resource('brands', BrandController::class);
