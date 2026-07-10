@@ -38,7 +38,7 @@ class SalesAccountController extends Controller
             $query->where($column, 'like', "{$search}%");
         }
 
-        $salesAccounts = $query->withCount('customers')->orderBy('created_at', 'desc')->paginate(15)->through(function ($salesAccount) {
+        $salesAccounts = $query->withCount('customers')->orderBy('account_name')->paginate(15)->through(function ($salesAccount) {
             return [
                 'id'              => $salesAccount->id,
                 'account_name'    => strtoupper($salesAccount->account_name),

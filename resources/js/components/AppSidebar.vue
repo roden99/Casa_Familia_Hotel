@@ -20,18 +20,28 @@ const mainNavItems: NavItem[] = [
     title: 'Point of Sale',
     icon: ScanBarcode,
     href: '/under-construction',
-    // children: [
-    //   {
-    //     title: 'Menu #1',
-    //     href: '/under-construction',
-    //     icon: ScanBarcode,
-    //   },
-    //   {
-    //     title: 'Menu #2',
-    //     href: '/under-construction',
-    //     icon: LucideNotebookText,
-    //   },
-    // ],
+    children: [
+      {
+        title: 'Store Inventory',
+        href: '/store-inventory',
+        icon: ScanBarcode,
+      },
+      {
+        title: 'Transfer Stock',
+        href: '/transfer-stocks',
+        icon: Package,
+      },
+      {
+        title: 'POS Transactions',
+        href: '/pos',
+        icon: ShoppingCart,
+      },
+      //   {
+      //     title: 'Menu #2',
+      //     href: '/under-construction',
+      //     icon: LucideNotebookText,
+      //   },
+    ],
   },
 
   {

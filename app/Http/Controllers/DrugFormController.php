@@ -43,7 +43,7 @@ class DrugFormController extends Controller
             $query->where($column, 'like', "{$search}%");
         }
 
-        $drugforms = $query->orderBy('created_at', 'desc')->paginate(15)->through(function ($drugform) {
+        $drugforms = $query->orderBy('drugformname')->paginate(15)->through(function ($drugform) {
             $drugform->status_text = $drugform->status ? 'Active' : 'Inactive';
             return $drugform;
         });

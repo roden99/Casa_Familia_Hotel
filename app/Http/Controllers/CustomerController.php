@@ -58,7 +58,7 @@ class CustomerController extends Controller
             });
         }
 
-        $customers = $query->orderBy('created_at', 'desc')->paginate(15)->through(function ($customer) {
+        $customers = $query->orderBy('last_name')->orderBy('company')->paginate(15)->through(function ($customer) {
             return [
                 'id'          => $customer->id,
                 'is_drugstore' => $customer->is_drugstore ? 'YES' : 'NO',

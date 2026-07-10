@@ -13,6 +13,7 @@ class product extends Model
     protected $fillable = [
         'isgeneric',
         'productname',
+        'product_code',
         'brand_id',
         'product_unit_id',
         'product_type_id',
@@ -24,6 +25,9 @@ class product extends Model
         'initial_date',
         'initial_qty',
         'is_inventory',
+        'pos_qty',
+        'initial_pos_date',
+        'initial_pos_qty',
         'created_by',
         'updated_by',
     ];

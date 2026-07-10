@@ -32,6 +32,8 @@ const isLoading = ref(true);
 const accountInfo = ref(null);
 const ledger = ref([]);
 
+const reversedLedger = computed(() => [...ledger.value].reverse());
+
 onMounted(async () => {
     try {
         const res = await axios.get(`/customer-accounts/${props.account.csa_id}/ledger`, {
@@ -175,73 +177,76 @@ const confirmDelete = () => {
 
             <!-- Ledger table -->
             <div v-else class="rounded-md border overflow-hidden">
-                <Table>
-                    <TableHeader>
-                        <TableRow class="bg-muted/60 hover:bg-muted/60">
-                            <TableHead class="w-28 font-semibold">Type</TableHead>
-                            <TableHead class="font-semibold">Reference</TableHead>
-                            <TableHead class="w-36 font-semibold">Invoice #</TableHead>
-                            <TableHead class="font-semibold">Notes</TableHead>
-                            <TableHead class="text-right w-32 font-semibold text-destructive">Debit</TableHead>
-                            <TableHead class="text-right w-32 font-semibold text-green-700 dark:text-green-400">Credit
-                            </TableHead>
-                            <TableHead class="text-right w-32 font-semibold">Balance</TableHead>
-                            <TableHead class="text-right w-28 font-semibold">Date</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        <TableRow v-for="(entry, index) in ledger" :key="index"
-                            :class="entry.type === 'FORWARD' ? 'bg-muted/30' : ''">
-                            <TableCell>
-                                <Badge :variant="badgeVariant(entry.type)" class="text-xs">
-                                    {{ entry.type }}
-                                </Badge>
-                            </TableCell>
-                            <TableCell class="text-sm">
-                                <div class="flex items-center gap-2">
-                                    <span>{{ entry.reference }}</span>
-                                    <Button v-if="entry.is_manual" variant="ghost" size="icon"
-                                        class="h-6 w-6 text-muted-foreground hover:text-primary"
-                                        @click="openEditInvoice(entry)">
-                                        <Pencil class="h-3 w-3" />
-                                    </Button>
-                                    <Button v-if="entry.is_manual" variant="ghost" size="icon"
-                                        class="h-6 w-6 text-muted-foreground hover:text-destructive"
-                                        @click="openDelete(entry)">
-                                        <Trash2 class="h-3 w-3" />
-                                    </Button>
-                                    <Button v-if="entry.is_payment" variant="ghost" size="icon"
-                                        class="h-6 w-6 text-muted-foreground hover:text-primary"
-                                        @click="openEditPayment(entry)">
-                                        <Pencil class="h-3 w-3" />
-                                    </Button>
-                                    <Button v-if="entry.is_payment" variant="ghost" size="icon"
-                                        class="h-6 w-6 text-muted-foreground hover:text-destructive"
-                                        @click="openDelete(entry)">
-                                        <Trash2 class="h-3 w-3" />
-                                    </Button>
-                                </div>
-                            </TableCell>
-                            <TableCell class="text-sm text-muted-foreground">{{ entry.invoice_no }}</TableCell>
-                            <TableCell class="text-sm text-muted-foreground italic">
-                                {{ entry.notes || '' }}
-                            </TableCell>
-                            <TableCell class="text-right font-mono text-sm font-medium text-destructive">
-                                {{ entry.type === 'INVOICE' ? entry.amount : '' }}
-                            </TableCell>
-                            <TableCell
-                                class="text-right font-mono text-sm font-medium text-green-600 dark:text-green-400">
-                                {{ entry.type === 'PAYMENT' ? entry.amount : '' }}
-                            </TableCell>
-                            <TableCell class="text-right font-mono text-sm font-bold">
-                                {{ entry.balance }}
-                            </TableCell>
-                            <TableCell class="text-right text-sm text-muted-foreground whitespace-nowrap">
-                                {{ entry.date }}
-                            </TableCell>
-                        </TableRow>
-                    </TableBody>
-                </Table>
+                <div class="overflow-y-auto max-h-[55vh]">
+                    <Table>
+                        <TableHeader class="sticky top-0 z-10 bg-background">
+                            <TableRow class="bg-muted/60 hover:bg-muted/60">
+                                <TableHead class="w-28 font-semibold">Type</TableHead>
+                                <TableHead class="font-semibold">Reference</TableHead>
+                                <TableHead class="w-36 font-semibold">Invoice #</TableHead>
+                                <TableHead class="font-semibold">Notes</TableHead>
+                                <TableHead class="text-right w-32 font-semibold text-destructive">Debit</TableHead>
+                                <TableHead class="text-right w-32 font-semibold text-green-700 dark:text-green-400">
+                                    Credit
+                                </TableHead>
+                                <TableHead class="text-right w-32 font-semibold">Balance</TableHead>
+                                <TableHead class="text-right w-28 font-semibold">Date</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            <TableRow v-for="(entry, index) in reversedLedger" :key="index"
+                                :class="entry.type === 'FORWARD' ? 'bg-muted/30' : ''">
+                                <TableCell>
+                                    <Badge :variant="badgeVariant(entry.type)" class="text-xs">
+                                        {{ entry.type }}
+                                    </Badge>
+                                </TableCell>
+                                <TableCell class="text-sm">
+                                    <div class="flex items-center gap-2">
+                                        <span>{{ entry.reference }}</span>
+                                        <Button v-if="entry.is_manual" variant="ghost" size="icon"
+                                            class="h-6 w-6 text-muted-foreground hover:text-primary"
+                                            @click="openEditInvoice(entry)">
+                                            <Pencil class="h-3 w-3" />
+                                        </Button>
+                                        <Button v-if="entry.is_manual" variant="ghost" size="icon"
+                                            class="h-6 w-6 text-muted-foreground hover:text-destructive"
+                                            @click="openDelete(entry)">
+                                            <Trash2 class="h-3 w-3" />
+                                        </Button>
+                                        <Button v-if="entry.is_payment" variant="ghost" size="icon"
+                                            class="h-6 w-6 text-muted-foreground hover:text-primary"
+                                            @click="openEditPayment(entry)">
+                                            <Pencil class="h-3 w-3" />
+                                        </Button>
+                                        <Button v-if="entry.is_payment" variant="ghost" size="icon"
+                                            class="h-6 w-6 text-muted-foreground hover:text-destructive"
+                                            @click="openDelete(entry)">
+                                            <Trash2 class="h-3 w-3" />
+                                        </Button>
+                                    </div>
+                                </TableCell>
+                                <TableCell class="text-sm text-muted-foreground">{{ entry.invoice_no }}</TableCell>
+                                <TableCell class="text-sm text-muted-foreground italic">
+                                    {{ entry.notes || '' }}
+                                </TableCell>
+                                <TableCell class="text-right font-mono text-sm font-medium text-destructive">
+                                    {{ entry.type === 'INVOICE' ? entry.amount : '' }}
+                                </TableCell>
+                                <TableCell
+                                    class="text-right font-mono text-sm font-medium text-green-600 dark:text-green-400">
+                                    {{ entry.type === 'PAYMENT' ? entry.amount : '' }}
+                                </TableCell>
+                                <TableCell class="text-right font-mono text-sm font-bold">
+                                    {{ entry.balance }}
+                                </TableCell>
+                                <TableCell class="text-right text-sm text-muted-foreground whitespace-nowrap">
+                                    {{ entry.date }}
+                                </TableCell>
+                            </TableRow>
+                        </TableBody>
+                    </Table>
+                </div>
             </div>
 
         </div>

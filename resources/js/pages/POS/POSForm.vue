@@ -12,58 +12,50 @@ import BaseDatePick from '@/components/ui/BaseDatePick.vue';
 import { useFieldGroupSkeleton } from '@/composables/useFieldGroupSkeleton';
 import { useDateFormatter } from '@/composables/useDateFormatter';
 import BaseCombobox from '@/components/ui/BaseCombobox.vue';
-import SalesOrderItemsTable from './SalesOrderItemsTable.vue';
+import POSItemsTable from './POSItemsTable.vue';
 import axios from 'axios';
 
-const { reverseDate, normalizeDate } = useDateFormatter();
+const { normalizeDate } = useDateFormatter();
 
 const props = defineProps({
-    isProcessing: {
-        type: Boolean,
-        default: false,
-    },
-    cardTitle: {
-        type: String,
-        default: 'Form',
-    },
-    order: {
-        type: Object,
-        default: null,
-    },
-    transactionType: {
-        type: String,
-        default: 'create',
-    },
-});
-
-const form = useForm({
-    customer_sales_account_id: props.order?.customer_sales_account_id
-        ? String(props.order.customer_sales_account_id)
-        : '',
-    invoice_no: props.order?.invoice_no ?? '',
-    invoice_date: null,
-    discount_percentage: props.order?.discount_percentage ?? 0,
-    terms: props.order?.terms ?? null,
+    isProcessing: { type: Boolean, default: false },
+    cardTitle: { type: String, default: 'POS Transaction' },
+    transactionType: { type: String, default: 'create' },
 });
 
 const emit = defineEmits(['handleSubmit', 'form-closed']);
+
+const form = useForm({
+    sale_date: null,
+    receipt_no: '',
+    customer_id: '',
+    payment_method: 'cash',
+    notes: '',
+});
 
 const isDialogOpen = ref(false);
 const isLoading = ref(false);
 const isBusy = computed(() => isLoading.value || props.isProcessing);
 
-// Header: account(row1) | invoice_no+invoice_date(row2)
-const { skeletonLayout } = useFieldGroupSkeleton([10, 2, 4, 4]);
+const { skeletonLayout } = useFieldGroupSkeleton([10, 2, 4, 4, 4, 4]);
 const { skeletonLayout: skeletonLayoutItems } = useFieldGroupSkeleton([12]);
+
+const paymentOptions = [
+    { value: 'cash', label: 'Cash' },
+    { value: 'card', label: 'Card' },
+    { value: 'gcash', label: 'GCash' },
+    { value: 'others', label: 'Others' },
+];
 
 const handleAlertClose = () => {
     isDialogOpen.value = false;
-    if (props.transactionType === 'delete') {
-        emit('form-closed');
-    }
 };
 
 const openConfirmDialog = () => {
+    if (orderItems.value.length === 0) {
+        toast.error('Please add at least one item before saving.');
+        return;
+    }
     isDialogOpen.value = true;
 };
 
@@ -81,11 +73,8 @@ const handleSubmit = () => {
         }
         emit('handleSubmit', {
             ...form.data(),
-            customer_sales_account_id: form.customer_sales_account_id
-                ? Number(form.customer_sales_account_id)
-                : null,
-            invoice_date: normalizeDate(form.invoice_date),
-            terms: form.terms !== null && form.terms !== '' ? Number(form.terms) : null,
+            customer_id: form.customer_id ? Number(form.customer_id) : null,
+            sale_date: normalizeDate(form.sale_date),
             items: orderItems.value.map(item => ({
                 product_id: Number(item.product_id),
                 quantity: item.quantity,
@@ -99,87 +88,51 @@ const handleSubmit = () => {
 };
 
 onMounted(async () => {
-    if (props.transactionType === 'delete') {
-        isDialogOpen.value = true;
-    }
     isLoading.value = true;
-    await Promise.all([
-        loadCustomerAccounts(),
-        loadProducts(),
-        (props.transactionType === 'update' || props.transactionType === 'delete') && props.order?.id
-            ? loadOrderItems()
-            : Promise.resolve(),
-    ]);
+    await loadCustomers();
     isLoading.value = false;
 });
 
-// ─── Customer accounts combobox ───────────────────────────────────────────────
+// ─── Customers combobox ───────────────────────────────────────────────────────
+const customerOptions = ref([]);
 
-const accountOptions = ref([]);
-
-async function loadCustomerAccounts(searchQuery = '', includeId = null) {
+async function loadCustomers(searchQuery = '') {
     try {
-        const res = await axios.get('/customer-accounts', {
+        const res = await axios.get('/customers', {
             headers: { Accept: 'application/json' },
-            params: { search: searchQuery, include_id: includeId },
+            params: { search: searchQuery },
         });
-        accountOptions.value = Array.isArray(res.data.accounts) ? res.data.accounts : [];
-    } catch (error) {
-        console.error('Failed to fetch customer accounts:', error);
-        toast.error('Failed to load customer accounts. Please try again.');
+        customerOptions.value = (res.data.customers ?? []).map(c => ({
+            value: String(c.id),
+            label: c.is_drugstore
+                ? c.company.toUpperCase()
+                : `${c.last_name.toUpperCase()}, ${c.first_name.toUpperCase()}`,
+        }));
+    } catch {
+        toast.error('Failed to load customers.');
     }
 }
 
-// Auto-apply discount when account is selected
-watch(() => form.customer_sales_account_id, (newId) => {
-    if (!newId) return;
-    const account = accountOptions.value.find(a => a.value === newId);
-    if (account && account.discount_percentage != null) {
-        form.discount_percentage = account.discount_percentage;
-    }
-});
+// ─── Products combobox ────────────────────────────────────────────────────────
+const productOptions = ref([]);
 
-// ─── Load existing items for update ──────────────────────────────────────────
-
-async function loadOrderItems() {
+async function loadProducts(searchQuery = '') {
     try {
-        const res = await axios.get(`/sales-orders/${props.order.id}`, {
+        const res = await axios.get('/pos-products', {
             headers: { Accept: 'application/json' },
+            params: { search: searchQuery },
         });
-        orderItems.value = res.data.items.map(item => ({
-            ...item,
-            discount_percentage: Number(item.discount_percentage) || 0,
-        }));
-
-        const d = res.data.order;
-        if (d.invoice_date) form.invoice_date = reverseDate(d.invoice_date.slice(0, 10));
-        form.invoice_no = d.invoice_no ?? '';
-
-        if (d.customer_sales_account_id) {
-            await loadCustomerAccounts('', d.customer_sales_account_id);
-            form.customer_sales_account_id = String(d.customer_sales_account_id);
-        }
-        form.terms = d.terms ?? null;
-    } catch (error) {
-        console.error('Failed to load order items:', error);
-        toast.error('Failed to load order items.');
+        productOptions.value = res.data.products ?? [];
+    } catch {
+        toast.error('Failed to load products.');
     }
 }
 
 // ─── Items management ─────────────────────────────────────────────────────────
-
 const selectedProduct = ref(null);
 const itemQuantity = ref(1);
 const itemPrice = ref(0);
 const itemDiscount = ref(0);
-
-// Pre-fill item discount from header discount when a product is picked
-watch(selectedProduct, (newVal) => {
-    if (newVal) {
-        itemDiscount.value = Number(form.discount_percentage) || 0;
-    }
-});
-
 const orderItems = ref([]);
 
 const totalAmount = computed(() => {
@@ -195,13 +148,14 @@ const addItem = () => {
         toast.error('Please select a product.');
         return;
     }
-    const product = productsOptions.value.find(p => p.value === selectedProduct.value);
+    const product = productOptions.value.find(p => p.value === selectedProduct.value);
     orderItems.value.push({
         product_id: selectedProduct.value,
         product_name: product?.label ?? selectedProduct.value,
+        pos_qty: product?.pos_qty ?? 0,
         quantity: Number(itemQuantity.value),
         unit_price: Number(itemPrice.value),
-        discount_percentage: Number(itemDiscount.value) || Number(form.discount_percentage) || 0,
+        discount_percentage: Number(itemDiscount.value) || 0,
     });
     selectedProduct.value = null;
     itemQuantity.value = 1;
@@ -212,26 +166,6 @@ const addItem = () => {
 const removeItem = (index) => {
     orderItems.value.splice(index, 1);
 };
-
-// ─── Products combobox ────────────────────────────────────────────────────────
-
-const productsOptions = ref([]);
-
-async function loadProducts(searchQuery = '') {
-    try {
-        const res = await axios.get('/products', {
-            headers: { Accept: 'application/json' },
-            params: { search: searchQuery },
-        });
-        productsOptions.value = (res.data.products ?? []).map(product => ({
-            value: String(product.id),
-            label: product.display_name,
-        }));
-    } catch (error) {
-        console.error('Failed to fetch products:', error);
-        toast.error('Failed to load products. Please try again.');
-    }
-}
 </script>
 
 <template>
@@ -239,39 +173,47 @@ async function loadProducts(searchQuery = '') {
         <form @submit.prevent class="space-y-4 mt-4">
             <div class="grid grid-cols-12 gap-6 items-stretch">
 
-                <!-- Left: Sales Order Info -->
+                <!-- Left: Transaction Info -->
                 <div class="col-span-4">
-                    <BaseField legend="Sales Order Information" description="Enter order details">
+                    <BaseField legend="Transaction Details" description="Fill in POS transaction info">
                         <template #fields>
                             <FieldGroup :skeleton="isLoading" :skeleton-layout="skeletonLayout">
-
                                 <div class="grid w-full grid-cols-12 gap-4">
+
                                     <Field class="col-span-12">
-                                        <FieldLabel class="font-normal">Customer / Account:</FieldLabel>
-                                        <BaseCombobox v-model="form.customer_sales_account_id" :options="accountOptions"
-                                            empty-message="Search customer or account" width="w-full"
-                                            @search="loadCustomerAccounts" />
+                                        <FieldLabel class="font-normal">Sale Date:</FieldLabel>
+                                        <BaseDatePick v-model="form.sale_date" class="w-full" />
                                     </Field>
 
                                     <Field class="col-span-12">
-                                        <FieldLabel class="font-normal">Terms (Days):</FieldLabel>
-                                        <Input type="number" min="0" v-model.number="form.terms"
-                                            placeholder="e.g. 30" />
+                                        <FieldLabel class="font-normal">Receipt No.:</FieldLabel>
+                                        <Input v-model="form.receipt_no" placeholder="e.g. RCP-001" />
                                     </Field>
 
                                     <Field class="col-span-12">
-                                        <FieldLabel class="font-normal">Invoice No.:</FieldLabel>
-                                        <Input v-model="form.invoice_no" placeholder="e.g. INV-001" />
+                                        <FieldLabel class="font-normal">Customer (optional):</FieldLabel>
+                                        <BaseCombobox v-model="form.customer_id" :options="customerOptions"
+                                            empty-message="Search customer" width="w-full"
+                                            placeholder="Walk-in / Select customer" @search="loadCustomers" />
                                     </Field>
 
                                     <Field class="col-span-12">
-                                        <FieldLabel class="font-normal">Invoice Date:</FieldLabel>
-                                        <BaseDatePick v-model="form.invoice_date" class="w-32" />
+                                        <FieldLabel class="font-normal">Payment Method:</FieldLabel>
+                                        <select v-model="form.payment_method"
+                                            class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+                                            <option v-for="opt in paymentOptions" :key="opt.value" :value="opt.value">
+                                                {{ opt.label }}
+                                            </option>
+                                        </select>
                                     </Field>
+
+                                    <Field class="col-span-12">
+                                        <FieldLabel class="font-normal">Notes:</FieldLabel>
+                                        <Input v-model="form.notes" placeholder="Optional notes" />
+                                    </Field>
+
                                 </div>
-
                                 <FieldSeparator />
-
                             </FieldGroup>
                         </template>
                     </BaseField>
@@ -279,24 +221,25 @@ async function loadProducts(searchQuery = '') {
 
                 <!-- Right: Add Item + Items Table -->
                 <div class="col-span-8 flex flex-col">
-                    <BaseField legend="Order Items" description="Add and manage items for this order"
+                    <BaseField legend="Items" description="Add products to this transaction"
                         class="flex flex-col flex-1">
                         <template #fields>
                             <FieldGroup :skeleton="isLoading" :skeleton-layout="skeletonLayoutItems"
                                 class="flex flex-col flex-1">
                                 <div class="grid w-full grid-cols-12 gap-3">
                                     <Field class="col-span-5">
-                                        <FieldLabel class="font-normal">Select Item:</FieldLabel>
-                                        <BaseCombobox v-model="selectedProduct" :options="productsOptions"
-                                            empty-message="No products found" width="w-full" @search="loadProducts"
-                                            placeholder="Search product..." />
+                                        <FieldLabel class="font-normal">Product / Barcode:</FieldLabel>
+                                        <BaseCombobox v-model="selectedProduct" :options="productOptions"
+                                            empty-message="No products found" width="w-full"
+                                            placeholder="Search by name or code..." @search="loadProducts" />
                                     </Field>
                                     <Field class="col-span-2">
                                         <FieldLabel class="font-normal">Qty</FieldLabel>
-                                        <Input v-model="itemQuantity" type="number" min="1" placeholder="0" />
+                                        <Input v-model="itemQuantity" type="number" min="0.0001" step="0.0001"
+                                            placeholder="0" />
                                     </Field>
                                     <Field class="col-span-2">
-                                        <FieldLabel class="font-normal">UP</FieldLabel>
+                                        <FieldLabel class="font-normal">Unit Price</FieldLabel>
                                         <Input v-model="itemPrice" type="number" min="0" step="0.01"
                                             placeholder="0.00" />
                                     </Field>
@@ -312,11 +255,12 @@ async function loadProducts(searchQuery = '') {
                                     </Field>
                                 </div>
 
-                                <SalesOrderItemsTable :items="orderItems" @remove="removeItem" class="flex-1 min-h-0" />
+                                <POSItemsTable :items="orderItems" @remove="removeItem" class="flex-1 min-h-0" />
                             </FieldGroup>
                         </template>
                     </BaseField>
                 </div>
+
             </div>
         </form>
 
@@ -328,7 +272,6 @@ async function loadProducts(searchQuery = '') {
 
             <BaseButton type="button" :disabled="isBusy" @click="emit('form-closed')" transactionType="cancel"
                 :skeleton="isLoading" />
-
             <BaseButton type="button" @click="openConfirmDialog" :transactionType="props.transactionType"
                 :loading="isProcessing" :disabled="isBusy" :skeleton="isLoading" />
         </template>

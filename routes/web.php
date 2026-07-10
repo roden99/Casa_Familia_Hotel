@@ -17,6 +17,9 @@ use App\Http\Controllers\ProductUnitController;
 use App\Http\Controllers\ProductTypeController;
 use App\Http\Controllers\StrengthController;
 use App\Http\Controllers\DrugFormController;
+use App\Http\Controllers\StoreInventoryController;
+use App\Http\Controllers\TransferStockController;
+use App\Http\Controllers\PosController;
 
 Route::get('/login', function () {
     return Inertia::render('Login/Index');
@@ -38,6 +41,8 @@ Route::resource('customers', CustomerController::class);
 Route::get('customer-accounts', [CustomerAccountController::class, 'index'])->name('customer-accounts.index');
 Route::post('customer-accounts', [CustomerAccountController::class, 'store'])->name('customer-accounts.store');
 Route::get('customer-accounts/{id}/ledger', [CustomerAccountController::class, 'ledger'])->name('customer-accounts.ledger');
+Route::get('customer-accounts/{id}/unpaid-orders', [CustomerAccountController::class, 'unpaidOrders'])->name('customer-accounts.unpaid-orders');
+Route::get('customer-accounts/{id}/orders-for-payment/{paymentId}', [CustomerAccountController::class, 'ordersForPayment'])->name('customer-accounts.orders-for-payment');
 Route::post('customer-accounts/{id}/payments', [CustomerAccountController::class, 'storePayment'])->name('customer-accounts.payments.store');
 Route::patch('customer-accounts/{id}/forward-balance', [CustomerAccountController::class, 'setForwardBalance'])->name('customer-accounts.forward-balance');
 Route::post('customer-accounts/{id}/invoices', [CustomerAccountController::class, 'storeInvoice'])->name('customer-accounts.invoices.store');
@@ -61,6 +66,16 @@ Route::resource('warehouse-items', WarehouseItemController::class);
 Route::resource('deliveries', DeliveryController::class);
 Route::resource('sales-orders', SalesOrderController::class);
 Route::resource('sales-accounts', SalesAccountController::class);
+
+Route::get('store-inventory', [StoreInventoryController::class, 'index'])->name('store-inventory.index');
+Route::patch('store-inventory/{product}/pos-qty', [StoreInventoryController::class, 'updatePosQty'])->name('store-inventory.updatePosQty');
+Route::get('store-inventory/{product}/history', [StoreInventoryController::class, 'history'])->name('store-inventory.history');
+
+Route::get('products/{product}/multiplier', [ProductController::class, 'multiplier'])->name('products.multiplier');
+Route::resource('transfer-stocks', TransferStockController::class)->only(['index', 'store', 'show', 'destroy']);
+
+Route::get('pos-products', [StoreInventoryController::class, 'posProducts'])->name('pos-products.index');
+Route::resource('pos', PosController::class)->only(['index', 'store', 'show', 'destroy']);
 
 
 

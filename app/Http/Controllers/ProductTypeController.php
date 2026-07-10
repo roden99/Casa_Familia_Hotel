@@ -21,7 +21,7 @@ class ProductTypeController extends Controller
             if (!empty($search)) {
                 $query->where('type_name', 'like', "{$search}%");
             }
-            $results = $query->orderBy('id')->limit(5)->get(['id', 'type_name']);
+            $results = $query->orderBy('type_name')->limit(5)->get(['id', 'type_name']);
 
             if ($includeId && !$results->contains('id', (int)$includeId)) {
                 $extra = ProductType::where('id', (int)$includeId)->first(['id', 'type_name']);
@@ -42,7 +42,7 @@ class ProductTypeController extends Controller
             $query->where($column, 'like', "{$search}%");
         }
 
-        $productTypes = $query->orderBy('created_at', 'desc')->paginate(15)->through(function ($productType) {
+        $productTypes = $query->orderBy('type_name')->paginate(15)->through(function ($productType) {
             $productType->status_text = $productType->status ? 'Active' : 'Inactive';
             return $productType;
         });

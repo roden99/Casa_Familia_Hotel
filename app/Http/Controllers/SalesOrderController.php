@@ -20,19 +20,26 @@ class SalesOrderController extends Controller
             ->join('customer_sales_account as csa', 'csa.id', '=', 'so.customer_sales_account_id')
             ->join('customers as c', 'c.id', '=', 'csa.customer_id')
             ->join('sales_accounts as sa', 'sa.id', '=', 'csa.sales_account_id')
+            ->leftJoin('customer_sales_account_payments as pmt', 'pmt.id', '=', 'so.payment_id')
             ->select(
                 'so.id',
                 'so.invoice_no',
                 'so.invoice_date',
-                // 'so.delivery_date',
-                // 'so.discount_percentage',
                 'so.terms',
+                'so.payment_id',
                 'so.customer_sales_account_id',
                 'c.company',
                 'c.first_name',
                 'c.last_name',
                 'c.is_drugstore',
-                'sa.account_name'
+                'sa.account_name',
+                'pmt.amount as pmt_amount',
+                'pmt.payment_date as pmt_date',
+                'pmt.payment_method as pmt_method',
+                'pmt.reference_no as pmt_reference',
+                'pmt.check_number as pmt_check_number',
+                'pmt.check_date as pmt_check_date',
+                'pmt.notes as pmt_notes'
             );
 
         if (!empty($search) && strlen($search) >= 3 && !empty($column)) {
@@ -53,6 +60,10 @@ class SalesOrderController extends Controller
                 ? strtoupper($item->company)
                 : trim(strtoupper($item->last_name) . ', ' . strtoupper($item->first_name));
 
+            $total = DB::table('sales_order_items')
+                ->where('sales_order_id', $item->id)
+                ->sum(DB::raw('quantity * unit_price * (1 - IFNULL(discount_percentage, 0) / 100)'));
+
             return [
                 'id'                        => $item->id,
                 'customer_sales_account_id' => $item->customer_sales_account_id,
@@ -60,9 +71,22 @@ class SalesOrderController extends Controller
                 'account_name'              => strtoupper($item->account_name),
                 'invoice_no'                => $item->invoice_no ?? '',
                 'invoice_date'              => $item->invoice_date ? Carbon::parse($item->invoice_date)->format('m-d-Y') : null,
-                // 'delivery_date'          => ...
-                // 'discount_percentage'       => $item->discount_percentage,
-                'terms'                     => $item->terms ?? '',
+                'due_date'                  => ($item->invoice_date && $item->terms)
+                    ? Carbon::parse($item->invoice_date)->addDays((int) $item->terms)->format('m-d-Y')
+                    : null,
+                'terms'                     => $item->terms !== null ? (int) $item->terms : null,
+                'total_amount'              => number_format((float) $total, 2, '.', ','),
+                'payment_id'                => $item->payment_id ?? null,
+                'payment_status'            => $item->payment_id ? 'Paid' : 'Unpaid',
+                'payment_details'           => $item->payment_id ? [
+                    'amount'       => number_format((float) $item->pmt_amount, 2, '.', ','),
+                    'date'         => $item->pmt_date ? Carbon::parse($item->pmt_date)->format('m-d-Y') : null,
+                    'method'       => $item->pmt_method ?? null,
+                    'reference'    => $item->pmt_reference ?? null,
+                    'check_number' => $item->pmt_check_number ?? null,
+                    'check_date'   => $item->pmt_check_date ? Carbon::parse($item->pmt_check_date)->format('m-d-Y') : null,
+                    'notes'        => $item->pmt_notes ?? null,
+                ] : null,
             ];
         });
 
@@ -72,9 +96,12 @@ class SalesOrderController extends Controller
             ['accessorKey' => 'customer_name',        'header' => 'CUSTOMER',      'isVisible' => true,  'isParameter' => true],
             ['accessorKey' => 'invoice_no',           'header' => 'INVOICE NO.',   'isVisible' => true,  'isParameter' => true],
             ['accessorKey' => 'invoice_date',         'header' => 'INVOICE DATE',  'isVisible' => true,  'isParameter' => false],
+            ['accessorKey' => 'due_date',             'header' => 'DUE DATE',      'isVisible' => true,  'isParameter' => false],
             // ['accessorKey' => 'delivery_date', ...]
             // ['accessorKey' => 'discount_percentage',  'header' => 'DISC %',        'isVisible' => true,  'isParameter' => false],
             ['accessorKey' => 'terms',                'header' => 'TERMS',         'isVisible' => true,  'isParameter' => false],
+            ['accessorKey' => 'total_amount',          'header' => 'TOTAL',         'isVisible' => true,  'isParameter' => false],
+            ['accessorKey' => 'payment_status',        'header' => 'STATUS',        'isVisible' => true,  'isParameter' => false],
         ];
 
         return inertia('SalesOrders/SalesOrderIndex', [
@@ -91,7 +118,7 @@ class SalesOrderController extends Controller
             'invoice_date'                  => 'nullable|date',
             // 'delivery_date'              => 'nullable|date',
             // 'discount_percentage'           => 'nullable|numeric|min:0|max:100',
-            'terms'                         => 'nullable|string|max:255',
+            'terms'                         => 'nullable|integer|min:0',
             'items'                         => 'required|array|min:1',
             'items.*.product_id'            => 'required|exists:products,id',
             'items.*.quantity'              => 'required|integer|min:1',
@@ -165,7 +192,7 @@ class SalesOrderController extends Controller
             'invoice_date'                  => 'nullable|date',
             // 'delivery_date'              => 'nullable|date',
             // 'discount_percentage'           => 'nullable|numeric|min:0|max:100',
-            'terms'                         => 'nullable|string|max:255',
+            'terms'                         => 'nullable|integer|min:0',
             'items'                         => 'required|array|min:1',
             'items.*.product_id'            => 'required|exists:products,id',
             'items.*.quantity'              => 'required|integer|min:1',

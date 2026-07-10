@@ -12,6 +12,8 @@ class ProductUnit extends Model
 
     protected $fillable = [
         'unit_name',
+        'pos_unit',
+        'multiplier',
         'status',
         'created_by',
         'updated_by',

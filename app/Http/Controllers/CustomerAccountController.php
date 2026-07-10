@@ -191,30 +191,124 @@ class CustomerAccountController extends Controller
     }
 
     /**
+     * Return unpaid sales orders for a customer sales account.
+     */
+    public function unpaidOrders(int $id)
+    {
+        $orders = DB::table('sales_orders as so')
+            ->where('so.customer_sales_account_id', $id)
+            ->whereNull('so.payment_id')
+            ->select('so.id', 'so.invoice_no', 'so.invoice_date', 'so.terms')
+            ->orderBy('so.invoice_date')
+            ->get()
+            ->map(function ($row) {
+                $total = DB::table('sales_order_items')
+                    ->where('sales_order_id', $row->id)
+                    ->sum(DB::raw('quantity * unit_price * (1 - IFNULL(discount_percentage, 0) / 100)'));
+
+                $dueDate = null;
+                if ($row->invoice_date && $row->terms) {
+                    $dueDate = \Carbon\Carbon::parse($row->invoice_date)
+                        ->addDays((int) $row->terms)
+                        ->format('m-d-Y');
+                }
+
+                return [
+                    'id'           => $row->id,
+                    'invoice_no'   => $row->invoice_no ?? '—',
+                    'invoice_date' => $row->invoice_date
+                        ? \Carbon\Carbon::parse($row->invoice_date)->format('m-d-Y')
+                        : null,
+                    'due_date'     => $dueDate,
+                    'total'        => round((float) $total, 2),
+                ];
+            });
+
+        return response()->json(['orders' => $orders]);
+    }
+
+    /**
+     * Return orders available for a specific payment edit:
+     * unpaid orders + orders already linked to this payment (pre-selected).
+     */
+    public function ordersForPayment(int $id, int $paymentId)
+    {
+        $orders = DB::table('sales_orders as so')
+            ->where('so.customer_sales_account_id', $id)
+            ->where(function ($q) use ($paymentId) {
+                $q->whereNull('so.payment_id')
+                    ->orWhere('so.payment_id', $paymentId);
+            })
+            ->select('so.id', 'so.invoice_no', 'so.invoice_date', 'so.terms', 'so.payment_id')
+            ->orderBy('so.invoice_date')
+            ->get()
+            ->map(function ($row) use ($paymentId) {
+                $total = DB::table('sales_order_items')
+                    ->where('sales_order_id', $row->id)
+                    ->sum(DB::raw('quantity * unit_price * (1 - IFNULL(discount_percentage, 0) / 100)'));
+
+                $dueDate = null;
+                if ($row->invoice_date && $row->terms) {
+                    $dueDate = \Carbon\Carbon::parse($row->invoice_date)
+                        ->addDays((int) $row->terms)
+                        ->format('m-d-Y');
+                }
+
+                return [
+                    'id'           => $row->id,
+                    'invoice_no'   => $row->invoice_no ?? '—',
+                    'invoice_date' => $row->invoice_date
+                        ? \Carbon\Carbon::parse($row->invoice_date)->format('m-d-Y')
+                        : null,
+                    'due_date'     => $dueDate,
+                    'total'        => round((float) $total, 2),
+                    'selected'     => (int) $row->payment_id === $paymentId,
+                ];
+            });
+
+        return response()->json(['orders' => $orders]);
+    }
+
+    /**
      * Record a payment for a customer sales account.
      */
     public function storePayment(Request $request, int $id)
     {
+        $isCheque = $request->input('payment_method') === 'Cheque';
+
         $validated = $request->validate([
-            'amount'         => 'required|numeric|min:0.01',
-            'payment_date'   => 'required|date',
-            'reference_no'   => 'nullable|string|max:255',
-            'payment_method' => 'nullable|string|max:100',
-            'notes'          => 'nullable|string',
+            'amount'          => 'required|numeric|min:0.01',
+            'payment_date'    => 'required|date',
+            'reference_no'    => 'nullable|string|max:255',
+            'payment_method'  => 'nullable|string|max:100',
+            'check_number'    => ($isCheque ? 'required' : 'nullable') . '|string|max:100',
+            'check_date'      => ($isCheque ? 'required' : 'nullable') . '|date',
+            'notes'           => 'nullable|string',
+            'sales_order_ids' => 'nullable|array',
+            'sales_order_ids.*' => 'integer|exists:sales_orders,id',
         ]);
 
-        DB::table('customer_sales_account_payments')->insert([
+        $paymentId = DB::table('customer_sales_account_payments')->insertGetId([
             'customer_sales_account_id' => $id,
             'amount'                    => $validated['amount'],
             'payment_date'              => $validated['payment_date'],
             'reference_no'              => $validated['reference_no'] ?? null,
             'payment_method'            => $validated['payment_method'] ?? null,
+            'check_number'              => $validated['check_number'] ?? null,
+            'check_date'                => $validated['check_date'] ?? null,
             'notes'                     => $validated['notes'] ?? null,
             'created_by'                => $request->user()->id,
             'updated_by'                => $request->user()->id,
             'created_at'                => now(),
             'updated_at'                => now(),
         ]);
+
+        if (!empty($validated['sales_order_ids'])) {
+            DB::table('sales_orders')
+                ->whereIn('id', $validated['sales_order_ids'])
+                ->where('customer_sales_account_id', $id)
+                ->update(['payment_id' => $paymentId, 'updated_at' => now()]);
+        }
 
         return redirect()->route('customer-accounts.index')
             ->with('success', 'Payment recorded successfully!');
@@ -308,7 +402,7 @@ class CustomerAccountController extends Controller
         // ── PAYMENTS ──────────────────────────────────────────────────────
         $payments = DB::table('customer_sales_account_payments')
             ->where('customer_sales_account_id', $id)
-            ->select('id', 'amount', 'payment_date as date', 'reference_no', 'payment_method', 'notes')
+            ->select('id', 'amount', 'payment_date as date', 'reference_no', 'payment_method', 'check_date', 'check_number', 'notes')
             ->get()
             ->map(fn($row) => [
                 'type'           => 'PAYMENT',
@@ -320,6 +414,8 @@ class CustomerAccountController extends Controller
                 'raw_amount'     => (float) $row->amount,
                 'raw_date'       => $row->date,
                 'payment_method' => $row->payment_method ?? 'Cash',
+                'check_date'     => $row->check_date ?? null,
+                'check_number'   => $row->check_number ?? null,
                 'notes'          => $row->notes ?? '',
                 'date'           => $row->date ? \Carbon\Carbon::parse($row->date) : null,
             ]);
@@ -439,12 +535,18 @@ class CustomerAccountController extends Controller
      */
     public function updatePayment(Request $request, int $csaId, int $paymentId)
     {
+        $isCheque = $request->input('payment_method') === 'Cheque';
+
         $validated = $request->validate([
             'amount'         => 'required|numeric|min:0.01',
             'payment_date'   => 'required|date',
             'reference_no'   => 'nullable|string|max:255',
             'payment_method' => 'nullable|string|max:100',
+            'check_number'   => ($isCheque ? 'required' : 'nullable') . '|string|max:100',
+            'check_date'     => ($isCheque ? 'required' : 'nullable') . '|date',
             'notes'          => 'nullable|string',
+            'sales_order_ids'   => 'nullable|array',
+            'sales_order_ids.*' => 'integer|exists:sales_orders,id',
         ]);
 
         DB::table('customer_sales_account_payments')
@@ -455,10 +557,26 @@ class CustomerAccountController extends Controller
                 'payment_date'   => $validated['payment_date'],
                 'reference_no'   => $validated['reference_no'] ?? null,
                 'payment_method' => $validated['payment_method'] ?? null,
+                'check_number'   => $validated['check_number'] ?? null,
+                'check_date'     => $validated['check_date'] ?? null,
                 'notes'          => $validated['notes'] ?? null,
                 'updated_by'     => $request->user()->id,
                 'updated_at'     => now(),
             ]);
+
+        // Unlink all orders previously linked to this payment
+        DB::table('sales_orders')
+            ->where('payment_id', $paymentId)
+            ->where('customer_sales_account_id', $csaId)
+            ->update(['payment_id' => null, 'updated_at' => now()]);
+
+        // Re-link the selected orders
+        if (!empty($validated['sales_order_ids'])) {
+            DB::table('sales_orders')
+                ->whereIn('id', $validated['sales_order_ids'])
+                ->where('customer_sales_account_id', $csaId)
+                ->update(['payment_id' => $paymentId, 'updated_at' => now()]);
+        }
 
         return redirect()->route('customer-accounts.index')
             ->with('success', 'Payment updated successfully!');

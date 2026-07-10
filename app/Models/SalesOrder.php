@@ -16,8 +16,13 @@ class SalesOrder extends Model
         'delivery_date',
         'discount_percentage',
         'terms',
+        'payment_id',
         'created_by',
         'updated_by',
+    ];
+
+    protected $casts = [
+        'terms' => 'integer',
     ];
 
     public function customerSalesAccount()
@@ -28,6 +33,11 @@ class SalesOrder extends Model
     public function items()
     {
         return $this->hasMany(SalesOrderItem::class);
+    }
+
+    public function payment()
+    {
+        return $this->belongsTo(\App\Models\CustomerSalesAccountPayment::class, 'payment_id');
     }
 
     public function creator()

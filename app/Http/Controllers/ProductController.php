@@ -247,6 +247,14 @@ class ProductController extends Controller
         return redirect()->route('products.index')->with('success', 'Reorder level updated successfully!');
     }
 
+    public function multiplier(product $product)
+    {
+        $product->load('unit');
+        return response()->json([
+            'multiplier' => $product->unit?->multiplier ?? 1,
+        ]);
+    }
+
     public function history(product $product)
     {
         // Parse initial_date to Carbon so all date comparisons are consistent

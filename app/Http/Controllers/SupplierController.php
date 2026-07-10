@@ -43,7 +43,7 @@ class SupplierController extends Controller
             $query->where($column, 'like', "{$search}%");
         }
 
-        $suppliers = $query->orderBy('created_at', 'desc')->paginate(15)->through(function ($supplier) {
+        $suppliers = $query->orderBy('company')->paginate(15)->through(function ($supplier) {
             $supplier->full_name = trim(
                 strtoupper($supplier->lastname) . ', ' .
                     strtoupper($supplier->firstname) . ' ' .
@@ -105,7 +105,7 @@ class SupplierController extends Controller
 
             // Contact details
             'contact_phone' => 'nullable|string|max:50',
-            'contact_email' => 'nullable|email|max:255',
+            'contact_email' => 'nullabl|email|max:255',
 
             // Address information
             'address' => 'nullable|string|max:500',

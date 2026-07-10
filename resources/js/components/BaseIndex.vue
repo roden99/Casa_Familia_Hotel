@@ -136,6 +136,10 @@ const getActionsForIndex = (indexType) => {
         'Warehouse Items': ['history', 'edit', 'delete'],
         'SalesAccounts': ['clients', 'edit', 'delete'],
         'CustomerAccounts': ['ledger', 'payment', 'invoice'],
+        'StoreInventory': ['edit', 'initial', 'reorder', 'history', 'delete'],
+        'TransferStock': ['view', 'delete'],
+        'POS': ['view', 'delete'],
+        'Sales Orders': ['view', 'edit', 'payment_details', 'delete'],
 
         // Add more index types as needed
     };

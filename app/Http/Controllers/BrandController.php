@@ -47,7 +47,7 @@ class BrandController extends Controller
             $query->where($column, 'like', "{$search}%");
         }
 
-        $brands = $query->orderBy('created_at', 'desc')->paginate(15)->through(function ($brand) {
+        $brands = $query->orderBy('brandname')->paginate(15)->through(function ($brand) {
             $brand->status_text = $brand->status ? 'Active' : 'Inactive';
             return $brand;
         });
