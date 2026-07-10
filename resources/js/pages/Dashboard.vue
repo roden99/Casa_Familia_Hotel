@@ -6,21 +6,19 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, Hospital, User, Quote, CalendarDays, Wallet, BadgeDollarSign, TrendingUp, Loader2 } from 'lucide-vue-next';
 import type { AppPageProps } from '@/types';
 import { computed, ref, onMounted, watch } from 'vue';
-import { Line } from 'vue-chartjs';
+import { Bar } from 'vue-chartjs';
 import {
     Chart as ChartJS,
     CategoryScale,
     LinearScale,
-    PointElement,
-    LineElement,
+    BarElement,
     Title,
     Tooltip,
     Legend,
-    Filler,
 } from 'chart.js';
 import axios from 'axios';
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler);
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },
@@ -68,12 +66,21 @@ const chartOptions = computed(() => ({
         tooltip: {
             callbacks: {
                 label: (ctx: any) => ` ${ctx.dataset.label}: ${Number(ctx.parsed.y).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+                footer: (items: any[]) => {
+                    const total = items.reduce((s, i) => s + i.parsed.y, 0);
+                    return `Total: ${total.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+                },
             },
         },
     },
     scales: {
-        x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+        x: {
+            stacked: false,
+            grid: { display: false },
+            ticks: { font: { size: 11 } },
+        },
         y: {
+            stacked: false,
             beginAtZero: true,
             ticks: {
                 font: { size: 11 },
@@ -214,7 +221,7 @@ watch([selectedYear], fetchChartData);
                     </div>
                     <!-- Chart -->
                     <div v-else class="h-full">
-                        <Line :data="chartData" :options="chartOptions" />
+                        <Bar :data="chartData" :options="chartOptions" />
                     </div>
                 </CardContent>
             </Card>

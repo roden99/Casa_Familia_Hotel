@@ -145,12 +145,10 @@ class DashboardController extends Controller
             return [
                 'label'           => $name,
                 'data'            => $data,
+                'backgroundColor' => $color . 'cc',
                 'borderColor'     => $color,
-                'backgroundColor' => $color . '20',
-                'borderWidth'     => 2,
-                'pointRadius'     => 4,
-                'tension'         => 0.3,
-                'fill'            => false,
+                'borderWidth'     => 1,
+                'borderRadius'    => 4,
             ];
         })->values();
 
