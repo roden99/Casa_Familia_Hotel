@@ -30,6 +30,7 @@ Route::get('/', function () {
 })->name('home');
 
 Route::get('dashboard', [DashboardController::class, 'index'])->middleware(['auth', 'verified'])->name('dashboard');
+Route::get('dashboard/chart-data', [DashboardController::class, 'chartData'])->middleware(['auth'])->name('dashboard.chart-data');
 
 Route::get('under-construction', function () {
     return Inertia::render('UnderConstruction');

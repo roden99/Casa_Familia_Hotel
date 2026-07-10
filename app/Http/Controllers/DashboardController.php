@@ -93,4 +93,71 @@ class DashboardController extends Controller
             ],
         ]);
     }
+
+    public function chartData(\Illuminate\Http\Request $request)
+    {
+        $year = (int) $request->input('year', Carbon::now()->year);
+
+        $labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+        // ── Monthly SO sales per account (same join chain as index()) ─────
+        $soRows = DB::table('sales_orders as so')
+            ->join('sales_order_items as soi', 'soi.sales_order_id', '=', 'so.id')
+            ->join('customer_sales_account as csa', 'csa.id', '=', 'so.customer_sales_account_id')
+            ->join('sales_accounts as sa', 'sa.id', '=', 'csa.sales_account_id')
+            ->whereYear('so.invoice_date', $year)
+            ->whereNotNull('so.invoice_date')
+            ->selectRaw('sa.id as sa_id, sa.account_name, MONTH(so.invoice_date) as month,
+                SUM(soi.quantity * soi.unit_price * (1 - IFNULL(soi.discount_percentage,0)/100)) as amount')
+            ->groupBy('sa.id', 'sa.account_name', DB::raw('MONTH(so.invoice_date)'))
+            ->get();
+
+        // ── Monthly manual invoice sales per account ──────────────────────
+        $invRows = DB::table('customer_account_invoices as i')
+            ->join('customer_sales_account as csa', 'csa.id', '=', 'i.customer_sales_account_id')
+            ->join('sales_accounts as sa', 'sa.id', '=', 'csa.sales_account_id')
+            ->whereYear('i.invoice_date', $year)
+            ->whereNotNull('i.invoice_date')
+            ->selectRaw('sa.id as sa_id, sa.account_name, MONTH(i.invoice_date) as month, SUM(i.amount) as amount')
+            ->groupBy('sa.id', 'sa.account_name', DB::raw('MONTH(i.invoice_date)'))
+            ->get();
+
+        // ── Build lookup [sa_id][month] and collect unique accounts ───────
+        $monthly  = [];
+        $accounts = [];
+
+        foreach ($soRows->merge($invRows) as $row) {
+            $accounts[$row->sa_id] = strtoupper($row->account_name);
+            $monthly[$row->sa_id][$row->month] = ($monthly[$row->sa_id][$row->month] ?? 0) + (float) $row->amount;
+        }
+
+        ksort($accounts); // sort by account id for consistent colour order
+
+        $colors = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#6366f1', '#84cc16'];
+
+        $datasets = collect($accounts)->values()->map(function ($name, $idx) use ($accounts, $monthly, $colors) {
+            $saId  = array_keys($accounts)[$idx];
+            $data  = [];
+            for ($m = 1; $m <= 12; $m++) {
+                $data[] = round($monthly[$saId][$m] ?? 0, 2);
+            }
+            $color = $colors[$idx % count($colors)];
+            return [
+                'label'           => $name,
+                'data'            => $data,
+                'borderColor'     => $color,
+                'backgroundColor' => $color . '20',
+                'borderWidth'     => 2,
+                'pointRadius'     => 4,
+                'tension'         => 0.3,
+                'fill'            => false,
+            ];
+        })->values();
+
+        return response()->json([
+            'labels'     => $labels,
+            'datasets'   => $datasets,
+            'year_label' => (string) $year,
+        ]);
+    }
 }
