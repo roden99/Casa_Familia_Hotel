@@ -53,23 +53,26 @@ const isLoading = ref(true);
 const isDialogOpen = ref(false);
 const isBusy = computed(() => props.isProcessing);
 
-// ─── Unpaid orders ────────────────────────────────────────────────────────────
+// ─── Unpaid invoices (orders + manual) ───────────────────────────────────────────
 const unpaidOrders = ref([]);
-const selectedOrderIds = ref([]);
+const selectedKeys = ref([]); // '{type}-{id}'
+
+const key = (item) => `${item.type}-${item.id}`;
 
 const selectedTotal = computed(() =>
     unpaidOrders.value
-        .filter(o => selectedOrderIds.value.includes(o.id))
+        .filter(o => selectedKeys.value.includes(key(o)))
         .reduce((sum, o) => sum + Number(o.total), 0)
 );
 
 const fmt = (val) =>
     Number(val).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-const toggleOrder = (id) => {
-    const idx = selectedOrderIds.value.indexOf(id);
-    if (idx === -1) selectedOrderIds.value.push(id);
-    else selectedOrderIds.value.splice(idx, 1);
+const toggleOrder = (item) => {
+    const k = key(item);
+    const idx = selectedKeys.value.indexOf(k);
+    if (idx === -1) selectedKeys.value.push(k);
+    else selectedKeys.value.splice(idx, 1);
 };
 
 // ─── Handlers ─────────────────────────────────────────────────────────────────
@@ -112,7 +115,8 @@ const handleSubmit = () => {
             ...form.data(),
             payment_date: normalizeDate(form.payment_date),
             check_date: form.check_date ? normalizeDate(form.check_date) : null,
-            sales_order_ids: selectedOrderIds.value,
+            sales_order_ids: selectedKeys.value.filter(k => k.startsWith('order-')).map(k => Number(k.split('-')[1])),
+            invoice_ids: selectedKeys.value.filter(k => k.startsWith('invoice-')).map(k => Number(k.split('-')[1])),
         });
     } catch (error) {
         toast.error('ERROR', { description: error.message });
@@ -227,24 +231,33 @@ onMounted(async () => {
                                         <thead class="sticky top-0 bg-muted/80 z-10">
                                             <tr>
                                                 <th class="w-8 px-3 py-2"></th>
+                                                <th class="text-left px-3 py-2">Type</th>
                                                 <th class="text-left px-3 py-2">Invoice No.</th>
-                                                <th class="text-left px-3 py-2">Invoice Date</th>
-                                                <th class="text-left px-3 py-2">Due Date</th>
+                                                <th class="text-left px-3 py-2">Date</th>
+                                                <th class="text-left px-3 py-2">Due</th>
                                                 <th class="text-right px-3 py-2">Amount</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            <tr v-for="order in unpaidOrders" :key="order.id"
+                                            <tr v-for="order in unpaidOrders" :key="key(order)"
                                                 class="border-t hover:bg-muted/40 cursor-pointer"
-                                                :class="selectedOrderIds.includes(order.id) ? 'bg-primary/10' : ''"
-                                                @click="toggleOrder(order.id)">
+                                                :class="selectedKeys.includes(key(order)) ? 'bg-primary/10' : ''"
+                                                @click="toggleOrder(order)">
                                                 <td class="px-3 py-2 text-center" @click.stop>
-                                                    <Checkbox :model-value="selectedOrderIds.includes(order.id)"
-                                                        @update:model-value="() => toggleOrder(order.id)" />
+                                                    <Checkbox :model-value="selectedKeys.includes(key(order))"
+                                                        @update:model-value="() => toggleOrder(order)" />
+                                                </td>
+                                                <td class="px-3 py-2">
+                                                    <span
+                                                        :class="order.type === 'order'
+                                                            ? 'inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                                                            : 'inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'">
+                                                        {{ order.type === 'order' ? 'SO' : 'INV' }}
+                                                    </span>
                                                 </td>
                                                 <td class="px-3 py-2 font-medium">{{ order.invoice_no }}</td>
                                                 <td class="px-3 py-2 text-muted-foreground">{{ order.invoice_date ?? '—'
-                                                }}</td>
+                                                    }}</td>
                                                 <td class="px-3 py-2"
                                                     :class="order.due_date && new Date(order.due_date) < new Date() ? 'text-red-600 font-semibold' : 'text-muted-foreground'">
                                                     {{ order.due_date ?? '—' }}
@@ -255,9 +268,9 @@ onMounted(async () => {
                                     </table>
                                 </div>
 
-                                <div v-if="selectedOrderIds.length > 0"
+                                <div v-if="selectedKeys.length > 0"
                                     class="flex justify-between items-center text-xs text-muted-foreground pt-1 px-1">
-                                    <span>{{ selectedOrderIds.length }} invoice(s) selected</span>
+                                    <span>{{ selectedKeys.length }} invoice(s) selected</span>
                                     <span class="font-semibold text-foreground">Total: {{ fmt(selectedTotal) }}</span>
                                 </div>
 

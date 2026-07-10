@@ -34,20 +34,29 @@ const transformedColumns = computed(() =>
     props.columns
         .filter(col => col.isVisible === true)
         .map(col => {
+            if (col.accessorKey === 'entry_type') {
+                return {
+                    ...col,
+                    cell: ({ row }) => {
+                        const isSO = row.original.entry_type === 'SO';
+                        return h('span', {
+                            class: isSO
+                                ? 'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                                : 'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+                        }, isSO ? 'SO' : 'INV');
+                    },
+                };
+            }
             if (col.accessorKey === 'payment_status') {
                 return {
                     ...col,
                     cell: ({ row }) => {
                         const paid = row.original.payment_id;
-                        return h(
-                            'span',
-                            {
-                                class: paid
-                                    ? 'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
-                                    : 'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400',
-                            },
-                            paid ? 'Paid' : 'Unpaid'
-                        );
+                        return h('span', {
+                            class: paid
+                                ? 'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+                                : 'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400',
+                        }, paid ? 'Paid' : 'Unpaid');
                     },
                 };
             }
@@ -123,10 +132,12 @@ const handleAction = ({ type, data }) => {
             showPaymentModal.value = true;
             break;
         case 'view':
+            if (data.entry_type === 'INV') return;
             selectedOrder.value = data;
             showViewModal.value = true;
             break;
         case 'edit':
+            if (data.entry_type === 'INV') return;
             selectedOrder.value = data;
             showUpdateModal.value = true;
             break;

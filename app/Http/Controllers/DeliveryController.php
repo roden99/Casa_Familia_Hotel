@@ -71,15 +71,17 @@ class DeliveryController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'purchase_order_id'         => 'nullable|exists:purchase_orders,id',
-            'supplier_id'               => 'required|exists:suppliers,id',
-            'invoice_no'                => 'required|string|max:255',
-            'invoice_date'              => 'required|date',
-            'delivery_date'             => 'required|date',
-            'items'                     => 'required|array|min:1',
-            'items.*.product_id'        => 'required|exists:products,id',
-            'items.*.quantity_received' => 'required|integer|min:1',
-            'items.*.unit_price'        => 'required|numeric|min:0',
+            'purchase_order_id'              => 'nullable|exists:purchase_orders,id',
+            'supplier_id'                    => 'required|exists:suppliers,id',
+            'invoice_no'                     => 'required|string|max:255',
+            'invoice_date'                   => 'required|date',
+            'delivery_date'                  => 'required|date',
+            'items'                          => 'required|array|min:1',
+            'items.*.product_id'             => 'required|exists:products,id',
+            'items.*.quantity_received'      => 'required|integer|min:1',
+            'items.*.unit_price'             => 'required|numeric|min:0',
+            'items.*.lot_number'             => 'nullable|string|max:100',
+            'items.*.expiration_date'        => 'nullable|date',
         ]);
 
         $validated['created_by'] = $request->user()->id;
@@ -87,11 +89,36 @@ class DeliveryController extends Controller
         $delivery = Delivery::create(collect($validated)->except('items')->toArray());
 
         foreach ($validated['items'] as $item) {
+            $lotId = null;
+
+            if (!empty($item['lot_number'])) {
+                $lotId = \Illuminate\Support\Facades\DB::table('product_lots')->updateOrInsert(
+                    [
+                        'product_id' => $item['product_id'],
+                        'lot_number' => $item['lot_number'],
+                    ],
+                    [
+                        'expiration_date' => $item['expiration_date'] ?? null,
+                        'quantity'        => $item['quantity_received'],
+                        'created_by'      => $request->user()->id,
+                        'updated_by'      => $request->user()->id,
+                        'updated_at'      => now(),
+                        'created_at'      => now(),
+                    ]
+                );
+
+                $lotId = \Illuminate\Support\Facades\DB::table('product_lots')
+                    ->where('product_id', $item['product_id'])
+                    ->where('lot_number', $item['lot_number'])
+                    ->value('id');
+            }
+
             \App\Models\DeliveryItem::create([
                 'delivery_id'       => $delivery->id,
                 'product_id'        => $item['product_id'],
                 'quantity_received' => $item['quantity_received'],
                 'unit_price'        => $item['unit_price'],
+                'lot_id'            => $lotId,
                 'warehouse_id'      => 1,
                 'created_by'        => $request->user()->id,
             ]);
@@ -114,7 +141,7 @@ class DeliveryController extends Controller
      */
     public function show(string $id)
     {
-        $delivery = Delivery::with(['items.product.brand', 'items.product.unit', 'items.product.drugform'])->findOrFail($id);
+        $delivery = Delivery::with(['items.product.brand', 'items.product.unit', 'items.product.drugform', 'items.lot'])->findOrFail($id);
 
         return response()->json([
             'delivery' => $delivery,
@@ -127,11 +154,14 @@ class DeliveryController extends Controller
                 if ($product?->brand)   $displayName .= ' (' . $product->brand->brandname . ')';
 
                 return [
-                    'id'                => $item->id,
-                    'product_id'        => (string) $item->product_id,
-                    'product_name'      => $displayName ?: ('Product #' . $item->product_id),
-                    'quantity'          => $item->quantity_received,
-                    'unit_price'        => $item->unit_price,
+                    'id'              => $item->id,
+                    'product_id'      => (string) $item->product_id,
+                    'product_name'    => $displayName ?: ('Product #' . $item->product_id),
+                    'quantity'        => $item->quantity_received,
+                    'unit_price'      => $item->unit_price,
+                    'lot_id'          => $item->lot_id,
+                    'lot_number'      => $item->lot?->lot_number ?? null,
+                    'expiration_date' => $item->lot?->expiration_date ?? null,
                 ];
             }),
         ]);
@@ -151,14 +181,16 @@ class DeliveryController extends Controller
     public function update(Request $request, string $id)
     {
         $validated = $request->validate([
-            'supplier_id'               => 'required|exists:suppliers,id',
-            'invoice_no'                => 'required|string|max:255',
-            'invoice_date'              => 'required|date',
-            'delivery_date'             => 'required|date',
-            'items'                     => 'required|array|min:1',
-            'items.*.product_id'        => 'required|exists:products,id',
-            'items.*.quantity_received' => 'required|integer|min:1',
-            'items.*.unit_price'        => 'required|numeric|min:0',
+            'supplier_id'                    => 'required|exists:suppliers,id',
+            'invoice_no'                     => 'required|string|max:255',
+            'invoice_date'                   => 'required|date',
+            'delivery_date'                  => 'required|date',
+            'items'                          => 'required|array|min:1',
+            'items.*.product_id'             => 'required|exists:products,id',
+            'items.*.quantity_received'      => 'required|integer|min:1',
+            'items.*.unit_price'             => 'required|numeric|min:0',
+            'items.*.lot_number'             => 'nullable|string|max:100',
+            'items.*.expiration_date'        => 'nullable|date',
         ]);
 
         $delivery = Delivery::with('items')->findOrFail($id);
@@ -189,11 +221,36 @@ class DeliveryController extends Controller
 
         // Insert new items
         foreach ($validated['items'] as $item) {
+            $lotId = null;
+
+            if (!empty($item['lot_number'])) {
+                \Illuminate\Support\Facades\DB::table('product_lots')->updateOrInsert(
+                    [
+                        'product_id' => $item['product_id'],
+                        'lot_number' => $item['lot_number'],
+                    ],
+                    [
+                        'expiration_date' => $item['expiration_date'] ?? null,
+                        'quantity'        => $item['quantity_received'],
+                        'created_by'      => $request->user()->id,
+                        'updated_by'      => $request->user()->id,
+                        'updated_at'      => now(),
+                        'created_at'      => now(),
+                    ]
+                );
+
+                $lotId = \Illuminate\Support\Facades\DB::table('product_lots')
+                    ->where('product_id', $item['product_id'])
+                    ->where('lot_number', $item['lot_number'])
+                    ->value('id');
+            }
+
             \App\Models\DeliveryItem::create([
                 'delivery_id'       => $delivery->id,
                 'product_id'        => $item['product_id'],
                 'quantity_received' => $item['quantity_received'],
                 'unit_price'        => $item['unit_price'],
+                'lot_id'            => $lotId,
                 'warehouse_id'      => 1,
                 'created_by'        => $request->user()->id,
             ]);

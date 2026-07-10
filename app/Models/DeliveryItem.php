@@ -15,6 +15,7 @@ class DeliveryItem extends Model
         'product_id',
         'quantity_received',
         'unit_price',
+        'lot_id',
         'warehouse_id',
         'created_by',
         'updated_by',
@@ -28,6 +29,11 @@ class DeliveryItem extends Model
     public function product()
     {
         return $this->belongsTo(product::class);
+    }
+
+    public function lot()
+    {
+        return $this->belongsTo(\App\Models\ProductLot::class, 'lot_id');
     }
 
     public function warehouse()

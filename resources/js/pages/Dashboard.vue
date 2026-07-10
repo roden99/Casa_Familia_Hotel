@@ -130,7 +130,7 @@ watch([selectedYear], fetchChartData);
                             <p class="text-[11px] italic leading-relaxed truncate max-w-lg">
                                 "{{ quote.message }}"
                                 <span class="not-italic font-semibold text-primary-foreground ml-1">— {{ quote.author
-                                    }}</span>
+                                }}</span>
                             </p>
                         </div>
                     </div>

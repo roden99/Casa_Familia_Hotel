@@ -16,7 +16,8 @@ class SalesOrderController extends Controller
         $search = $request->input('search');
         $column = $request->input('column');
 
-        $query = DB::table('sales_orders as so')
+        // ── Sales Orders ──────────────────────────────────────────────────────
+        $soQuery = DB::table('sales_orders as so')
             ->join('customer_sales_account as csa', 'csa.id', '=', 'so.customer_sales_account_id')
             ->join('customers as c', 'c.id', '=', 'csa.customer_id')
             ->join('sales_accounts as sa', 'sa.id', '=', 'csa.sales_account_id')
@@ -44,18 +45,18 @@ class SalesOrderController extends Controller
 
         if (!empty($search) && strlen($search) >= 3 && !empty($column)) {
             if ($column === 'customer_name') {
-                $query->where(function ($q) use ($search) {
+                $soQuery->where(function ($q) use ($search) {
                     $q->where('c.last_name', 'like', "{$search}%")
                         ->orWhere('c.company', 'like', "{$search}%");
                 });
             } elseif ($column === 'account_name') {
-                $query->where('sa.account_name', 'like', "{$search}%");
-            } else {
-                $query->where("so.{$column}", 'like', "{$search}%");
+                $soQuery->where('sa.account_name', 'like', "{$search}%");
+            } elseif ($column === 'invoice_no') {
+                $soQuery->where('so.invoice_no', 'like', "{$search}%");
             }
         }
 
-        $orders = $query->orderByDesc('so.created_at')->paginate(15)->through(function ($item) {
+        $soRows = $soQuery->orderByDesc('so.invoice_date')->get()->map(function ($item) {
             $customerName = $item->is_drugstore
                 ? strtoupper($item->company)
                 : trim(strtoupper($item->last_name) . ', ' . strtoupper($item->first_name));
@@ -66,6 +67,7 @@ class SalesOrderController extends Controller
 
             return [
                 'id'                        => $item->id,
+                'entry_type'                => 'SO',
                 'customer_sales_account_id' => $item->customer_sales_account_id,
                 'customer_name'             => $customerName,
                 'account_name'              => strtoupper($item->account_name),
@@ -90,18 +92,103 @@ class SalesOrderController extends Controller
             ];
         });
 
+        // ── Manual Invoices ────────────────────────────────────────────────────
+        $invQuery = DB::table('customer_account_invoices as i')
+            ->join('customer_sales_account as csa', 'csa.id', '=', 'i.customer_sales_account_id')
+            ->join('customers as c', 'c.id', '=', 'csa.customer_id')
+            ->join('sales_accounts as sa', 'sa.id', '=', 'csa.sales_account_id')
+            ->leftJoin('customer_sales_account_payments as pmt', 'pmt.id', '=', 'i.payment_id')
+            ->select(
+                'i.id',
+                'i.reference_no',
+                'i.invoice_date',
+                'i.amount',
+                'i.payment_id',
+                'i.customer_sales_account_id',
+                'c.company',
+                'c.first_name',
+                'c.last_name',
+                'c.is_drugstore',
+                'sa.account_name',
+                'pmt.amount as pmt_amount',
+                'pmt.payment_date as pmt_date',
+                'pmt.payment_method as pmt_method',
+                'pmt.reference_no as pmt_reference',
+                'pmt.check_number as pmt_check_number',
+                'pmt.check_date as pmt_check_date',
+                'pmt.notes as pmt_notes'
+            );
+
+        if (!empty($search) && strlen($search) >= 3) {
+            if ($column === 'customer_name') {
+                $invQuery->where(function ($q) use ($search) {
+                    $q->where('c.last_name', 'like', "{$search}%")
+                        ->orWhere('c.company', 'like', "{$search}%");
+                });
+            } elseif ($column === 'account_name') {
+                $invQuery->where('sa.account_name', 'like', "{$search}%");
+            } elseif ($column === 'invoice_no') {
+                $invQuery->where('i.reference_no', 'like', "{$search}%");
+            }
+        }
+
+        $invRows = $invQuery->orderByDesc('i.invoice_date')->get()->map(function ($item) {
+            $customerName = $item->is_drugstore
+                ? strtoupper($item->company)
+                : trim(strtoupper($item->last_name) . ', ' . strtoupper($item->first_name));
+
+            return [
+                'id'                        => $item->id,
+                'entry_type'                => 'INV',
+                'customer_sales_account_id' => $item->customer_sales_account_id,
+                'customer_name'             => $customerName,
+                'account_name'              => strtoupper($item->account_name),
+                'invoice_no'                => $item->reference_no ?? '',
+                'invoice_date'              => $item->invoice_date ? Carbon::parse($item->invoice_date)->format('m-d-Y') : null,
+                'due_date'                  => null,
+                'terms'                     => null,
+                'total_amount'              => number_format((float) $item->amount, 2, '.', ','),
+                'payment_id'                => $item->payment_id ?? null,
+                'payment_status'            => $item->payment_id ? 'Paid' : 'Unpaid',
+                'payment_details'           => $item->payment_id ? [
+                    'amount'       => number_format((float) $item->pmt_amount, 2, '.', ','),
+                    'date'         => $item->pmt_date ? Carbon::parse($item->pmt_date)->format('m-d-Y') : null,
+                    'method'       => $item->pmt_method ?? null,
+                    'reference'    => $item->pmt_reference ?? null,
+                    'check_number' => $item->pmt_check_number ?? null,
+                    'check_date'   => $item->pmt_check_date ? Carbon::parse($item->pmt_check_date)->format('m-d-Y') : null,
+                    'notes'        => $item->pmt_notes ?? null,
+                ] : null,
+            ];
+        });
+
+        // ── Merge, sort, paginate ─────────────────────────────────────────────
+        $combined = $soRows->concat($invRows)
+            ->sortByDesc(fn($r) => $r['invoice_date'] ?? '')
+            ->values();
+
+        $perPage = 15;
+        $currentPage = \Illuminate\Pagination\Paginator::resolveCurrentPage();
+        $paged = $combined->slice(($currentPage - 1) * $perPage, $perPage)->values();
+        $orders = new \Illuminate\Pagination\LengthAwarePaginator(
+            $paged,
+            $combined->count(),
+            $perPage,
+            $currentPage,
+            ['path' => \Illuminate\Pagination\Paginator::resolveCurrentPath()]
+        );
+
         $columns = [
-            ['accessorKey' => 'id',                  'header' => 'ID',            'isVisible' => true,  'isParameter' => false],
-            ['accessorKey' => 'account_name',         'header' => 'ACCOUNT',       'isVisible' => true,  'isParameter' => true],
-            ['accessorKey' => 'customer_name',        'header' => 'CUSTOMER',      'isVisible' => true,  'isParameter' => true],
-            ['accessorKey' => 'invoice_no',           'header' => 'INVOICE NO.',   'isVisible' => true,  'isParameter' => true],
-            ['accessorKey' => 'invoice_date',         'header' => 'INVOICE DATE',  'isVisible' => true,  'isParameter' => false],
-            ['accessorKey' => 'due_date',             'header' => 'DUE DATE',      'isVisible' => true,  'isParameter' => false],
-            // ['accessorKey' => 'delivery_date', ...]
-            // ['accessorKey' => 'discount_percentage',  'header' => 'DISC %',        'isVisible' => true,  'isParameter' => false],
-            ['accessorKey' => 'terms',                'header' => 'TERMS',         'isVisible' => true,  'isParameter' => false],
-            ['accessorKey' => 'total_amount',          'header' => 'TOTAL',         'isVisible' => true,  'isParameter' => false],
-            ['accessorKey' => 'payment_status',        'header' => 'STATUS',        'isVisible' => true,  'isParameter' => false],
+            ['accessorKey' => 'id',             'header' => 'ID',           'isVisible' => true,  'isParameter' => false],
+            ['accessorKey' => 'entry_type',      'header' => 'TYPE',         'isVisible' => true,  'isParameter' => false],
+            ['accessorKey' => 'account_name',    'header' => 'ACCOUNT',      'isVisible' => true,  'isParameter' => true],
+            ['accessorKey' => 'customer_name',   'header' => 'CUSTOMER',     'isVisible' => true,  'isParameter' => true],
+            ['accessorKey' => 'invoice_no',      'header' => 'INVOICE NO.',  'isVisible' => true,  'isParameter' => true],
+            ['accessorKey' => 'invoice_date',    'header' => 'INVOICE DATE', 'isVisible' => true,  'isParameter' => false],
+            ['accessorKey' => 'due_date',        'header' => 'DUE DATE',     'isVisible' => true,  'isParameter' => false],
+            ['accessorKey' => 'terms',           'header' => 'TERMS',        'isVisible' => true,  'isParameter' => false],
+            ['accessorKey' => 'total_amount',    'header' => 'TOTAL',        'isVisible' => true,  'isParameter' => false],
+            ['accessorKey' => 'payment_status',  'header' => 'STATUS',       'isVisible' => true,  'isParameter' => false],
         ];
 
         return inertia('SalesOrders/SalesOrderIndex', [

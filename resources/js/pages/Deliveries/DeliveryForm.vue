@@ -21,6 +21,7 @@ import { useDateFormatter } from '@/composables/useDateFormatter';
 import BaseCombobox from '@/components/ui/BaseCombobox.vue';
 import { Badge } from '@/components/ui/badge';
 import DeliveryItemsTable from './DeliveryItemsTable.vue';
+import { Tag } from 'lucide-vue-next';
 
 
 
@@ -109,6 +110,8 @@ const handleSubmit = () => {
                 product_id: Number(item.product_id),
                 quantity_received: item.quantity,
                 unit_price: item.unit_price,
+                lot_number: item.lot_number ?? null,
+                expiration_date: item.expiration_date ?? null,
             })),
         });
 
@@ -183,6 +186,8 @@ async function loadSuppliers(searchQuery = '') {
 const selectedProducts = ref(null);
 const itemQuantity = ref(1);
 const itemPrice = ref(0);
+const itemLotNumber = ref('');
+const itemExpirationDate = ref(null);
 
 const deliveryItems = ref([]);
 
@@ -203,10 +208,14 @@ const addItem = () => {
         product_name: product?.label ?? selectedProducts.value,
         quantity: Number(itemQuantity.value),
         unit_price: Number(itemPrice.value),
+        lot_number: itemLotNumber.value.trim() || null,
+        expiration_date: itemExpirationDate.value ? normalizeDate(itemExpirationDate.value) : null,
     });
     selectedProducts.value = null;
     itemQuantity.value = 1;
     itemPrice.value = 0;
+    itemLotNumber.value = '';
+    itemExpirationDate.value = null;
 };
 
 const removeItem = (index) => {
@@ -296,7 +305,7 @@ async function loadProducts(searchQuery = '', includeId = null) {
                             <FieldGroup :skeleton="isLoading" :skeleton-layout="skeletonLayoutItems"
                                 class="flex flex-col flex-1">
                                 <div class="grid w-full grid-cols-12 gap-3">
-                                    <Field class="col-span-6">
+                                    <Field class="col-span-5">
                                         <FieldLabel class="font-normal">Select Item:</FieldLabel>
                                         <BaseCombobox v-model="selectedProducts" :options="productsOptions"
                                             empty-message="No products found" width="w-full"
@@ -307,16 +316,27 @@ async function loadProducts(searchQuery = '', includeId = null) {
                                         <FieldLabel class="font-normal">Qty</FieldLabel>
                                         <Input v-model="itemQuantity" type="number" min="0" placeholder="0" />
                                     </Field>
-                                    <Field class="col-span-3">
+                                    <Field class="col-span-2">
                                         <FieldLabel class="font-normal">Unit Price</FieldLabel>
                                         <Input v-model="itemPrice" type="number" min="0" step="0.01"
                                             placeholder="0.00" />
+                                    </Field>
+                                    <Field class="col-span-2">
+                                        <FieldLabel class="font-normal">Lot No.</FieldLabel>
+                                        <Input v-model="itemLotNumber" placeholder="e.g. LOT-001" />
                                     </Field>
                                     <Field class="col-span-1">
                                         <FieldLabel class="invisible">-</FieldLabel>
                                         <BaseButton type="button" @click="addItem" :transactionType="'add'"
                                             :disabled="isBusy" :skeleton="isLoading">
                                         </BaseButton>
+                                    </Field>
+                                    <!-- Expiry date shown only when lot number entered -->
+                                    <Field v-if="itemLotNumber" class="col-span-4">
+                                        <FieldLabel class="font-normal flex items-center gap-1">
+                                            <Tag class="h-3 w-3 text-amber-500" /> Expiration Date
+                                        </FieldLabel>
+                                        <BaseDatePick v-model="itemExpirationDate" />
                                     </Field>
                                 </div>
 

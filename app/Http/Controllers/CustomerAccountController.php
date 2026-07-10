@@ -191,10 +191,11 @@ class CustomerAccountController extends Controller
     }
 
     /**
-     * Return unpaid sales orders for a customer sales account.
+     * Return unpaid sales orders AND manual invoices for a customer sales account.
      */
     public function unpaidOrders(int $id)
     {
+        // Unpaid sales orders
         $orders = DB::table('sales_orders as so')
             ->where('so.customer_sales_account_id', $id)
             ->whereNull('so.payment_id')
@@ -205,39 +206,48 @@ class CustomerAccountController extends Controller
                 $total = DB::table('sales_order_items')
                     ->where('sales_order_id', $row->id)
                     ->sum(DB::raw('quantity * unit_price * (1 - IFNULL(discount_percentage, 0) / 100)'));
-
-                $dueDate = null;
-                if ($row->invoice_date && $row->terms) {
-                    $dueDate = \Carbon\Carbon::parse($row->invoice_date)
-                        ->addDays((int) $row->terms)
-                        ->format('m-d-Y');
-                }
-
+                $dueDate = ($row->invoice_date && $row->terms)
+                    ? \Carbon\Carbon::parse($row->invoice_date)->addDays((int) $row->terms)->format('m-d-Y')
+                    : null;
                 return [
                     'id'           => $row->id,
+                    'type'         => 'order',
                     'invoice_no'   => $row->invoice_no ?? '—',
-                    'invoice_date' => $row->invoice_date
-                        ? \Carbon\Carbon::parse($row->invoice_date)->format('m-d-Y')
-                        : null,
+                    'invoice_date' => $row->invoice_date ? \Carbon\Carbon::parse($row->invoice_date)->format('m-d-Y') : null,
                     'due_date'     => $dueDate,
                     'total'        => round((float) $total, 2),
                 ];
             });
 
-        return response()->json(['orders' => $orders]);
+        // Unpaid manual invoices
+        $invoices = DB::table('customer_account_invoices')
+            ->where('customer_sales_account_id', $id)
+            ->whereNull('payment_id')
+            ->orderBy('invoice_date')
+            ->get()
+            ->map(fn($row) => [
+                'id'           => $row->id,
+                'type'         => 'invoice',
+                'invoice_no'   => $row->reference_no ?? '—',
+                'invoice_date' => $row->invoice_date ? \Carbon\Carbon::parse($row->invoice_date)->format('m-d-Y') : null,
+                'due_date'     => null,
+                'total'        => round((float) $row->amount, 2),
+            ]);
+
+        $all = $orders->concat($invoices)->sortBy('invoice_date')->values();
+
+        return response()->json(['orders' => $all]);
     }
 
     /**
-     * Return orders available for a specific payment edit:
-     * unpaid orders + orders already linked to this payment (pre-selected).
+     * Return orders + invoices available for a specific payment edit (pre-selected if linked).
      */
     public function ordersForPayment(int $id, int $paymentId)
     {
         $orders = DB::table('sales_orders as so')
             ->where('so.customer_sales_account_id', $id)
             ->where(function ($q) use ($paymentId) {
-                $q->whereNull('so.payment_id')
-                    ->orWhere('so.payment_id', $paymentId);
+                $q->whereNull('so.payment_id')->orWhere('so.payment_id', $paymentId);
             })
             ->select('so.id', 'so.invoice_no', 'so.invoice_date', 'so.terms', 'so.payment_id')
             ->orderBy('so.invoice_date')
@@ -246,27 +256,40 @@ class CustomerAccountController extends Controller
                 $total = DB::table('sales_order_items')
                     ->where('sales_order_id', $row->id)
                     ->sum(DB::raw('quantity * unit_price * (1 - IFNULL(discount_percentage, 0) / 100)'));
-
-                $dueDate = null;
-                if ($row->invoice_date && $row->terms) {
-                    $dueDate = \Carbon\Carbon::parse($row->invoice_date)
-                        ->addDays((int) $row->terms)
-                        ->format('m-d-Y');
-                }
-
+                $dueDate = ($row->invoice_date && $row->terms)
+                    ? \Carbon\Carbon::parse($row->invoice_date)->addDays((int) $row->terms)->format('m-d-Y')
+                    : null;
                 return [
                     'id'           => $row->id,
+                    'type'         => 'order',
                     'invoice_no'   => $row->invoice_no ?? '—',
-                    'invoice_date' => $row->invoice_date
-                        ? \Carbon\Carbon::parse($row->invoice_date)->format('m-d-Y')
-                        : null,
+                    'invoice_date' => $row->invoice_date ? \Carbon\Carbon::parse($row->invoice_date)->format('m-d-Y') : null,
                     'due_date'     => $dueDate,
                     'total'        => round((float) $total, 2),
                     'selected'     => (int) $row->payment_id === $paymentId,
                 ];
             });
 
-        return response()->json(['orders' => $orders]);
+        $invoices = DB::table('customer_account_invoices')
+            ->where('customer_sales_account_id', $id)
+            ->where(function ($q) use ($paymentId) {
+                $q->whereNull('payment_id')->orWhere('payment_id', $paymentId);
+            })
+            ->orderBy('invoice_date')
+            ->get()
+            ->map(fn($row) => [
+                'id'           => $row->id,
+                'type'         => 'invoice',
+                'invoice_no'   => $row->reference_no ?? '—',
+                'invoice_date' => $row->invoice_date ? \Carbon\Carbon::parse($row->invoice_date)->format('m-d-Y') : null,
+                'due_date'     => null,
+                'total'        => round((float) $row->amount, 2),
+                'selected'     => (int) $row->payment_id === $paymentId,
+            ]);
+
+        $all = $orders->concat($invoices)->sortBy('invoice_date')->values();
+
+        return response()->json(['orders' => $all]);
     }
 
     /**
@@ -284,8 +307,10 @@ class CustomerAccountController extends Controller
             'check_number'    => ($isCheque ? 'required' : 'nullable') . '|string|max:100',
             'check_date'      => ($isCheque ? 'required' : 'nullable') . '|date',
             'notes'           => 'nullable|string',
-            'sales_order_ids' => 'nullable|array',
+            'sales_order_ids'   => 'nullable|array',
             'sales_order_ids.*' => 'integer|exists:sales_orders,id',
+            'invoice_ids'       => 'nullable|array',
+            'invoice_ids.*'     => 'integer|exists:customer_account_invoices,id',
         ]);
 
         $paymentId = DB::table('customer_sales_account_payments')->insertGetId([
@@ -306,6 +331,13 @@ class CustomerAccountController extends Controller
         if (!empty($validated['sales_order_ids'])) {
             DB::table('sales_orders')
                 ->whereIn('id', $validated['sales_order_ids'])
+                ->where('customer_sales_account_id', $id)
+                ->update(['payment_id' => $paymentId, 'updated_at' => now()]);
+        }
+
+        if (!empty($validated['invoice_ids'])) {
+            DB::table('customer_account_invoices')
+                ->whereIn('id', $validated['invoice_ids'])
                 ->where('customer_sales_account_id', $id)
                 ->update(['payment_id' => $paymentId, 'updated_at' => now()]);
         }
@@ -547,6 +579,8 @@ class CustomerAccountController extends Controller
             'notes'          => 'nullable|string',
             'sales_order_ids'   => 'nullable|array',
             'sales_order_ids.*' => 'integer|exists:sales_orders,id',
+            'invoice_ids'       => 'nullable|array',
+            'invoice_ids.*'     => 'integer|exists:customer_account_invoices,id',
         ]);
 
         DB::table('customer_sales_account_payments')
@@ -564,16 +598,30 @@ class CustomerAccountController extends Controller
                 'updated_at'     => now(),
             ]);
 
-        // Unlink all orders previously linked to this payment
+        // Unlink previously linked sales orders
         DB::table('sales_orders')
             ->where('payment_id', $paymentId)
             ->where('customer_sales_account_id', $csaId)
             ->update(['payment_id' => null, 'updated_at' => now()]);
 
-        // Re-link the selected orders
+        // Unlink previously linked manual invoices
+        DB::table('customer_account_invoices')
+            ->where('payment_id', $paymentId)
+            ->where('customer_sales_account_id', $csaId)
+            ->update(['payment_id' => null, 'updated_at' => now()]);
+
+        // Re-link selected sales orders
         if (!empty($validated['sales_order_ids'])) {
             DB::table('sales_orders')
                 ->whereIn('id', $validated['sales_order_ids'])
+                ->where('customer_sales_account_id', $csaId)
+                ->update(['payment_id' => $paymentId, 'updated_at' => now()]);
+        }
+
+        // Re-link selected manual invoices
+        if (!empty($validated['invoice_ids'])) {
+            DB::table('customer_account_invoices')
+                ->whereIn('id', $validated['invoice_ids'])
                 ->where('customer_sales_account_id', $csaId)
                 ->update(['payment_id' => $paymentId, 'updated_at' => now()]);
         }

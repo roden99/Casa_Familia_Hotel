@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { MoreHorizontal, Pencil, Trash2, Eye, Copy, Download, PlusCircle, Users, ShieldCheck, History, UserSearch, TrendingDown, BookOpen, CreditCard, ArrowRightFromLine, FilePlus, PackagePlus, Receipt } from 'lucide-vue-next'
+import { MoreHorizontal, Pencil, Trash2, Eye, Copy, Download, PlusCircle, Users, ShieldCheck, History, UserSearch, TrendingDown, BookOpen, CreditCard, ArrowRightFromLine, FilePlus, PackagePlus, Receipt, Layers } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
@@ -31,7 +31,8 @@ const actionConfig: Record<string, { label: string; icon: any; class: string }> 
   payment_details: { label: 'Payment Details', icon: Receipt, class: 'text-emerald-600' },
   forward: { label: 'Forward Balance', icon: ArrowRightFromLine, class: 'text-sky-600' },
   invoice: { label: 'Add Invoice', icon: FilePlus, class: 'text-amber-600' },
-  setposqty: { label: 'Set POS Qty', icon: PackagePlus, class: 'text-teal-600' }
+  setposqty: { label: 'Set POS Qty', icon: PackagePlus, class: 'text-teal-600' },
+  viewlots: { label: 'View Lots', icon: Layers, class: 'text-indigo-600' },
 }
 
 const emit = defineEmits<{

@@ -247,6 +247,60 @@ class ProductController extends Controller
         return redirect()->route('products.index')->with('success', 'Reorder level updated successfully!');
     }
 
+    public function storeLot(Request $request, product $product)
+    {
+        $validated = $request->validate([
+            'lot_number'      => 'required|string|max:100',
+            'expiration_date' => 'required|date',
+            'quantity'        => 'required|numeric|min:0',
+        ]);
+
+        \Illuminate\Support\Facades\DB::table('product_lots')->updateOrInsert(
+            [
+                'product_id' => $product->id,
+                'lot_number' => $validated['lot_number'],
+            ],
+            [
+                'expiration_date' => $validated['expiration_date'],
+                'quantity'        => $validated['quantity'],
+                'created_by'      => $request->user()->id,
+                'updated_by'      => $request->user()->id,
+                'updated_at'      => now(),
+                'created_at'      => now(),
+            ]
+        );
+
+        return redirect()->route('products.index')->with('success', 'Lot added successfully!');
+    }
+
+    public function getLots(product $product)
+    {
+        $lots = \Illuminate\Support\Facades\DB::table('product_lots')
+            ->where('product_id', $product->id)
+            ->orderBy('expiration_date')
+            ->get()
+            ->map(fn($lot) => [
+                'id'              => $lot->id,
+                'lot_number'      => $lot->lot_number,
+                'expiration_date' => \Carbon\Carbon::parse($lot->expiration_date)->format('m-d-Y'),
+                'expiration_raw'  => $lot->expiration_date,
+                'quantity'        => (float) $lot->quantity,
+                'is_expired'      => \Carbon\Carbon::parse($lot->expiration_date)->isPast(),
+            ]);
+
+        return response()->json(['lots' => $lots]);
+    }
+
+    public function destroyLot(Request $request, product $product, int $lot)
+    {
+        \Illuminate\Support\Facades\DB::table('product_lots')
+            ->where('id', $lot)
+            ->where('product_id', $product->id)
+            ->delete();
+
+        return redirect()->route('products.index')->with('success', 'Lot removed.');
+    }
+
     public function multiplier(product $product)
     {
         $product->load('unit');
