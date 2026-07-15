@@ -257,7 +257,7 @@ onMounted(async () => {
                                                 </td>
                                                 <td class="px-3 py-2 font-medium">{{ order.invoice_no }}</td>
                                                 <td class="px-3 py-2 text-muted-foreground">{{ order.invoice_date ?? '—'
-                                                    }}</td>
+                                                }}</td>
                                                 <td class="px-3 py-2"
                                                     :class="order.due_date && new Date(order.due_date) < new Date() ? 'text-red-600 font-semibold' : 'text-muted-foreground'">
                                                     {{ order.due_date ?? '—' }}

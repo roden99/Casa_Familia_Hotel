@@ -219,18 +219,30 @@ class CustomerAccountController extends Controller
                 ];
             });
 
-        // Unpaid manual invoices
-        $invoices = DB::table('customer_account_invoices')
-            ->where('customer_sales_account_id', $id)
-            ->whereNull('payment_id')
-            ->orderBy('invoice_date')
+        // Unpaid / partially-paid manual invoices
+        $invoices = DB::table('customer_account_invoices as i')
+            ->where('i.customer_sales_account_id', $id)
+            ->leftJoinSub(
+                DB::table('customer_account_invoice_payments')
+                    ->select('customer_account_invoice_id', DB::raw('SUM(amount) as paid_amount'))
+                    ->groupBy('customer_account_invoice_id'),
+                'pmts',
+                'pmts.customer_account_invoice_id',
+                '=',
+                'i.id'
+            )
+            ->whereRaw('IFNULL(pmts.paid_amount, 0) < i.amount')
+            ->select('i.id', 'i.reference_no', 'i.invoice_date', 'i.terms', 'i.amount')
+            ->orderBy('i.invoice_date')
             ->get()
             ->map(fn($row) => [
                 'id'           => $row->id,
                 'type'         => 'invoice',
                 'invoice_no'   => $row->reference_no ?? '—',
                 'invoice_date' => $row->invoice_date ? \Carbon\Carbon::parse($row->invoice_date)->format('m-d-Y') : null,
-                'due_date'     => null,
+                'due_date'     => ($row->invoice_date && $row->terms)
+                    ? \Carbon\Carbon::parse($row->invoice_date)->addDays((int) $row->terms)->format('m-d-Y')
+                    : null,
                 'total'        => round((float) $row->amount, 2),
             ]);
 
@@ -270,21 +282,31 @@ class CustomerAccountController extends Controller
                 ];
             });
 
-        $invoices = DB::table('customer_account_invoices')
-            ->where('customer_sales_account_id', $id)
-            ->where(function ($q) use ($paymentId) {
-                $q->whereNull('payment_id')->orWhere('payment_id', $paymentId);
-            })
-            ->orderBy('invoice_date')
+        $invoices = DB::table('customer_account_invoices as i')
+            ->where('i.customer_sales_account_id', $id)
+            ->leftJoinSub(
+                DB::table('customer_account_invoice_payments')
+                    ->select('customer_account_invoice_id', DB::raw('SUM(amount) as paid_amount'))
+                    ->groupBy('customer_account_invoice_id'),
+                'pmts',
+                'pmts.customer_account_invoice_id',
+                '=',
+                'i.id'
+            )
+            ->whereRaw('IFNULL(pmts.paid_amount, 0) < i.amount')
+            ->select('i.id', 'i.reference_no', 'i.invoice_date', 'i.terms', 'i.amount')
+            ->orderBy('i.invoice_date')
             ->get()
             ->map(fn($row) => [
                 'id'           => $row->id,
                 'type'         => 'invoice',
                 'invoice_no'   => $row->reference_no ?? '—',
                 'invoice_date' => $row->invoice_date ? \Carbon\Carbon::parse($row->invoice_date)->format('m-d-Y') : null,
-                'due_date'     => null,
+                'due_date'     => ($row->invoice_date && $row->terms)
+                    ? \Carbon\Carbon::parse($row->invoice_date)->addDays((int) $row->terms)->format('m-d-Y')
+                    : null,
                 'total'        => round((float) $row->amount, 2),
-                'selected'     => (int) $row->payment_id === $paymentId,
+                'selected'     => false,
             ]);
 
         $all = $orders->concat($invoices)->sortBy('invoice_date')->values();
@@ -336,10 +358,29 @@ class CustomerAccountController extends Controller
         }
 
         if (!empty($validated['invoice_ids'])) {
-            DB::table('customer_account_invoices')
+            $invoices = DB::table('customer_account_invoices')
                 ->whereIn('id', $validated['invoice_ids'])
                 ->where('customer_sales_account_id', $id)
-                ->update(['payment_id' => $paymentId, 'updated_at' => now()]);
+                ->select('id', 'amount')
+                ->get();
+
+            $now = now();
+            foreach ($invoices as $invoice) {
+                DB::table('customer_account_invoice_payments')->insert([
+                    'customer_account_invoice_id' => $invoice->id,
+                    'amount'                      => $invoice->amount,
+                    'payment_date'                => $validated['payment_date'],
+                    'reference_no'                => $validated['reference_no'] ?? null,
+                    'payment_method'              => $validated['payment_method'] ?? null,
+                    'check_number'                => $validated['check_number'] ?? null,
+                    'check_date'                  => $validated['check_date'] ?? null,
+                    'notes'                       => $validated['notes'] ?? null,
+                    'created_by'                  => $request->user()->id,
+                    'updated_by'                  => $request->user()->id,
+                    'created_at'                  => $now,
+                    'updated_at'                  => $now,
+                ]);
+            }
         }
 
         return redirect()->route('customer-accounts.index')
@@ -416,7 +457,7 @@ class CustomerAccountController extends Controller
         // ── MANUAL INVOICES ───────────────────────────────────────────────
         $manualInvoices = DB::table('customer_account_invoices')
             ->where('customer_sales_account_id', $id)
-            ->select('id', 'reference_no', 'invoice_date as date', 'amount', 'notes')
+            ->select('id', 'reference_no', 'invoice_date as date', 'amount', 'terms', 'notes')
             ->get()
             ->map(fn($row) => [
                 'type'       => 'INVOICE',
@@ -427,6 +468,7 @@ class CustomerAccountController extends Controller
                 'amount'     => (float) $row->amount,
                 'raw_amount' => (float) $row->amount,
                 'raw_date'   => $row->date,
+                'terms'      => $row->terms !== null ? (int) $row->terms : null,
                 'notes'      => $row->notes ?? '',
                 'date'       => $row->date ? \Carbon\Carbon::parse($row->date) : null,
             ]);
@@ -515,6 +557,7 @@ class CustomerAccountController extends Controller
             'reference_no' => 'nullable|string|max:255',
             'invoice_date' => 'required|date',
             'amount'       => 'required|numeric|min:0.01',
+            'terms'        => 'nullable|integer|min:0',
             'notes'        => 'nullable|string',
         ]);
 
@@ -523,6 +566,7 @@ class CustomerAccountController extends Controller
             'reference_no'              => $validated['reference_no'] ?? null,
             'invoice_date'              => $validated['invoice_date'],
             'amount'                    => $validated['amount'],
+            'terms'                     => $validated['terms'] ?? null,
             'notes'                     => $validated['notes'] ?? null,
             'created_by'                => $request->user()->id,
             'updated_by'                => $request->user()->id,
@@ -543,6 +587,7 @@ class CustomerAccountController extends Controller
             'reference_no' => 'nullable|string|max:255',
             'invoice_date' => 'required|date',
             'amount'       => 'required|numeric|min:0.01',
+            'terms'        => 'nullable|integer|min:0',
             'notes'        => 'nullable|string',
         ]);
 
@@ -553,6 +598,7 @@ class CustomerAccountController extends Controller
                 'reference_no' => $validated['reference_no'] ?? null,
                 'invoice_date' => $validated['invoice_date'],
                 'amount'       => $validated['amount'],
+                'terms'        => $validated['terms'] ?? null,
                 'notes'        => $validated['notes'] ?? null,
                 'updated_by'   => $request->user()->id,
                 'updated_at'   => now(),
@@ -579,8 +625,6 @@ class CustomerAccountController extends Controller
             'notes'          => 'nullable|string',
             'sales_order_ids'   => 'nullable|array',
             'sales_order_ids.*' => 'integer|exists:sales_orders,id',
-            'invoice_ids'       => 'nullable|array',
-            'invoice_ids.*'     => 'integer|exists:customer_account_invoices,id',
         ]);
 
         DB::table('customer_sales_account_payments')
@@ -604,12 +648,6 @@ class CustomerAccountController extends Controller
             ->where('customer_sales_account_id', $csaId)
             ->update(['payment_id' => null, 'updated_at' => now()]);
 
-        // Unlink previously linked manual invoices
-        DB::table('customer_account_invoices')
-            ->where('payment_id', $paymentId)
-            ->where('customer_sales_account_id', $csaId)
-            ->update(['payment_id' => null, 'updated_at' => now()]);
-
         // Re-link selected sales orders
         if (!empty($validated['sales_order_ids'])) {
             DB::table('sales_orders')
@@ -618,16 +656,94 @@ class CustomerAccountController extends Controller
                 ->update(['payment_id' => $paymentId, 'updated_at' => now()]);
         }
 
-        // Re-link selected manual invoices
-        if (!empty($validated['invoice_ids'])) {
-            DB::table('customer_account_invoices')
-                ->whereIn('id', $validated['invoice_ids'])
-                ->where('customer_sales_account_id', $csaId)
-                ->update(['payment_id' => $paymentId, 'updated_at' => now()]);
-        }
-
         return redirect()->route('customer-accounts.index')
             ->with('success', 'Payment updated successfully!');
+    }
+
+    /**
+     * Record a payment for a specific customer account invoice.
+     */
+    public function storeInvoicePayment(Request $request, int $invoiceId)
+    {
+        $isCheque = $request->input('payment_method') === 'Cheque';
+
+        $validated = $request->validate([
+            'amount'         => 'required|numeric|min:0.01',
+            'payment_date'   => 'required|date',
+            'reference_no'   => 'nullable|string|max:255',
+            'payment_method' => 'nullable|string|max:100',
+            'check_number'   => ($isCheque ? 'required' : 'nullable') . '|string|max:100',
+            'check_date'     => ($isCheque ? 'required' : 'nullable') . '|date',
+            'notes'          => 'nullable|string',
+        ]);
+
+        DB::table('customer_account_invoice_payments')->insert([
+            'customer_account_invoice_id' => $invoiceId,
+            'amount'                      => $validated['amount'],
+            'payment_date'                => $validated['payment_date'],
+            'reference_no'                => $validated['reference_no'] ?? null,
+            'payment_method'              => $validated['payment_method'] ?? null,
+            'check_number'                => $validated['check_number'] ?? null,
+            'check_date'                  => $validated['check_date'] ?? null,
+            'notes'                       => $validated['notes'] ?? null,
+            'created_by'                  => $request->user()->id,
+            'updated_by'                  => $request->user()->id,
+            'created_at'                  => now(),
+            'updated_at'                  => now(),
+        ]);
+
+        return redirect()->route('customer-accounts.index')
+            ->with('success', 'Invoice payment recorded successfully!');
+    }
+
+    /**
+     * Update a payment for a specific customer account invoice.
+     */
+    public function updateInvoicePayment(Request $request, int $invoiceId, int $paymentId)
+    {
+        $isCheque = $request->input('payment_method') === 'Cheque';
+
+        $validated = $request->validate([
+            'amount'         => 'required|numeric|min:0.01',
+            'payment_date'   => 'required|date',
+            'reference_no'   => 'nullable|string|max:255',
+            'payment_method' => 'nullable|string|max:100',
+            'check_number'   => ($isCheque ? 'required' : 'nullable') . '|string|max:100',
+            'check_date'     => ($isCheque ? 'required' : 'nullable') . '|date',
+            'notes'          => 'nullable|string',
+        ]);
+
+        DB::table('customer_account_invoice_payments')
+            ->where('id', $paymentId)
+            ->where('customer_account_invoice_id', $invoiceId)
+            ->update([
+                'amount'         => $validated['amount'],
+                'payment_date'   => $validated['payment_date'],
+                'reference_no'   => $validated['reference_no'] ?? null,
+                'payment_method' => $validated['payment_method'] ?? null,
+                'check_number'   => $validated['check_number'] ?? null,
+                'check_date'     => $validated['check_date'] ?? null,
+                'notes'          => $validated['notes'] ?? null,
+                'updated_by'     => $request->user()->id,
+                'updated_at'     => now(),
+            ]);
+
+        return redirect()->route('customer-accounts.index')
+            ->with('success', 'Invoice payment updated successfully!');
+    }
+
+    /**
+     * Delete a payment for a specific customer account invoice.
+     */
+    public function destroyInvoicePayment(int $invoiceId, int $paymentId)
+    {
+        DB::table('customer_account_invoice_payments')
+            ->where('id', $paymentId)
+            ->where('customer_account_invoice_id', $invoiceId)
+            ->delete();
+
+        return redirect()->route('customer-accounts.index')
+            ->with('success', 'Invoice payment deleted successfully!');
     }
 
     /**

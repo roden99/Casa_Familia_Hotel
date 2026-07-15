@@ -51,6 +51,9 @@ Route::patch('customer-accounts/{csaId}/invoices/{invoiceId}', [CustomerAccountC
 Route::patch('customer-accounts/{csaId}/payments/{paymentId}', [CustomerAccountController::class, 'updatePayment'])->name('customer-accounts.payments.update');
 Route::delete('customer-accounts/{csaId}/invoices/{invoiceId}', [CustomerAccountController::class, 'destroyInvoice'])->name('customer-accounts.invoices.destroy');
 Route::delete('customer-accounts/{csaId}/payments/{paymentId}', [CustomerAccountController::class, 'destroyPayment'])->name('customer-accounts.payments.destroy');
+Route::post('customer-accounts/invoices/{invoiceId}/payments', [CustomerAccountController::class, 'storeInvoicePayment'])->name('customer-accounts.invoices.payments.store');
+Route::patch('customer-accounts/invoices/{invoiceId}/payments/{paymentId}', [CustomerAccountController::class, 'updateInvoicePayment'])->name('customer-accounts.invoices.payments.update');
+Route::delete('customer-accounts/invoices/{invoiceId}/payments/{paymentId}', [CustomerAccountController::class, 'destroyInvoicePayment'])->name('customer-accounts.invoices.payments.destroy');
 Route::resource('sales-accounts', SalesAccountController::class);
 
 Route::resource('brands', BrandController::class);

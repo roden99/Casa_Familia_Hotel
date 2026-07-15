@@ -15,6 +15,7 @@ class SalesOrderController extends Controller
     {
         $search = $request->input('search');
         $column = $request->input('column');
+        $filter = $request->input('filter');
 
         // ── Sales Orders ──────────────────────────────────────────────────────
         $soQuery = DB::table('sales_orders as so')
@@ -97,26 +98,54 @@ class SalesOrderController extends Controller
             ->join('customer_sales_account as csa', 'csa.id', '=', 'i.customer_sales_account_id')
             ->join('customers as c', 'c.id', '=', 'csa.customer_id')
             ->join('sales_accounts as sa', 'sa.id', '=', 'csa.sales_account_id')
-            ->leftJoin('customer_sales_account_payments as pmt', 'pmt.id', '=', 'i.payment_id')
+            ->leftJoinSub(
+                DB::table('customer_account_invoice_payments')
+                    ->select('customer_account_invoice_id', DB::raw('SUM(amount) as paid_amount'))
+                    ->groupBy('customer_account_invoice_id'),
+                'pmts',
+                'pmts.customer_account_invoice_id',
+                '=',
+                'i.id'
+            )
+            ->leftJoinSub(
+                DB::table('customer_account_invoice_payments')
+                    ->select(
+                        'customer_account_invoice_id',
+                        'amount as pmt_amount',
+                        'payment_date as pmt_date',
+                        'payment_method as pmt_method',
+                        'reference_no as pmt_reference',
+                        'check_number as pmt_check_number',
+                        'check_date as pmt_check_date',
+                        'notes as pmt_notes'
+                    )
+                    ->orderByDesc('payment_date')
+                    ->orderByDesc('id'),
+                'last_pmt',
+                'last_pmt.customer_account_invoice_id',
+                '=',
+                'i.id'
+            )
             ->select(
                 'i.id',
                 'i.reference_no',
                 'i.invoice_date',
+                'i.terms',
                 'i.amount',
-                'i.payment_id',
                 'i.customer_sales_account_id',
                 'c.company',
                 'c.first_name',
                 'c.last_name',
                 'c.is_drugstore',
                 'sa.account_name',
-                'pmt.amount as pmt_amount',
-                'pmt.payment_date as pmt_date',
-                'pmt.payment_method as pmt_method',
-                'pmt.reference_no as pmt_reference',
-                'pmt.check_number as pmt_check_number',
-                'pmt.check_date as pmt_check_date',
-                'pmt.notes as pmt_notes'
+                'pmts.paid_amount',
+                'last_pmt.pmt_amount',
+                'last_pmt.pmt_date',
+                'last_pmt.pmt_method',
+                'last_pmt.pmt_reference',
+                'last_pmt.pmt_check_number',
+                'last_pmt.pmt_check_date',
+                'last_pmt.pmt_notes'
             );
 
         if (!empty($search) && strlen($search) >= 3) {
@@ -145,12 +174,14 @@ class SalesOrderController extends Controller
                 'account_name'              => strtoupper($item->account_name),
                 'invoice_no'                => $item->reference_no ?? '',
                 'invoice_date'              => $item->invoice_date ? Carbon::parse($item->invoice_date)->format('m-d-Y') : null,
-                'due_date'                  => null,
-                'terms'                     => null,
+                'due_date'                  => ($item->invoice_date && $item->terms)
+                    ? Carbon::parse($item->invoice_date)->addDays((int) $item->terms)->format('m-d-Y')
+                    : null,
+                'terms'                     => $item->terms !== null ? (int) $item->terms : null,
                 'total_amount'              => number_format((float) $item->amount, 2, '.', ','),
-                'payment_id'                => $item->payment_id ?? null,
-                'payment_status'            => $item->payment_id ? 'Paid' : 'Unpaid',
-                'payment_details'           => $item->payment_id ? [
+                'payment_id'                => null,
+                'payment_status'            => ($item->paid_amount ?? 0) >= $item->amount ? 'Paid' : (($item->paid_amount ?? 0) > 0 ? 'Partial' : 'Unpaid'),
+                'payment_details'           => $item->pmt_amount ? [
                     'amount'       => number_format((float) $item->pmt_amount, 2, '.', ','),
                     'date'         => $item->pmt_date ? Carbon::parse($item->pmt_date)->format('m-d-Y') : null,
                     'method'       => $item->pmt_method ?? null,
@@ -162,10 +193,26 @@ class SalesOrderController extends Controller
             ];
         });
 
-        // ── Merge, sort, paginate ─────────────────────────────────────────────
+        // ── Merge, sort ───────────────────────────────────────────────────────
         $combined = $soRows->concat($invRows)
             ->sortByDesc(fn($r) => $r['invoice_date'] ?? '')
             ->values();
+
+        // ── Apply filter ──────────────────────────────────────────────────────
+        if ($filter) {
+            $today     = Carbon::today();
+            $weekLater = Carbon::today()->addDays(7);
+            $combined  = $combined->filter(function ($r) use ($filter, $today, $weekLater) {
+                $isPaid = $r['payment_id'] !== null || $r['payment_status'] === 'Paid';
+                if ($filter === 'paid')   return $isPaid;
+                if ($filter === 'unpaid') return !$isPaid;
+                if ($isPaid || !$r['due_date']) return false;
+                $due = Carbon::createFromFormat('m-d-Y', $r['due_date']);
+                if ($filter === 'overdue')   return $due->lt($today);
+                if ($filter === 'upcoming')  return $due->gte($today) && $due->lte($weekLater);
+                return true;
+            })->values();
+        }
 
         $perPage = 15;
         $currentPage = \Illuminate\Pagination\Paginator::resolveCurrentPage();
@@ -194,6 +241,7 @@ class SalesOrderController extends Controller
         return inertia('SalesOrders/SalesOrderIndex', [
             'orders'  => $orders,
             'columns' => $columns,
+            'filter'  => $filter,
         ]);
     }
 
@@ -345,6 +393,10 @@ class SalesOrderController extends Controller
     public function destroy(string $id)
     {
         $order = SalesOrder::with('items')->findOrFail($id);
+
+        if ($order->payment_id) {
+            return back()->withErrors(['delete' => 'Cannot delete a paid sales order.']);
+        }
 
         // Restore stock for each item before deleting
         foreach ($order->items as $item) {

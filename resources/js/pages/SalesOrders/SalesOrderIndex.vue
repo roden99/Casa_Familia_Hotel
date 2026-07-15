@@ -3,7 +3,8 @@ import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
 import BaseIndex from '@/components/BaseIndex.vue';
 import { ref, computed, h } from 'vue';
-import { Head } from '@inertiajs/vue3';
+import { Head, router } from '@inertiajs/vue3';
+import { toast } from 'vue-sonner';
 
 import CreateSalesOrder from '@/pages/SalesOrders/CreateSalesOrder.vue';
 import UpdateSalesOrder from '@/pages/SalesOrders/UpdateSalesOrder.vue';
@@ -23,6 +24,10 @@ const props = defineProps({
     columns: {
         type: Array,
         required: true,
+    },
+    filter: {
+        type: String,
+        default: null,
     },
 });
 
@@ -51,12 +56,13 @@ const transformedColumns = computed(() =>
                 return {
                     ...col,
                     cell: ({ row }) => {
-                        const paid = row.original.payment_id;
-                        return h('span', {
-                            class: paid
-                                ? 'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
-                                : 'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400',
-                        }, paid ? 'Paid' : 'Unpaid');
+                        const status = row.original.payment_status;
+                        const cls = status === 'Paid'
+                            ? 'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+                            : status === 'Partial'
+                                ? 'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                                : 'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400';
+                        return h('span', { class: cls }, status ?? 'Unpaid');
                     },
                 };
             }
@@ -96,30 +102,25 @@ const getDueStatus = (row) => {
     return null;
 };
 
-// ─── Active filter ────────────────────────────────────────────────────────────
-const activeFilter = ref(null); // null | 'overdue' | 'upcoming' | 'paid' | 'unpaid'
-
-const filteredOrders = computed(() => {
-    if (!activeFilter.value) return props.orders;
-    const allRows = props.orders?.data ?? props.orders;
-    let filtered;
-    if (activeFilter.value === 'paid') {
-        filtered = allRows.filter(row => !!row.payment_id);
-    } else if (activeFilter.value === 'unpaid') {
-        filtered = allRows.filter(row => !row.payment_id);
-    } else {
-        filtered = allRows.filter(row => getDueStatus(row) === activeFilter.value);
-    }
-    return props.orders?.data ? { ...props.orders, data: filtered } : filtered;
-});
+// ─── Active filter (server-side) ─────────────────────────────────────────────
+const activeFilter = ref(props.filter ?? null);
 
 const toggleFilter = (filter) => {
-    activeFilter.value = activeFilter.value === filter ? null : filter;
+    const next = activeFilter.value === filter ? null : filter;
+    activeFilter.value = next;
+    const url = new URL(window.location.href);
+    url.searchParams.delete('page');
+    if (next) {
+        url.searchParams.set('filter', next);
+    } else {
+        url.searchParams.delete('filter');
+    }
+    router.get(url.pathname + url.search, {}, { preserveScroll: true });
 };
 
 // ─── Row class ────────────────────────────────────────────────────────────────
 const rowClass = (row) => {
-    if (row.payment_id) return ''; const status = getDueStatus(row);
+    if (row.payment_status === 'Paid') return ''; const status = getDueStatus(row);
     if (status === 'overdue') return 'bg-red-200 dark:bg-red-900';
     if (status === 'upcoming') return 'bg-yellow-100 dark:bg-yellow-950';
     return '';
@@ -142,6 +143,10 @@ const handleAction = ({ type, data }) => {
             showUpdateModal.value = true;
             break;
         case 'delete':
+            if (data.payment_status === 'Paid') {
+                toast.error('Cannot delete a paid sales order.');
+                return;
+            }
             selectedOrder.value = data;
             showDeleteModal.value = true;
             break;
@@ -156,7 +161,7 @@ const handleAction = ({ type, data }) => {
     <Head title="Sales Orders" />
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
-            <BaseIndex IndexType="Sales Orders" :data="filteredOrders" :columnDefs="transformedColumns"
+            <BaseIndex IndexType="Sales Orders" :data="orders" :columnDefs="transformedColumns"
                 :selectOptions="selectOptions" v-model:selectModelValue="selectModelValue" @action="handleAction"
                 :row-class="rowClass" :hover-fields="[
                     { field: 'account_name', label: 'Account' },

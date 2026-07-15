@@ -35,6 +35,7 @@ const form = useForm({
     reference_no: props.invoice?.invoice_no && props.invoice.invoice_no !== '—' ? props.invoice.invoice_no : '',
     invoice_date: null,
     amount: props.invoice?.raw_amount ?? 0,
+    terms: props.invoice?.terms ?? null,
     notes: props.invoice?.notes ?? '',
 });
 
@@ -119,10 +120,15 @@ onMounted(() => {
                                 <BaseDatePick v-model="form.invoice_date" />
                             </Field>
 
-                            <Field class="col-span-12">
+                            <Field class="col-span-8">
                                 <FieldLabel class="font-normal">Amount:</FieldLabel>
                                 <Input v-model.number="form.amount" type="number" min="0.01" step="0.01"
                                     placeholder="0.00" required />
+                            </Field>
+
+                            <Field class="col-span-4">
+                                <FieldLabel class="font-normal">Terms (days):</FieldLabel>
+                                <Input v-model.number="form.terms" type="number" min="0" step="1" placeholder="e.g. 30" />
                             </Field>
 
                             <Field class="col-span-12">
