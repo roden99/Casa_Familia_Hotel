@@ -289,12 +289,9 @@ class CustomerAccountController extends Controller
                     ->select('customer_account_invoice_id', DB::raw('SUM(amount) as paid_amount'))
                     ->groupBy('customer_account_invoice_id'),
                 'pmts',
-                'pmts.customer_account_invoice_id',
-                '=',
-                'i.id'
+                'pmts.customer_account_invoice_id', '=', 'i.id'
             )
-            ->whereRaw('IFNULL(pmts.paid_amount, 0) < i.amount')
-            ->select('i.id', 'i.reference_no', 'i.invoice_date', 'i.terms', 'i.amount')
+            ->select('i.id', 'i.reference_no', 'i.invoice_date', 'i.terms', 'i.amount', 'pmts.paid_amount')
             ->orderBy('i.invoice_date')
             ->get()
             ->map(fn($row) => [
@@ -306,7 +303,7 @@ class CustomerAccountController extends Controller
                     ? \Carbon\Carbon::parse($row->invoice_date)->addDays((int) $row->terms)->format('m-d-Y')
                     : null,
                 'total'        => round((float) $row->amount, 2),
-                'selected'     => false,
+                'selected'     => $row->paid_amount !== null && (float) $row->paid_amount >= (float) $row->amount,
             ]);
 
         $all = $orders->concat($invoices)->sortBy('invoice_date')->values();
@@ -334,6 +331,10 @@ class CustomerAccountController extends Controller
             'invoice_ids'       => 'nullable|array',
             'invoice_ids.*'     => 'integer|exists:customer_account_invoices,id',
         ]);
+
+        if (!empty($validated['sales_order_ids']) && !empty($validated['invoice_ids'])) {
+            return back()->withErrors(['mixed' => 'A payment cannot cover both sales orders and invoices at the same time.']);
+        }
 
         $paymentId = DB::table('customer_sales_account_payments')->insertGetId([
             'customer_sales_account_id' => $id,
@@ -625,7 +626,13 @@ class CustomerAccountController extends Controller
             'notes'          => 'nullable|string',
             'sales_order_ids'   => 'nullable|array',
             'sales_order_ids.*' => 'integer|exists:sales_orders,id',
+            'invoice_ids'       => 'nullable|array',
+            'invoice_ids.*'     => 'integer|exists:customer_account_invoices,id',
         ]);
+
+        if (!empty($validated['sales_order_ids']) && !empty($validated['invoice_ids'])) {
+            return back()->withErrors(['mixed' => 'A payment cannot cover both sales orders and invoices at the same time.']);
+        }
 
         DB::table('customer_sales_account_payments')
             ->where('id', $paymentId)
@@ -654,6 +661,53 @@ class CustomerAccountController extends Controller
                 ->whereIn('id', $validated['sales_order_ids'])
                 ->where('customer_sales_account_id', $csaId)
                 ->update(['payment_id' => $paymentId, 'updated_at' => now()]);
+        }
+
+        // Sync invoice payments: find previously paid invoices for this CSA
+        $prevPaidIds = DB::table('customer_account_invoice_payments as caip')
+            ->join('customer_account_invoices as i', 'i.id', '=', 'caip.customer_account_invoice_id')
+            ->where('i.customer_sales_account_id', $csaId)
+            ->pluck('caip.customer_account_invoice_id')
+            ->unique()
+            ->values()
+            ->toArray();
+
+        $newInvoiceIds = $validated['invoice_ids'] ?? [];
+
+        // Delete payment records for invoices removed from this payment
+        $toRemove = array_values(array_diff($prevPaidIds, $newInvoiceIds));
+        if (!empty($toRemove)) {
+            DB::table('customer_account_invoice_payments')
+                ->whereIn('customer_account_invoice_id', $toRemove)
+                ->delete();
+        }
+
+        // Insert payment records for newly added invoices
+        $toAdd = array_values(array_diff($newInvoiceIds, $prevPaidIds));
+        if (!empty($toAdd)) {
+            $newInvoices = DB::table('customer_account_invoices')
+                ->whereIn('id', $toAdd)
+                ->where('customer_sales_account_id', $csaId)
+                ->select('id', 'amount')
+                ->get();
+
+            $now = now();
+            foreach ($newInvoices as $invoice) {
+                DB::table('customer_account_invoice_payments')->insert([
+                    'customer_account_invoice_id' => $invoice->id,
+                    'amount'                      => $invoice->amount,
+                    'payment_date'                => $validated['payment_date'],
+                    'reference_no'                => $validated['reference_no'] ?? null,
+                    'payment_method'              => $validated['payment_method'] ?? null,
+                    'check_number'                => $validated['check_number'] ?? null,
+                    'check_date'                  => $validated['check_date'] ?? null,
+                    'notes'                       => $validated['notes'] ?? null,
+                    'created_by'                  => $request->user()->id,
+                    'updated_by'                  => $request->user()->id,
+                    'created_at'                  => $now,
+                    'updated_at'                  => $now,
+                ]);
+            }
         }
 
         return redirect()->route('customer-accounts.index')
