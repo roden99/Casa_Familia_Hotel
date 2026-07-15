@@ -41,6 +41,7 @@ const computeTotal = (item) => {
             <TableHeader>
                 <TableRow>
                     <TableHead class="text-xs">Item Name</TableHead>
+                    <TableHead class="text-xs w-24">Lot No.</TableHead>
                     <TableHead class="text-xs text-center w-24">Qty</TableHead>
                     <TableHead class="text-xs text-center w-28">UP</TableHead>
                     <TableHead class="text-xs text-center w-24">Disc %</TableHead>
@@ -57,6 +58,7 @@ const computeTotal = (item) => {
                 </TableRow>
                 <TableRow v-for="(item, index) in items" :key="index">
                     <TableCell class="text-xs whitespace-normal break-words min-w-0">{{ item.product_name }}</TableCell>
+                    <TableCell class="text-xs text-muted-foreground">{{ item.lot_number ?? '—' }}</TableCell>
                     <TableCell class="text-center">
                         <Input v-model.number="item.quantity" type="number" min="1"
                             class="w-20 text-xs text-center mx-auto" />

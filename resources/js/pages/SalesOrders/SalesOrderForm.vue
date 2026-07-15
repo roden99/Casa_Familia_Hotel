@@ -88,6 +88,7 @@ const handleSubmit = () => {
             terms: form.terms !== null && form.terms !== '' ? Number(form.terms) : null,
             items: orderItems.value.map(item => ({
                 product_id: Number(item.product_id),
+                lot_id: item.lot_id ? Number(item.lot_id) : null,
                 quantity: item.quantity,
                 unit_price: item.unit_price,
                 discount_percentage: item.discount_percentage ?? 0,
@@ -149,6 +150,8 @@ async function loadOrderItems() {
         orderItems.value = res.data.items.map(item => ({
             ...item,
             discount_percentage: Number(item.discount_percentage) || 0,
+            lot_id: item.lot_id ?? null,
+            lot_number: item.lot_number ?? null,
         }));
 
         const d = res.data.order;
@@ -172,11 +175,24 @@ const selectedProduct = ref(null);
 const itemQuantity = ref(1);
 const itemPrice = ref(0);
 const itemDiscount = ref(0);
+const selectedLot = ref(null);
+const lotOptions = ref([]);
 
-// Pre-fill item discount from header discount when a product is picked
-watch(selectedProduct, (newVal) => {
-    if (newVal) {
-        itemDiscount.value = Number(form.discount_percentage) || 0;
+// Load lots when product changes
+watch(selectedProduct, async (newVal) => {
+    selectedLot.value = null;
+    lotOptions.value = [];
+    if (!newVal) return;
+    try {
+        const res = await axios.get(`/products/${newVal}/lots`, {
+            headers: { Accept: 'application/json' },
+        });
+        lotOptions.value = (res.data.lots ?? []).map(l => ({
+            value: String(l.id),
+            label: `${l.lot_number} (exp: ${l.expiration_date})`,
+        }));
+    } catch {
+        // no lots available
     }
 });
 
@@ -196,14 +212,19 @@ const addItem = () => {
         return;
     }
     const product = productsOptions.value.find(p => p.value === selectedProduct.value);
+    const lot = lotOptions.value.find(l => l.value === selectedLot.value);
     orderItems.value.push({
         product_id: selectedProduct.value,
         product_name: product?.label ?? selectedProduct.value,
+        lot_id: selectedLot.value ?? null,
+        lot_number: lot ? lot.label.split(' ')[0] : null,
         quantity: Number(itemQuantity.value),
         unit_price: Number(itemPrice.value),
         discount_percentage: Number(itemDiscount.value) || Number(form.discount_percentage) || 0,
     });
     selectedProduct.value = null;
+    selectedLot.value = null;
+    lotOptions.value = [];
     itemQuantity.value = 1;
     itemPrice.value = 0;
     itemDiscount.value = 0;
@@ -285,25 +306,30 @@ async function loadProducts(searchQuery = '') {
                             <FieldGroup :skeleton="isLoading" :skeleton-layout="skeletonLayoutItems"
                                 class="flex flex-col flex-1">
                                 <div class="grid w-full grid-cols-12 gap-3">
-                                    <Field class="col-span-5">
+                                    <Field class="col-span-4">
                                         <FieldLabel class="font-normal">Select Item:</FieldLabel>
                                         <BaseCombobox v-model="selectedProduct" :options="productsOptions"
                                             empty-message="No products found" width="w-full" @search="loadProducts"
                                             placeholder="Search product..." />
                                     </Field>
+                                    <Field class="col-span-3">
+                                        <FieldLabel class="font-normal">Lot No.</FieldLabel>
+                                        <BaseCombobox v-model="selectedLot" :options="lotOptions"
+                                            empty-message="No lots" width="w-full" placeholder="Select lot..." />
+                                    </Field>
                                     <Field class="col-span-2">
                                         <FieldLabel class="font-normal">Qty</FieldLabel>
                                         <Input v-model="itemQuantity" type="number" min="1" placeholder="0" />
                                     </Field>
-                                    <Field class="col-span-2">
+                                    <Field class="col-span-1">
                                         <FieldLabel class="font-normal">UP</FieldLabel>
                                         <Input v-model="itemPrice" type="number" min="0" step="0.01"
                                             placeholder="0.00" />
                                     </Field>
-                                    <Field class="col-span-2">
+                                    <Field class="col-span-1">
                                         <FieldLabel class="font-normal">Disc %</FieldLabel>
                                         <Input v-model="itemDiscount" type="number" min="0" max="100" step="0.01"
-                                            placeholder="0.00" />
+                                            placeholder="0" />
                                     </Field>
                                     <Field class="col-span-1">
                                         <FieldLabel class="invisible">-</FieldLabel>

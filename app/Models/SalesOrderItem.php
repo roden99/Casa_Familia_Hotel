@@ -12,6 +12,7 @@ class SalesOrderItem extends Model
     protected $fillable = [
         'sales_order_id',
         'product_id',
+        'lot_id',
         'quantity',
         'unit_price',
         'discount_percentage',
@@ -28,6 +29,11 @@ class SalesOrderItem extends Model
     public function product()
     {
         return $this->belongsTo(product::class);
+    }
+
+    public function lot()
+    {
+        return $this->belongsTo(ProductLot::class, 'lot_id');
     }
 
     public function creator()

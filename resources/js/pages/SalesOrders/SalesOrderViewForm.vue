@@ -10,6 +10,7 @@ import {
     Table, TableBody, TableCell, TableHead,
     TableHeader, TableRow,
 } from '@/components/ui/table';
+import { Tag } from 'lucide-vue-next';
 import axios from 'axios';
 
 const props = defineProps({
@@ -121,6 +122,7 @@ onMounted(async () => {
                                         <TableHeader>
                                             <TableRow>
                                                 <TableHead class="text-xs">Item Name</TableHead>
+                                                <TableHead class="text-xs w-24">Lot No.</TableHead>
                                                 <TableHead class="text-xs text-center w-16">Qty</TableHead>
                                                 <TableHead class="text-xs text-right w-24">UP</TableHead>
                                                 <TableHead class="text-xs text-center w-20">Disc %</TableHead>
@@ -130,7 +132,7 @@ onMounted(async () => {
                                         </TableHeader>
                                         <TableBody>
                                             <TableRow v-if="items.length === 0">
-                                                <TableCell colspan="6"
+                                                <TableCell colspan="7"
                                                     class="text-xs text-center text-muted-foreground py-4">
                                                     No items found.
                                                 </TableCell>
@@ -139,12 +141,20 @@ onMounted(async () => {
                                                 <TableCell class="text-xs whitespace-normal break-words min-w-0">
                                                     {{ item.product_name }}
                                                 </TableCell>
+                                                <TableCell class="text-xs">
+                                                    <span v-if="item.lot_number"
+                                                        class="inline-flex items-center gap-1 font-mono">
+                                                        <Tag class="h-3 w-3 text-amber-500 shrink-0" />
+                                                        {{ item.lot_number }}
+                                                    </span>
+                                                    <span v-else class="text-muted-foreground/40">—</span>
+                                                </TableCell>
                                                 <TableCell class="text-xs text-center">{{ item.quantity }}</TableCell>
                                                 <TableCell class="text-xs text-right">{{ fmt(item.unit_price) }}
                                                 </TableCell>
                                                 <TableCell class="text-xs text-center">
                                                     {{ Number(item.discount_percentage) > 0 ? item.discount_percentage +
-                                                    '%' : '—' }}
+                                                        '%' : '—' }}
                                                 </TableCell>
                                                 <TableCell class="text-xs text-right">{{ discountAmount(item) }}
                                                 </TableCell>

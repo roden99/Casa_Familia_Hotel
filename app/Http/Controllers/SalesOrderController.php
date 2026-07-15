@@ -195,7 +195,9 @@ class SalesOrderController extends Controller
 
         // ── Merge, sort ───────────────────────────────────────────────────────
         $combined = $soRows->concat($invRows)
-            ->sortByDesc(fn($r) => $r['invoice_date'] ?? '')
+            ->sortByDesc(fn($r) => $r['invoice_date']
+                ? Carbon::createFromFormat('m-d-Y', $r['invoice_date'])->timestamp
+                : 0)
             ->values();
 
         // ── Apply filter ──────────────────────────────────────────────────────
@@ -256,6 +258,7 @@ class SalesOrderController extends Controller
             'terms'                         => 'nullable|integer|min:0',
             'items'                         => 'required|array|min:1',
             'items.*.product_id'            => 'required|exists:products,id',
+            'items.*.lot_id'                => 'nullable|exists:product_lots,id',
             'items.*.quantity'              => 'required|integer|min:1',
             'items.*.unit_price'            => 'required|numeric|min:0',
             'items.*.discount_percentage'   => 'nullable|numeric|min:0|max:100',
@@ -272,6 +275,7 @@ class SalesOrderController extends Controller
             SalesOrderItem::create([
                 'sales_order_id'      => $order->id,
                 'product_id'          => $item['product_id'],
+                'lot_id'              => $item['lot_id'] ?? null,
                 'quantity'            => $item['quantity'],
                 'unit_price'          => $item['unit_price'],
                 'discount_percentage' => $disc,
@@ -286,6 +290,11 @@ class SalesOrderController extends Controller
                     || ($docDate && Carbon::parse($docDate)->startOfDay()->gte(Carbon::parse($product->initial_date)->startOfDay()));
                 if ($afterInit) {
                     $product->decrement('product_qty', $item['quantity']);
+                    if (!empty($item['lot_id'])) {
+                        DB::table('product_lots')
+                            ->where('id', $item['lot_id'])
+                            ->decrement('quantity', $item['quantity']);
+                    }
                 }
             }
         }
@@ -295,7 +304,7 @@ class SalesOrderController extends Controller
 
     public function show(string $id)
     {
-        $order = SalesOrder::with(['items.product.brand', 'items.product.unit', 'items.product.drugform'])->findOrFail($id);
+        $order = SalesOrder::with(['items.product.brand', 'items.product.unit', 'items.product.drugform', 'items.lot'])->findOrFail($id);
 
         return response()->json([
             'order' => $order,
@@ -311,6 +320,8 @@ class SalesOrderController extends Controller
                     'id'                  => $item->id,
                     'product_id'          => (string) $item->product_id,
                     'product_name'        => $displayName ?: ('Product #' . $item->product_id),
+                    'lot_id'              => $item->lot_id ? (string) $item->lot_id : null,
+                    'lot_number'          => $item->lot?->lot_number,
                     'quantity'            => $item->quantity,
                     'unit_price'          => $item->unit_price,
                     'discount_percentage' => $item->discount_percentage,
@@ -330,6 +341,7 @@ class SalesOrderController extends Controller
             'terms'                         => 'nullable|integer|min:0',
             'items'                         => 'required|array|min:1',
             'items.*.product_id'            => 'required|exists:products,id',
+            'items.*.lot_id'                => 'nullable|exists:product_lots,id',
             'items.*.quantity'              => 'required|integer|min:1',
             'items.*.unit_price'            => 'required|numeric|min:0',
             'items.*.discount_percentage'   => 'nullable|numeric|min:0|max:100',
@@ -346,6 +358,11 @@ class SalesOrderController extends Controller
                     || ($oldDocDate && Carbon::parse($oldDocDate)->startOfDay()->gte(Carbon::parse($product->initial_date)->startOfDay()));
                 if ($afterInit) {
                     $product->increment('product_qty', $oldItem->quantity);
+                    if ($oldItem->lot_id) {
+                        DB::table('product_lots')
+                            ->where('id', $oldItem->lot_id)
+                            ->increment('quantity', $oldItem->quantity);
+                    }
                 }
             }
         }
@@ -369,6 +386,7 @@ class SalesOrderController extends Controller
             SalesOrderItem::create([
                 'sales_order_id'      => $order->id,
                 'product_id'          => $item['product_id'],
+                'lot_id'              => $item['lot_id'] ?? null,
                 'quantity'            => $item['quantity'],
                 'unit_price'          => $item['unit_price'],
                 'discount_percentage' => $disc,
@@ -383,6 +401,11 @@ class SalesOrderController extends Controller
                     || ($docDate && Carbon::parse($docDate)->startOfDay()->gte(Carbon::parse($product->initial_date)->startOfDay()));
                 if ($afterInit) {
                     $product->decrement('product_qty', $item['quantity']);
+                    if (!empty($item['lot_id'])) {
+                        DB::table('product_lots')
+                            ->where('id', $item['lot_id'])
+                            ->decrement('quantity', $item['quantity']);
+                    }
                 }
             }
         }
@@ -407,6 +430,11 @@ class SalesOrderController extends Controller
                     || ($docDate && Carbon::parse($docDate)->startOfDay()->gte(Carbon::parse($product->initial_date)->startOfDay()));
                 if ($afterInit) {
                     $product->increment('product_qty', $item->quantity);
+                    if ($item->lot_id) {
+                        DB::table('product_lots')
+                            ->where('id', $item->lot_id)
+                            ->increment('quantity', $item->quantity);
+                    }
                 }
             }
         }

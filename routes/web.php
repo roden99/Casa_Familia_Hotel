@@ -20,6 +20,7 @@ use App\Http\Controllers\DrugFormController;
 use App\Http\Controllers\StoreInventoryController;
 use App\Http\Controllers\TransferStockController;
 use App\Http\Controllers\PosController;
+use App\Http\Controllers\ExpirationController;
 
 Route::get('/login', function () {
     return Inertia::render('Login/Index');
@@ -77,6 +78,8 @@ Route::resource('sales-accounts', SalesAccountController::class);
 Route::get('store-inventory', [StoreInventoryController::class, 'index'])->name('store-inventory.index');
 Route::patch('store-inventory/{product}/pos-qty', [StoreInventoryController::class, 'updatePosQty'])->name('store-inventory.updatePosQty');
 Route::get('store-inventory/{product}/history', [StoreInventoryController::class, 'history'])->name('store-inventory.history');
+
+Route::get('expirations', [ExpirationController::class, 'index'])->name('expirations.index');
 
 Route::get('products/{product}/multiplier', [ProductController::class, 'multiplier'])->name('products.multiplier');
 Route::resource('transfer-stocks', TransferStockController::class)->only(['index', 'store', 'show', 'destroy']);

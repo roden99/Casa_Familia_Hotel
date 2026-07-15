@@ -5,7 +5,7 @@ import NavUser from '@/components/NavUser.vue';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/vue3';
-import { BookOpen, Boxes, Warehouse, Folder, Settings2Icon, UserRoundCogIcon, Store, UsersRoundIcon, NotebookText, ShoppingCartIcon, BaggageClaim, LayoutGrid, LucideNotebookText, ScanBarcode, Package, UserCheck, UserRoundSearch, UsersRound, ShoppingCart, UserRoundCog, Settings2, Truck, ClipboardList, Ruler, Zap, Pill, Notebook, BriefcaseMedical } from 'lucide-vue-next';
+import { BookOpen, Boxes, Warehouse, Folder, Settings2Icon, UserRoundCogIcon, Store, UsersRoundIcon, NotebookText, ShoppingCartIcon, BaggageClaim, LayoutGrid, LucideNotebookText, ScanBarcode, Package, UserCheck, UserRoundSearch, UsersRound, ShoppingCart, UserRoundCog, Settings2, Truck, ClipboardList, Ruler, Zap, Pill, Notebook, BriefcaseMedical, CalendarClock } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 
 const mainNavItems: NavItem[] = [
@@ -31,6 +31,7 @@ const mainNavItems: NavItem[] = [
         href: '/transfer-stocks',
         icon: Package,
       },
+
       {
         title: 'POS Transactions',
         href: '/pos',
@@ -50,6 +51,11 @@ const mainNavItems: NavItem[] = [
     href: '/products',
     icon: Package,
 
+  },
+  {
+    title: 'Expirations',
+    href: '/expirations',
+    icon: CalendarClock,
   },
 
   {

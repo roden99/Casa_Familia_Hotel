@@ -289,7 +289,9 @@ class CustomerAccountController extends Controller
                     ->select('customer_account_invoice_id', DB::raw('SUM(amount) as paid_amount'))
                     ->groupBy('customer_account_invoice_id'),
                 'pmts',
-                'pmts.customer_account_invoice_id', '=', 'i.id'
+                'pmts.customer_account_invoice_id',
+                '=',
+                'i.id'
             )
             ->select('i.id', 'i.reference_no', 'i.invoice_date', 'i.terms', 'i.amount', 'pmts.paid_amount')
             ->orderBy('i.invoice_date')

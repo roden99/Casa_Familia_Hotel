@@ -140,6 +140,7 @@ const getActionsForIndex = (indexType) => {
         'TransferStock': ['view', 'delete'],
         'POS': ['view', 'delete'],
         'Sales Orders': ['view', 'edit', 'payment_details', 'delete'],
+        'Expirations': [],
 
         // Add more index types as needed
     };
