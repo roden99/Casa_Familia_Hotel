@@ -109,7 +109,7 @@ const submitLot = () => {
 };
 
 const fmt = (val) =>
-    Number(val).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    Number(val).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
 onMounted(loadLots);
 </script>
@@ -216,7 +216,7 @@ onMounted(loadLots);
 
                                     <Field class="col-span-12">
                                         <FieldLabel class="font-normal">Quantity:</FieldLabel>
-                                        <Input v-model.number="form.quantity" type="number" min="0" step="0.01"
+                                        <Input v-model.number="form.quantity" type="number" min="0" step="any"
                                             placeholder="0" />
                                         <p v-if="form.errors.quantity" class="text-xs text-destructive mt-0.5">
                                             {{ form.errors.quantity }}
