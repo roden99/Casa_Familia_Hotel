@@ -15,7 +15,7 @@ class ExpirationController extends Controller
         $filter = $request->input('filter');
 
         $today    = Carbon::today();
-        $soonDate = Carbon::today()->addDays(90);
+        $soonDate = Carbon::today()->addYear();
 
         $query = DB::table('product_lots as pl')
             ->join('products as p', 'p.id', '=', 'pl.product_id')
@@ -54,7 +54,7 @@ class ExpirationController extends Controller
             }
         }
 
-        $lots = $query->orderBy('p.productname')->paginate(15)->through(function ($lot) use ($today) {
+        $lots = $query->orderBy('p.productname')->paginate(15)->through(function ($lot) use ($today, $soonDate) {
             $parts = [$lot->productname];
             if ($lot->drugformname) $parts[] = $lot->drugformname;
             if ($lot->pos_unit)     $parts[] = strtolower($lot->pos_unit) . ' (pcs)';
@@ -66,7 +66,7 @@ class ExpirationController extends Controller
 
             $status = $daysUntilExpiry < 0
                 ? 'Expired'
-                : ($daysUntilExpiry <= 90 ? 'Expiring Soon' : 'Good');
+                : ($expiry->lte($soonDate) ? 'Expiring Soon' : 'Good');
 
             return [
                 'id'                => $lot->id,
