@@ -54,7 +54,7 @@ class ExpirationController extends Controller
             }
         }
 
-        $lots = $query->orderBy('p.productname')->paginate(15)->through(function ($lot) use ($today, $soonDate) {
+        $lots = $query->orderBy('pl.expiration_date')->paginate(15)->through(function ($lot) use ($today, $soonDate) {
             $parts = [$lot->productname];
             if ($lot->drugformname) $parts[] = $lot->drugformname;
             if ($lot->pos_unit)     $parts[] = strtolower($lot->pos_unit) . ' (pcs)';

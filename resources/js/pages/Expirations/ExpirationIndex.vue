@@ -101,8 +101,7 @@ const toggleFilter = (filter) => {
 // ─── Row highlight ────────────────────────────────────────────────────────────
 const rowClass = (row) => {
     if (row.status === 'Expired') return 'bg-red-100 dark:bg-red-900/40';
-    if (row.days_until_expiry <= 30) return 'bg-red-50 dark:bg-red-950';
-    if (row.days_until_expiry <= 90) return 'bg-amber-50 dark:bg-amber-950';
+    if (row.status === 'Expiring Soon') return 'bg-amber-100 dark:bg-amber-900/40';
     return '';
 };
 </script>
