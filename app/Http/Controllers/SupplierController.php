@@ -105,7 +105,7 @@ class SupplierController extends Controller
 
             // Contact details
             'contact_phone' => 'nullable|string|max:50',
-            'contact_email' => 'nullabl|email|max:255',
+            'contact_email' => 'nullable|email|max:255',
 
             // Address information
             'address' => 'nullable|string|max:500',
@@ -121,6 +121,8 @@ class SupplierController extends Controller
         if (request()->expectsJson()) {
             return response()->json(['supplier' => $supplier]);
         }
+
+        return redirect()->route('suppliers.index');
     }
 
     /**
