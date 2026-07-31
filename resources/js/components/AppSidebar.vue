@@ -76,6 +76,12 @@ const mainNavItems: NavItem[] = [
   },
 
   {
+    title: 'Carry Items',
+    href: '/carry-items',
+    icon: BriefcaseMedical,
+  },
+
+  {
     title: 'Customer Accounts',
     href: '/customer-accounts',
     icon: UserCheck,
@@ -149,6 +155,11 @@ const mainNavItems: NavItem[] = [
         title: 'Sales Accounts',
         href: '/sales-accounts',
         icon: Notebook,
+      },
+      {
+        title: 'Sales Agents',
+        href: '/sales-agents',
+        icon: UserRoundSearch,
       },
       {
         title: 'User Management',

@@ -21,6 +21,8 @@ use App\Http\Controllers\StoreInventoryController;
 use App\Http\Controllers\TransferStockController;
 use App\Http\Controllers\PosController;
 use App\Http\Controllers\ExpirationController;
+use App\Http\Controllers\SalesAgentController;
+use App\Http\Controllers\CarryItemController;
 
 Route::get('/login', function () {
     return Inertia::render('Login/Index');
@@ -86,6 +88,10 @@ Route::resource('transfer-stocks', TransferStockController::class)->only(['index
 
 Route::get('pos-products', [StoreInventoryController::class, 'posProducts'])->name('pos-products.index');
 Route::resource('pos', PosController::class)->only(['index', 'store', 'show', 'destroy']);
+
+Route::resource('sales-agents', SalesAgentController::class)->only(['index', 'store', 'update', 'destroy']);
+Route::resource('carry-items', CarryItemController::class)->only(['index', 'store', 'show', 'destroy']);
+Route::patch('carry-item-details/{detail}/return', [CarryItemController::class, 'returnDetail'])->name('carry-item-details.return');
 
 
 

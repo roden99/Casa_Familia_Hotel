@@ -382,9 +382,30 @@ class ProductController extends Controller
             ]);
         }
 
+        // Carry items (OUT) — products assigned to a sales agent
+        $carryItems = \App\Models\CarryItemDetail::with(['carryItem.salesAgent'])
+            ->where('product_id', $product->id)
+            ->get()
+            ->map(function ($detail) use ($initialDate) {
+                $date = $detail->carryItem?->carry_date
+                    ? \Carbon\Carbon::parse($detail->carryItem->carry_date)->startOfDay()
+                    : $detail->created_at;
+                $agent = $detail->carryItem?->salesAgent?->name ?? 'N/A';
+                return [
+                    'date'           => $date,
+                    'type'           => 'OUT',
+                    'reference'      => 'Carry #' . $detail->carry_item_id,
+                    'party'          => $agent,
+                    'invoice_no'     => '—',
+                    'qty'            => $detail->quantity,
+                    'before_initial' => $initialDate ? $date->lt($initialDate) : false,
+                ];
+            });
+
         $entries = $entries
             ->concat($deliveries)
             ->concat($sales)
+            ->concat($carryItems)
             ->sortBy('date')
             ->values();
 
