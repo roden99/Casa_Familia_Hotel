@@ -3,22 +3,25 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 import { Head, usePage } from '@inertiajs/vue3';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Hospital, User, Quote, CalendarDays, Wallet, BadgeDollarSign, TrendingUp, Loader2 } from 'lucide-vue-next';
+import { Users, Hospital, User, Quote, CalendarDays, Wallet, BadgeDollarSign, TrendingUp, Loader2, AlertTriangle, PackageX, CalendarClock, CreditCard } from 'lucide-vue-next';
 import type { AppPageProps } from '@/types';
 import { computed, ref, onMounted, watch } from 'vue';
-import { Bar } from 'vue-chartjs';
+import { Bar, Line } from 'vue-chartjs';
 import {
     Chart as ChartJS,
     CategoryScale,
     LinearScale,
     BarElement,
+    LineElement,
+    PointElement,
+    Filler,
     Title,
     Tooltip,
     Legend,
 } from 'chart.js';
 import axios from 'axios';
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
+ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Filler, Title, Tooltip, Legend);
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },
@@ -35,15 +38,21 @@ const dayNum = new Date().getDate();
 const dayName = new Date().toLocaleDateString('en-US', { weekday: 'long' });
 const monthYear = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
-defineProps<{
+const props = defineProps<{
     stats: {
         total_customers: number;
         total_drugstores: number;
         total_doctors: number;
         total_collectibles: string;
         payments_this_month: string;
+        sales_this_month: string;
         sales_by_account: { account_name: string; amount: string; raw: number }[];
+        low_stock_items: { id: number; productname: string; product_qty: number; reorder_level: number }[];
+        low_stock_count: number;
+        expiring_soon: { productname: string; lot_number: string; expiration_date: string; quantity: number }[];
+        monthly_sales: number[];
         month_label: string;
+        year_label: string;
     };
 }>();
 
@@ -107,6 +116,65 @@ const fetchChartData = async () => {
 
 onMounted(fetchChartData);
 watch([selectedYear], fetchChartData);
+
+// ── Sparkline ────────────────────────────────────────────────────────────────
+const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+const sparkOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false }, tooltip: { mode: 'index' as const, intersect: false } },
+    scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+        y: { grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { font: { size: 10 } } },
+    },
+};
+
+const daysUntilExpiry = (date: string) =>
+    Math.ceil((new Date(date).getTime() - Date.now()) / 86_400_000);
+
+const salesByAccountData = computed(() => ({
+    labels: props.stats.sales_by_account.map(a => a.account_name),
+    datasets: [{
+        label: 'Sales',
+        data: props.stats.sales_by_account.map(a => a.raw),
+        backgroundColor: 'rgba(16,185,129,0.75)',
+        borderRadius: 4,
+        borderSkipped: false,
+    }],
+}));
+
+const salesByAccountOptions = computed(() => ({
+    indexAxis: 'y' as const,
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+        legend: { display: false },
+        tooltip: {
+            callbacks: {
+                label: (ctx: any) => ` ₱${Number(ctx.parsed.x).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+            },
+        },
+    },
+    scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 10 }, callback: (v: any) => `₱${Number(v).toLocaleString()}` } },
+        y: { grid: { display: false }, ticks: { font: { size: 10 } } },
+    },
+}));
+
+const sparklineData = computed(() => ({
+    labels: monthLabels,
+    datasets: [{
+        label: 'Sales',
+        data: props.stats.monthly_sales,
+        fill: true,
+        borderColor: '#10b981',
+        backgroundColor: 'rgba(16,185,129,0.10)',
+        borderWidth: 2,
+        pointRadius: 2,
+        tension: 0.4,
+    }],
+}));
 </script>
 
 <template>
@@ -188,8 +256,178 @@ watch([selectedYear], fetchChartData);
 
             </div>
 
+            <!-- Financial KPI Cards -->
+            <div class="grid gap-3 sm:grid-cols-3">
+
+                <Card class="border-l-4 border-l-emerald-500 py-0">
+                    <CardContent class="flex items-center justify-between px-4 py-3">
+                        <div>
+                            <p class="text-xs text-muted-foreground font-medium">Sales This Month</p>
+                            <p class="text-2xl font-bold text-emerald-600">₱{{ stats.sales_this_month }}</p>
+                            <p class="text-[10px] text-muted-foreground">{{ stats.month_label }}</p>
+                        </div>
+                        <div class="rounded-lg bg-emerald-500/10 p-2">
+                            <TrendingUp class="h-4 w-4 text-emerald-600" />
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card class="border-l-4 border-l-sky-500 py-0">
+                    <CardContent class="flex items-center justify-between px-4 py-3">
+                        <div>
+                            <p class="text-xs text-muted-foreground font-medium">Payments Collected</p>
+                            <p class="text-2xl font-bold text-sky-600">₱{{ stats.payments_this_month }}</p>
+                            <p class="text-[10px] text-muted-foreground">{{ stats.month_label }}</p>
+                        </div>
+                        <div class="rounded-lg bg-sky-500/10 p-2">
+                            <CreditCard class="h-4 w-4 text-sky-600" />
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card class="border-l-4 border-l-amber-500 py-0">
+                    <CardContent class="flex items-center justify-between px-4 py-3">
+                        <div>
+                            <p class="text-xs text-muted-foreground font-medium">Total Receivables</p>
+                            <p class="text-2xl font-bold text-amber-600">₱{{ stats.total_collectibles }}</p>
+                            <p class="text-[10px] text-muted-foreground">Outstanding AR</p>
+                        </div>
+                        <div class="rounded-lg bg-amber-500/10 p-2">
+                            <BadgeDollarSign class="h-4 w-4 text-amber-600" />
+                        </div>
+                    </CardContent>
+                </Card>
+
+            </div>
+
+            <!-- Monthly Sparkline + Sales by Account -->
+            <div class="grid gap-3 lg:grid-cols-3">
+
+                <Card class="lg:col-span-2">
+                    <CardHeader class="pb-2">
+                        <CardTitle class="text-sm font-semibold">Monthly Sales — {{ stats.year_label }}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div class="h-44">
+                            <Line :data="sparklineData" :options="sparkOptions" />
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader class="pb-2">
+                        <CardTitle class="text-sm font-semibold">Sales by Account</CardTitle>
+                        <p class="text-xs text-muted-foreground">{{ stats.month_label }}</p>
+                    </CardHeader>
+                    <CardContent class="px-4">
+                        <p v-if="stats.sales_by_account.length === 0"
+                            class="text-xs text-muted-foreground py-3 text-center">
+                            No sales this month.
+                        </p>
+                        <div v-else :style="{ height: Math.max(120, stats.sales_by_account.length * 32) + 'px' }">
+                            <Bar :data="salesByAccountData" :options="salesByAccountOptions" />
+                        </div>
+                    </CardContent>
+                </Card>
+
+            </div>
+
+            <!-- Low Stock + Expiring Soon -->
+            <div class="grid gap-3 lg:grid-cols-2">
+
+                <Card>
+                    <CardHeader class="pb-2">
+                        <div class="flex items-center gap-2">
+                            <PackageX class="h-4 w-4 text-red-500" />
+                            <CardTitle class="text-sm font-semibold">Low Stock
+                                <span v-if="stats.low_stock_count > 0"
+                                    class="ml-1 rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-700">
+                                    {{ stats.low_stock_count }}
+                                </span>
+                            </CardTitle>
+                        </div>
+                    </CardHeader>
+                    <CardContent class="px-4">
+                        <p v-if="stats.low_stock_items.length === 0"
+                            class="text-xs text-muted-foreground py-3 text-center">
+                            All products are sufficiently stocked.
+                        </p>
+                        <table v-else class="w-full text-xs">
+                            <thead>
+                                <tr class="border-b text-muted-foreground">
+                                    <th class="pb-1 text-left font-medium">Product</th>
+                                    <th class="pb-1 text-center font-medium w-14">Stock</th>
+                                    <th class="pb-1 text-center font-medium w-14">Min</th>
+                                    <th class="pb-1 text-right font-medium w-16">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y">
+                                <tr v-for="item in stats.low_stock_items" :key="item.id">
+                                    <td class="py-1.5 truncate max-w-[160px]">{{ item.productname }}</td>
+                                    <td class="py-1.5 text-center font-semibold"
+                                        :class="item.product_qty <= 0 ? 'text-red-600' : 'text-amber-600'">
+                                        {{ item.product_qty }}
+                                    </td>
+                                    <td class="py-1.5 text-center text-muted-foreground">{{ item.reorder_level }}</td>
+                                    <td class="py-1.5 text-right">
+                                        <span v-if="item.product_qty <= 0"
+                                            class="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700">Out</span>
+                                        <span v-else
+                                            class="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">Low</span>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader class="pb-2">
+                        <div class="flex items-center gap-2">
+                            <CalendarClock class="h-4 w-4 text-orange-500" />
+                            <CardTitle class="text-sm font-semibold">Expiring Soon <span
+                                    class="text-xs font-normal text-muted-foreground">(90 days)</span></CardTitle>
+                        </div>
+                    </CardHeader>
+                    <CardContent class="px-4">
+                        <p v-if="stats.expiring_soon.length === 0"
+                            class="text-xs text-muted-foreground py-3 text-center">
+                            No lots expiring within 90 days.
+                        </p>
+                        <table v-else class="w-full text-xs">
+                            <thead>
+                                <tr class="border-b text-muted-foreground">
+                                    <th class="pb-1 text-left font-medium">Product</th>
+                                    <th class="pb-1 text-left font-medium w-20">Lot</th>
+                                    <th class="pb-1 text-center font-medium w-20">Expiry</th>
+                                    <th class="pb-1 text-center font-medium w-10">Qty</th>
+                                    <th class="pb-1 text-right font-medium w-14">Days</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y">
+                                <tr v-for="(lot, i) in stats.expiring_soon" :key="i">
+                                    <td class="py-1.5 truncate max-w-[120px]">{{ lot.productname }}</td>
+                                    <td class="py-1.5 text-muted-foreground">{{ lot.lot_number }}</td>
+                                    <td class="py-1.5 text-center">{{ lot.expiration_date }}</td>
+                                    <td class="py-1.5 text-center font-semibold">{{ lot.quantity }}</td>
+                                    <td class="py-1.5 text-right">
+                                        <span
+                                            :class="daysUntilExpiry(lot.expiration_date) <= 30
+                                                ? 'rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700'
+                                                : 'rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-semibold text-orange-700'">
+                                            {{ daysUntilExpiry(lot.expiration_date) }}d
+                                        </span>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </CardContent>
+                </Card>
+
+            </div>
+
             <!-- Sales Line Chart -->
-            <Card class="border-t-4 border-t-primary flex flex-col flex-1 min-h-0">
+            <Card class="border-t-4 border-t-primary">
                 <CardHeader class="pb-3">
                     <div class="flex flex-wrap items-center justify-between gap-3">
                         <div>
@@ -208,19 +446,19 @@ watch([selectedYear], fetchChartData);
                         </div>
                     </div>
                 </CardHeader>
-                <CardContent class="flex-1 min-h-0 pb-4">
+                <CardContent class="pb-4">
                     <!-- Loading -->
                     <div v-if="isChartLoading"
-                        class="flex h-full items-center justify-center text-muted-foreground gap-2 text-sm">
+                        class="flex h-64 items-center justify-center text-muted-foreground gap-2 text-sm">
                         <Loader2 class="h-4 w-4 animate-spin" /> Loading chart...
                     </div>
                     <!-- Empty -->
                     <div v-else-if="chartData.datasets.length === 0 || chartData.datasets.every(d => d.data.every((v: number) => v === 0))"
-                        class="flex h-full items-center justify-center text-muted-foreground text-sm">
+                        class="flex h-64 items-center justify-center text-muted-foreground text-sm">
                         No sales data for {{ chartLabel }}.
                     </div>
                     <!-- Chart -->
-                    <div v-else class="h-full">
+                    <div v-else class="h-72">
                         <Bar :data="chartData" :options="chartOptions" />
                     </div>
                 </CardContent>

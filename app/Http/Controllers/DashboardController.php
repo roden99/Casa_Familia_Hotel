@@ -66,7 +66,6 @@ class DashboardController extends Controller
             ->get()
             ->keyBy('sa_id');
 
-        // Merge both collections by account id
         $allIds = collect($soByAccount->keys())->merge($invByAccount->keys())->unique();
 
         $salesByAccount = $allIds->map(function ($saId) use ($soByAccount, $invByAccount) {
@@ -81,6 +80,58 @@ class DashboardController extends Controller
             ];
         })->sortByDesc('raw')->values();
 
+        $salesThisMonth = $salesByAccount->sum('raw');
+
+        // ── Low stock items ──────────────────────────────────────────────
+        $lowStockItems = DB::table('products')
+            ->whereColumn('product_qty', '<=', 'reorder_level')
+            ->where('status', true)
+            ->where('is_inventory', true)
+            ->whereNotNull('reorder_level')
+            ->where('reorder_level', '>', 0)
+            ->orderByRaw('product_qty - reorder_level ASC')
+            ->limit(10)
+            ->get(['id', 'productname', 'product_qty', 'reorder_level']);
+
+        $lowStockCount = DB::table('products')
+            ->whereColumn('product_qty', '<=', 'reorder_level')
+            ->where('status', true)
+            ->where('is_inventory', true)
+            ->whereNotNull('reorder_level')
+            ->where('reorder_level', '>', 0)
+            ->count();
+
+        // ── Expiring soon (within 90 days) ───────────────────────────────
+        $expiringSoon = DB::table('product_lots as pl')
+            ->join('products as p', 'p.id', '=', 'pl.product_id')
+            ->where('pl.expiration_date', '<=', $now->copy()->addDays(90)->toDateString())
+            ->where('pl.expiration_date', '>=', $now->toDateString())
+            ->where('pl.quantity', '>', 0)
+            ->orderBy('pl.expiration_date')
+            ->limit(10)
+            ->get(['p.productname', 'pl.lot_number', 'pl.expiration_date', 'pl.quantity']);
+
+        // ── Monthly sales total this year (for sparkline) ────────────────
+        $soMonthly = DB::table('sales_orders as so')
+            ->join('sales_order_items as soi', 'soi.sales_order_id', '=', 'so.id')
+            ->whereYear('so.invoice_date', $year)
+            ->whereNotNull('so.invoice_date')
+            ->selectRaw('MONTH(so.invoice_date) as month, SUM(soi.quantity * soi.unit_price * (1 - IFNULL(soi.discount_percentage,0)/100)) as amount')
+            ->groupBy(DB::raw('MONTH(so.invoice_date)'))
+            ->pluck('amount', 'month');
+
+        $invMonthly = DB::table('customer_account_invoices as i')
+            ->whereYear('i.invoice_date', $year)
+            ->whereNotNull('i.invoice_date')
+            ->selectRaw('MONTH(i.invoice_date) as month, SUM(i.amount) as amount')
+            ->groupBy(DB::raw('MONTH(i.invoice_date)'))
+            ->pluck('amount', 'month');
+
+        $monthlySales = [];
+        for ($m = 1; $m <= 12; $m++) {
+            $monthlySales[] = round(((float)($soMonthly[$m] ?? 0)) + ((float)($invMonthly[$m] ?? 0)), 2);
+        }
+
         return Inertia::render('Dashboard', [
             'stats' => [
                 'total_customers'     => $totalCustomers,
@@ -88,8 +139,14 @@ class DashboardController extends Controller
                 'total_doctors'       => $totalDoctors,
                 'total_collectibles'  => number_format((float) $totalCollectibles, 2),
                 'payments_this_month' => number_format((float) $paymentsThisMonth, 2),
+                'sales_this_month'    => number_format($salesThisMonth, 2),
                 'sales_by_account'    => $salesByAccount,
+                'low_stock_items'     => $lowStockItems,
+                'low_stock_count'     => $lowStockCount,
+                'expiring_soon'       => $expiringSoon,
+                'monthly_sales'       => $monthlySales,
                 'month_label'         => $now->format('F Y'),
+                'year_label'          => (string) $year,
             ],
         ]);
     }
