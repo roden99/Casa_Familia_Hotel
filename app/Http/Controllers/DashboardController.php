@@ -132,12 +132,13 @@ class DashboardController extends Controller
             $monthlySales[] = round(((float)($soMonthly[$m] ?? 0)) + ((float)($invMonthly[$m] ?? 0)), 2);
         }
 
-        // ── Fast moving items (top 10 by qty sold this month) ────────────
+        $cutoff = $now->copy()->subDays(90)->toDateString();
+
+        // ── Fast moving items (top 10 by qty sold in last 90 days) ──────
         $fastMoving = DB::table('sales_order_items as soi')
             ->join('sales_orders as so', 'so.id', '=', 'soi.sales_order_id')
             ->join('products as p', 'p.id', '=', 'soi.product_id')
-            ->whereYear('so.invoice_date', $year)
-            ->whereMonth('so.invoice_date', $month)
+            ->where('so.invoice_date', '>=', $cutoff)
             ->selectRaw('p.id, p.productname, SUM(soi.quantity) as total_qty')
             ->groupBy('p.id', 'p.productname')
             ->orderByDesc('total_qty')
@@ -145,7 +146,6 @@ class DashboardController extends Controller
             ->get();
 
         // ── Slow/not moving (has stock but 0 sales in last 90 days) ──────
-        $cutoff = $now->copy()->subDays(90)->toDateString();
         $soldIds = DB::table('sales_order_items as soi')
             ->join('sales_orders as so', 'so.id', '=', 'soi.sales_order_id')
             ->where('so.invoice_date', '>=', $cutoff)
@@ -158,7 +158,6 @@ class DashboardController extends Controller
             ->where('status', true)
             ->where('is_inventory', true)
             ->orderByDesc('product_qty')
-            ->limit(10)
             ->get(['id', 'productname', 'product_qty']);
 
         return Inertia::render('Dashboard', [

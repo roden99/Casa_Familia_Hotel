@@ -171,7 +171,7 @@ const sparklineData = computed(() => ({
                             <p class="text-[11px] italic leading-relaxed truncate max-w-lg">
                                 "{{ quote.message }}"
                                 <span class="not-italic font-semibold text-primary-foreground ml-1">— {{ quote.author
-                                    }}</span>
+                                }}</span>
                             </p>
                         </div>
                     </div>
@@ -294,7 +294,7 @@ const sparklineData = computed(() => ({
                             <TrendingUp class="h-4 w-4 text-emerald-500" />
                             <CardTitle class="text-sm font-semibold">Fast Moving Items</CardTitle>
                         </div>
-                        <p class="text-xs text-muted-foreground">Top sold this month — {{ stats.month_label }}</p>
+                        <p class="text-xs text-muted-foreground">Top sold in the last 90 days</p>
                     </CardHeader>
                     <CardContent class="px-4">
                         <p v-if="stats.fast_moving_items.length === 0"
@@ -330,21 +330,23 @@ const sparklineData = computed(() => ({
                     <CardContent class="px-4">
                         <p v-if="stats.slow_moving_items.length === 0"
                             class="text-xs text-muted-foreground py-3 text-center">All stocked items are moving.</p>
-                        <table v-else class="w-full text-xs">
-                            <thead>
-                                <tr class="border-b text-muted-foreground">
-                                    <th class="pb-1 text-left font-medium">Product</th>
-                                    <th class="pb-1 text-right font-medium w-16">On Hand</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y">
-                                <tr v-for="item in stats.slow_moving_items" :key="item.id">
-                                    <td class="py-1.5 truncate max-w-[220px]">{{ item.productname }}</td>
-                                    <td class="py-1.5 text-right font-semibold text-slate-500">{{ item.product_qty }}
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
+                        <div v-else class="max-h-64 overflow-y-auto">
+                            <table class="w-full text-xs">
+                                <thead class="sticky top-0 bg-card">
+                                    <tr class="border-b text-muted-foreground">
+                                        <th class="pb-1 text-left font-medium">Product</th>
+                                        <th class="pb-1 text-right font-medium w-16">On Hand</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y">
+                                    <tr v-for="item in stats.slow_moving_items" :key="item.id">
+                                        <td class="py-1.5 truncate max-w-[220px]">{{ item.productname }}</td>
+                                        <td class="py-1.5 text-right font-semibold text-slate-500">{{ item.product_qty
+                                            }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </CardContent>
                 </Card>
 
