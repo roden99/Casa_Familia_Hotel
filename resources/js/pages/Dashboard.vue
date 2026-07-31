@@ -47,6 +47,8 @@ const props = defineProps<{
         payments_this_month: string;
         sales_this_month: string;
         sales_by_account: { account_name: string; amount: string; raw: number }[];
+        fast_moving_items: { id: number; productname: string; total_qty: number }[];
+        slow_moving_items: { id: number; productname: string; product_qty: number }[];
         low_stock_items: { id: number; productname: string; product_qty: number; reorder_level: number }[];
         low_stock_count: number;
         expiring_soon: { productname: string; lot_number: string; expiration_date: string; quantity: number }[];
@@ -133,35 +135,6 @@ const sparkOptions = {
 const daysUntilExpiry = (date: string) =>
     Math.ceil((new Date(date).getTime() - Date.now()) / 86_400_000);
 
-const salesByAccountData = computed(() => ({
-    labels: props.stats.sales_by_account.map(a => a.account_name),
-    datasets: [{
-        label: 'Sales',
-        data: props.stats.sales_by_account.map(a => a.raw),
-        backgroundColor: 'rgba(16,185,129,0.75)',
-        borderRadius: 4,
-        borderSkipped: false,
-    }],
-}));
-
-const salesByAccountOptions = computed(() => ({
-    indexAxis: 'y' as const,
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-        legend: { display: false },
-        tooltip: {
-            callbacks: {
-                label: (ctx: any) => ` ₱${Number(ctx.parsed.x).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
-            },
-        },
-    },
-    scales: {
-        x: { grid: { display: false }, ticks: { font: { size: 10 }, callback: (v: any) => `₱${Number(v).toLocaleString()}` } },
-        y: { grid: { display: false }, ticks: { font: { size: 10 } } },
-    },
-}));
-
 const sparklineData = computed(() => ({
     labels: monthLabels,
     datasets: [{
@@ -198,7 +171,7 @@ const sparklineData = computed(() => ({
                             <p class="text-[11px] italic leading-relaxed truncate max-w-lg">
                                 "{{ quote.message }}"
                                 <span class="not-italic font-semibold text-primary-foreground ml-1">— {{ quote.author
-                                }}</span>
+                                    }}</span>
                             </p>
                         </div>
                     </div>
@@ -300,33 +273,78 @@ const sparklineData = computed(() => ({
 
             </div>
 
-            <!-- Monthly Sparkline + Sales by Account -->
-            <div class="grid gap-3 lg:grid-cols-3">
+            <!-- Monthly Sparkline -->
+            <Card>
+                <CardHeader class="pb-2">
+                    <CardTitle class="text-sm font-semibold">Monthly Sales — {{ stats.year_label }}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div class="h-44">
+                        <Line :data="sparklineData" :options="sparkOptions" />
+                    </div>
+                </CardContent>
+            </Card>
 
-                <Card class="lg:col-span-2">
+            <!-- Fast Moving + Slow/Not Moving -->
+            <div class="grid gap-3 lg:grid-cols-2">
+
+                <Card>
                     <CardHeader class="pb-2">
-                        <CardTitle class="text-sm font-semibold">Monthly Sales — {{ stats.year_label }}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div class="h-44">
-                            <Line :data="sparklineData" :options="sparkOptions" />
+                        <div class="flex items-center gap-2">
+                            <TrendingUp class="h-4 w-4 text-emerald-500" />
+                            <CardTitle class="text-sm font-semibold">Fast Moving Items</CardTitle>
                         </div>
+                        <p class="text-xs text-muted-foreground">Top sold this month — {{ stats.month_label }}</p>
+                    </CardHeader>
+                    <CardContent class="px-4">
+                        <p v-if="stats.fast_moving_items.length === 0"
+                            class="text-xs text-muted-foreground py-3 text-center">No sales recorded this month.</p>
+                        <table v-else class="w-full text-xs">
+                            <thead>
+                                <tr class="border-b text-muted-foreground">
+                                    <th class="pb-1 text-left font-medium">#</th>
+                                    <th class="pb-1 text-left font-medium">Product</th>
+                                    <th class="pb-1 text-right font-medium w-16">Qty Sold</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y">
+                                <tr v-for="(item, i) in stats.fast_moving_items" :key="item.id">
+                                    <td class="py-1.5 text-muted-foreground w-5">{{ i + 1 }}</td>
+                                    <td class="py-1.5 truncate max-w-[200px]">{{ item.productname }}</td>
+                                    <td class="py-1.5 text-right font-semibold text-emerald-700">{{ item.total_qty }}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </CardContent>
                 </Card>
 
                 <Card>
                     <CardHeader class="pb-2">
-                        <CardTitle class="text-sm font-semibold">Sales by Account</CardTitle>
-                        <p class="text-xs text-muted-foreground">{{ stats.month_label }}</p>
+                        <div class="flex items-center gap-2">
+                            <AlertTriangle class="h-4 w-4 text-slate-400" />
+                            <CardTitle class="text-sm font-semibold">Slow / Not Moving</CardTitle>
+                        </div>
+                        <p class="text-xs text-muted-foreground">In stock but 0 sales in last 90 days</p>
                     </CardHeader>
                     <CardContent class="px-4">
-                        <p v-if="stats.sales_by_account.length === 0"
-                            class="text-xs text-muted-foreground py-3 text-center">
-                            No sales this month.
-                        </p>
-                        <div v-else :style="{ height: Math.max(120, stats.sales_by_account.length * 32) + 'px' }">
-                            <Bar :data="salesByAccountData" :options="salesByAccountOptions" />
-                        </div>
+                        <p v-if="stats.slow_moving_items.length === 0"
+                            class="text-xs text-muted-foreground py-3 text-center">All stocked items are moving.</p>
+                        <table v-else class="w-full text-xs">
+                            <thead>
+                                <tr class="border-b text-muted-foreground">
+                                    <th class="pb-1 text-left font-medium">Product</th>
+                                    <th class="pb-1 text-right font-medium w-16">On Hand</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y">
+                                <tr v-for="item in stats.slow_moving_items" :key="item.id">
+                                    <td class="py-1.5 truncate max-w-[220px]">{{ item.productname }}</td>
+                                    <td class="py-1.5 text-right font-semibold text-slate-500">{{ item.product_qty }}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </CardContent>
                 </Card>
 

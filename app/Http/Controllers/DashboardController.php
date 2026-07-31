@@ -132,6 +132,35 @@ class DashboardController extends Controller
             $monthlySales[] = round(((float)($soMonthly[$m] ?? 0)) + ((float)($invMonthly[$m] ?? 0)), 2);
         }
 
+        // ── Fast moving items (top 10 by qty sold this month) ────────────
+        $fastMoving = DB::table('sales_order_items as soi')
+            ->join('sales_orders as so', 'so.id', '=', 'soi.sales_order_id')
+            ->join('products as p', 'p.id', '=', 'soi.product_id')
+            ->whereYear('so.invoice_date', $year)
+            ->whereMonth('so.invoice_date', $month)
+            ->selectRaw('p.id, p.productname, SUM(soi.quantity) as total_qty')
+            ->groupBy('p.id', 'p.productname')
+            ->orderByDesc('total_qty')
+            ->limit(10)
+            ->get();
+
+        // ── Slow/not moving (has stock but 0 sales in last 90 days) ──────
+        $cutoff = $now->copy()->subDays(90)->toDateString();
+        $soldIds = DB::table('sales_order_items as soi')
+            ->join('sales_orders as so', 'so.id', '=', 'soi.sales_order_id')
+            ->where('so.invoice_date', '>=', $cutoff)
+            ->pluck('soi.product_id')
+            ->unique();
+
+        $slowMoving = DB::table('products')
+            ->whereNotIn('id', $soldIds)
+            ->where('product_qty', '>', 0)
+            ->where('status', true)
+            ->where('is_inventory', true)
+            ->orderByDesc('product_qty')
+            ->limit(10)
+            ->get(['id', 'productname', 'product_qty']);
+
         return Inertia::render('Dashboard', [
             'stats' => [
                 'total_customers'     => $totalCustomers,
@@ -145,6 +174,8 @@ class DashboardController extends Controller
                 'low_stock_count'     => $lowStockCount,
                 'expiring_soon'       => $expiringSoon,
                 'monthly_sales'       => $monthlySales,
+                'fast_moving_items'   => $fastMoving,
+                'slow_moving_items'   => $slowMoving,
                 'month_label'         => $now->format('F Y'),
                 'year_label'          => (string) $year,
             ],
