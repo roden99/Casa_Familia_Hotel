@@ -21,7 +21,8 @@ class StoreInventoryController extends Controller
         $type   = $request->input('type');
 
         $query = product::with(['brand', 'unit', 'drugform', 'productType'])
-            ->where('status', true);
+            ->where('status', true)
+            ->whereNotNull('initial_pos_date');
 
         if ($type === 'generic') {
             $query->where('isgeneric', true);
@@ -49,7 +50,6 @@ class StoreInventoryController extends Controller
             $product->brand_name   = $product->brand?->brandname ?? 'N/A';
             $product->type_name    = $product->productType?->type_name ?? 'N/A';
             $product->pos_qty      = $product->is_inventory ? ($product->pos_qty ?? 0) : '-';
-            $product->reorder_level = $product->is_inventory ? ($product->reorder_level ?? 0) : '-';
             $product->pos_unit     = $product->unit?->pos_unit ?? '';
 
             // Build display name: productname drugform pos_unit (pcs) (brand)
@@ -74,8 +74,8 @@ class StoreInventoryController extends Controller
             ['accessorKey' => 'generic_text',  'header' => 'TYPE',         'isVisible' => true,  'isParameter' => false],
             ['accessorKey' => 'type_name',     'header' => 'CATEGORY',     'isVisible' => true,  'isParameter' => true],
             ['accessorKey' => 'display_name',  'header' => 'PRODUCT NAME', 'isVisible' => true,  'isParameter' => false],
-            ['accessorKey' => 'pos_qty',       'header' => 'POS QTY',      'isVisible' => true,  'isParameter' => false],
-            ['accessorKey' => 'reorder_level', 'header' => 'REORDER LVL',  'isVisible' => true,  'isParameter' => false],
+            ['accessorKey' => 'pos_qty',            'header' => 'POS QTY',       'isVisible' => true,  'isParameter' => false],
+            ['accessorKey' => 'pos_selling_price',   'header' => 'SELLING PRICE', 'isVisible' => true,  'isParameter' => false],
             ['accessorKey' => 'productname',   'header' => 'PRODUCT NAME', 'isVisible' => false, 'isParameter' => true],
             ['accessorKey' => 'brand_name',    'header' => 'BRAND',        'isVisible' => false, 'isParameter' => true],
             ['accessorKey' => 'status_text',   'header' => 'STATUS',       'isVisible' => true,  'isParameter' => false],
@@ -92,6 +92,20 @@ class StoreInventoryController extends Controller
         ]);
     }
 
+    public function posSellingPrice(Request $request, product $product)
+    {
+        $validated = $request->validate([
+            'pos_selling_price' => 'required|numeric|min:0',
+        ]);
+
+        $product->update([
+            'pos_selling_price' => $validated['pos_selling_price'],
+            'updated_by'        => $request->user()->id,
+        ]);
+
+        return redirect()->back()->with('success', 'Selling price updated successfully!');
+    }
+
     public function updatePosQty(Request $request, product $product)
     {
         $validated = $request->validate([
@@ -106,6 +120,68 @@ class StoreInventoryController extends Controller
         ]);
 
         return redirect()->back()->with('success', 'POS quantity updated successfully!');
+    }
+
+    public function bulkInitPosQty(Request $request)
+    {
+        $validated = $request->validate([
+            'items'                         => 'required|array|min:1',
+            'items.*.product_id'            => 'required|exists:products,id',
+            'items.*.pos_qty'               => 'required|numeric|min:0',
+            'items.*.pos_selling_price'     => 'nullable|numeric|min:0',
+        ]);
+
+        foreach ($validated['items'] as $item) {
+            $update = [
+                'pos_qty'          => $item['pos_qty'],
+                'initial_pos_qty'  => $item['pos_qty'],
+                'initial_pos_date' => now()->startOfDay(),
+                'updated_by'       => $request->user()->id,
+            ];
+            if (isset($item['pos_selling_price'])) {
+                $update['pos_selling_price'] = $item['pos_selling_price'];
+            }
+            product::findOrFail($item['product_id'])->update($update);
+        }
+
+        return redirect()->back()->with('success', 'POS quantities initialized successfully!');
+    }
+
+    public function initPosProducts(Request $request)
+    {
+        $search = $request->input('search', '');
+
+        $query = product::with(['brand', 'unit', 'drugform'])
+            ->where('status', true)
+            ->where('is_inventory', true)
+            ->where('product_qty', '>', 0)
+            ->whereNull('initial_pos_date');
+
+        if (!empty($search)) {
+            $query->where(function ($q) use ($search) {
+                $q->where('productname', 'like', "%{$search}%")
+                    ->orWhereHas('brand', fn($b) => $b->where('brandname', 'like', "%{$search}%"));
+            });
+        }
+
+        $products = $query->orderBy('productname')->limit(30)->get()->map(function ($product) {
+            $parts = [$product->productname];
+            if ($product->drugform) $parts[] = $product->drugform->drugformname;
+            if ($product->unit)     $parts[] = $product->unit->unit_name;
+            $displayName = implode(' ', $parts);
+            if ($product->brand) $displayName .= ' (' . $product->brand->brandname . ')';
+
+            return [
+                'value'              => (string) $product->id,
+                'label'              => $displayName,
+                'product_qty'        => $product->product_qty ?? 0,
+                'pos_unit'           => $product->unit?->pos_unit ?? 'pcs',
+                'multiplier'         => $product->unit?->multiplier ?? 1,
+                'pos_selling_price'  => $product->pos_selling_price ?? '',
+            ];
+        });
+
+        return response()->json(['products' => $products]);
     }
 
     public function posProducts(Request $request)
@@ -132,11 +208,12 @@ class StoreInventoryController extends Controller
             if ($product->brand) $displayName .= ' (' . $product->brand->brandname . ')';
 
             return [
-                'value'        => (string) $product->id,
-                'label'        => $displayName,
-                'pos_qty'      => $product->pos_qty ?? 0,
-                'pos_unit'     => $product->unit?->pos_unit ?? 'pcs',
-                'product_code' => $product->product_code ?? '',
+                'value'              => (string) $product->id,
+                'label'              => $displayName,
+                'pos_qty'            => $product->pos_qty ?? 0,
+                'pos_unit'           => $product->unit?->pos_unit ?? 'pcs',
+                'product_code'       => $product->product_code ?? '',
+                'pos_selling_price'  => $product->pos_selling_price ?? 0,
             ];
         });
 

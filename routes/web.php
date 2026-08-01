@@ -20,6 +20,7 @@ use App\Http\Controllers\DrugFormController;
 use App\Http\Controllers\StoreInventoryController;
 use App\Http\Controllers\TransferStockController;
 use App\Http\Controllers\PosController;
+use App\Http\Controllers\PosDashboardController;
 use App\Http\Controllers\ExpirationController;
 use App\Http\Controllers\SalesAgentController;
 use App\Http\Controllers\CarryItemController;
@@ -79,7 +80,10 @@ Route::resource('sales-accounts', SalesAccountController::class);
 
 Route::get('store-inventory', [StoreInventoryController::class, 'index'])->name('store-inventory.index');
 Route::patch('store-inventory/{product}/pos-qty', [StoreInventoryController::class, 'updatePosQty'])->name('store-inventory.updatePosQty');
+Route::patch('store-inventory/{product}/selling-price', [StoreInventoryController::class, 'posSellingPrice'])->name('store-inventory.sellingPrice');
 Route::get('store-inventory/{product}/history', [StoreInventoryController::class, 'history'])->name('store-inventory.history');
+Route::get('store-inventory/init-pos-products', [StoreInventoryController::class, 'initPosProducts'])->name('store-inventory.init-pos-products');
+Route::post('store-inventory/bulk-init-pos-qty', [StoreInventoryController::class, 'bulkInitPosQty'])->name('store-inventory.bulk-init-pos-qty');
 
 Route::get('expirations', [ExpirationController::class, 'index'])->name('expirations.index');
 
@@ -87,6 +91,7 @@ Route::get('products/{product}/multiplier', [ProductController::class, 'multipli
 Route::resource('transfer-stocks', TransferStockController::class)->only(['index', 'store', 'show', 'destroy']);
 
 Route::get('pos-products', [StoreInventoryController::class, 'posProducts'])->name('pos-products.index');
+Route::get('pos-dashboard', [PosDashboardController::class, 'index'])->name('pos-dashboard.index');
 Route::resource('pos', PosController::class)->only(['index', 'store', 'show', 'destroy']);
 
 Route::resource('sales-agents', SalesAgentController::class)->only(['index', 'store', 'update', 'destroy']);

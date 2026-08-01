@@ -3,86 +3,233 @@ import FormCard from '@/components/FormCard.vue';
 import BaseAlertDialog from '@/components/ui/BaseAlertDialog.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import { Input } from '@/components/ui/input';
-import { useForm } from '@inertiajs/vue3';
-import { onMounted, ref, computed } from 'vue';
+import { onMounted, ref, computed, watch } from 'vue';
 import { toast } from 'vue-sonner';
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 import BaseField from '@/components/BaseField.vue';
+import BaseCombobox from '@/components/ui/BaseCombobox.vue';
+import { useFieldGroupSkeleton } from '@/composables/useFieldGroupSkeleton';
+import { X } from 'lucide-vue-next';
+import {
+    Table, TableBody, TableCell,
+    TableHead, TableHeader, TableRow,
+} from '@/components/ui/table';
+import axios from 'axios';
 
 const props = defineProps({
-    isProcessing: {
-        type: Boolean,
-        default: false,
-    },
-    product: {
-        type: Object,
-        default: null,
-    },
+    isProcessing: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(['handleSubmit', 'form-closed']);
 
-const form = useForm({
-    pos_qty: props.product?.pos_qty ?? 0,
-});
-
 const isLoading = ref(true);
 const isDialogOpen = ref(false);
-const isBusy = computed(() => props.isProcessing);
+const isBusy = computed(() => isLoading.value || props.isProcessing);
 
-const handleAlertClose = () => {
-    isDialogOpen.value = false;
-    emit('form-closed');
-};
+const { skeletonLayout: skeletonLayoutItems } = useFieldGroupSkeleton([12]);
 
-const isFormValidated = () => {
-    if (form.pos_qty === '' || form.pos_qty < 0) {
-        toast.error('Please enter a valid quantity.');
-        return false;
+// Product search
+const productOptions = ref([]);
+const selectedProduct = ref(null);
+
+// Lot search
+const lotOptions = ref([]);
+const selectedLot = ref(null);
+const itemQuantity = ref(1);
+
+// Items list
+const posItems = ref([]);
+
+async function loadProducts(search = '') {
+    try {
+        const res = await axios.get('/store-inventory/init-pos-products', {
+            headers: { Accept: 'application/json' },
+            params: { search },
+        });
+        productOptions.value = res.data.products ?? [];
+    } catch {
+        toast.error('Failed to load products.');
     }
-    return true;
+}
+
+watch(selectedProduct, async (newVal) => {
+    selectedLot.value = null;
+    lotOptions.value = [];
+    if (!newVal) return;
+    try {
+        const res = await axios.get(`/products/${newVal}/lots`, {
+            headers: { Accept: 'application/json' },
+        });
+        lotOptions.value = (res.data.lots ?? [])
+            .filter(l => l.quantity > 0)
+            .map(l => ({
+                value: String(l.id),
+                label: `${l.lot_number} (exp: ${l.expiration_date}) — qty: ${l.quantity}`,
+                lot_number: l.lot_number,
+            }));
+    } catch {
+        // no lots available
+    }
+});
+
+const addItem = () => {
+    if (!selectedProduct.value) {
+        toast.error('Please select a product.');
+        return;
+    }
+    if (posItems.value.some(i => i.product_id === Number(selectedProduct.value))) {
+        toast.warning('Product already added.', { description: 'Remove the existing entry first.' });
+        return;
+    }
+    if (!selectedLot.value) {
+        toast.error('Please select a lot number.');
+        return;
+    }
+    if (!itemQuantity.value || Number(itemQuantity.value) <= 0) {
+        toast.error('Please enter a valid quantity.');
+        return;
+    }
+    const product = productOptions.value.find(p => p.value === selectedProduct.value);
+    const lot = lotOptions.value.find(l => l.value === selectedLot.value);
+    posItems.value.push({
+        product_id: Number(selectedProduct.value),
+        product_name: product?.label ?? '—',
+        lot_id: Number(selectedLot.value),
+        lot_number: lot?.lot_number ?? '—',
+        quantity: Number(itemQuantity.value),
+        multiplier: product?.multiplier ?? 1,
+        selling_price: product?.pos_selling_price ?? '',
+    });
+    selectedProduct.value = null;
+    selectedLot.value = null;
+    lotOptions.value = [];
+    itemQuantity.value = 1;
 };
+
+const removeItem = (index) => posItems.value.splice(index, 1);
 
 const openConfirmDialog = () => {
-    form.clearErrors();
-    if (!isFormValidated()) return false;
+    if (posItems.value.length === 0) {
+        toast.error('Please add at least one item.');
+        return;
+    }
     isDialogOpen.value = true;
-    return true;
 };
+
+const handleAlertClose = () => { isDialogOpen.value = false; };
+
+watch(() => props.isProcessing, (newVal, oldVal) => {
+    if (oldVal === true && newVal === false) isDialogOpen.value = false;
+});
 
 const handleSubmit = () => {
     try {
-        emit('handleSubmit', form.data());
+        emit('handleSubmit', {
+            items: posItems.value.map(item => ({
+                product_id: item.product_id,
+                pos_qty: parseFloat((item.quantity * item.multiplier).toFixed(4)),
+                pos_selling_price: item.selling_price !== '' ? Number(item.selling_price) : null,
+            })),
+        });
     } catch (error) {
         toast.error('ERROR', { description: error.message });
     }
 };
 
-onMounted(() => {
+onMounted(async () => {
+    isLoading.value = true;
+    await loadProducts();
     isLoading.value = false;
 });
 </script>
 
 <template>
-    <FormCard :loading="isProcessing" size="md">
-        <form @submit.prevent class="space-y-4 mt-4">
-            <BaseField legend="POS Quantity" description="Set the POS quantity for this product">
-                <template #fields>
-                    <FieldGroup :skeleton="isLoading" :skeleton-rows="1" :skeleton-cols="1">
-                        <div class="grid w-full grid-cols-12 gap-4">
-                            <Field class="col-span-12">
-                                <FieldLabel class="font-normal">Product:</FieldLabel>
-                                <span class="text-sm font-medium">{{ product?.display_name ?? product?.productname ??
-                                    '—' }}</span>
-                            </Field>
-                            <Field class="col-span-12">
-                                <FieldLabel class="font-normal">POS Quantity:</FieldLabel>
-                                <Input v-model.number="form.pos_qty" type="number" min="0" step="0.0001" required />
-                            </Field>
-                        </div>
-                    </FieldGroup>
-                </template>
-            </BaseField>
+    <FormCard :loading="false" size="xl">
+        <form @submit.prevent class="space-y-3 mt-2">
+
+            <div class="flex flex-col">
+                <BaseField legend="Initialize POS Quantities"
+                    description="Select products with available inventory, specify lot and quantity">
+                    <template #fields>
+                        <FieldGroup :skeleton="isLoading" :skeleton-layout="skeletonLayoutItems">
+                            <div class="grid w-full grid-cols-12 gap-3">
+                                <Field class="col-span-5">
+                                    <FieldLabel class="font-normal">Select Product:</FieldLabel>
+                                    <BaseCombobox v-model="selectedProduct" :options="productOptions"
+                                        empty-message="No products with available qty" width="w-full"
+                                        @search="loadProducts" placeholder="Search product..." />
+                                </Field>
+                                <Field class="col-span-3">
+                                    <FieldLabel class="font-normal">Select Lot:</FieldLabel>
+                                    <BaseCombobox v-model="selectedLot" :options="lotOptions"
+                                        :disabled="!selectedProduct" empty-message="No lots with available quantity"
+                                        width="w-full" placeholder="Select lot..." />
+                                </Field>
+                                <Field class="col-span-2">
+                                    <FieldLabel class="font-normal">Qty</FieldLabel>
+                                    <Input v-model="itemQuantity" type="number" min="0.0001" step="0.0001"
+                                        placeholder="1" />
+                                </Field>
+                                <Field class="col-span-2">
+                                    <FieldLabel class="invisible">-</FieldLabel>
+                                    <BaseButton type="button" @click="addItem" :transactionType="'add'"
+                                        :disabled="isBusy" :skeleton="isLoading" />
+                                </Field>
+                            </div>
+
+                            <div class="overflow-y-auto rounded-md border mt-2" style="max-height: 220px;">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Product</TableHead>
+                                            <TableHead class="w-28">Lot No.</TableHead>
+                                            <TableHead class="text-center w-20">Qty</TableHead>
+                                            <TableHead class="text-center w-20">Multiplier</TableHead>
+                                            <TableHead class="text-center w-24">POS Qty</TableHead>
+                                            <TableHead class="text-center w-28">Selling Price</TableHead>
+                                            <TableHead class="w-8" />
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        <TableRow v-if="posItems.length === 0">
+                                            <TableCell colspan="7" class="text-center text-muted-foreground py-4">
+                                                No items added yet.
+                                            </TableCell>
+                                        </TableRow>
+                                        <TableRow v-for="(item, index) in posItems" :key="index">
+                                            <TableCell class="whitespace-normal break-words min-w-0 text-sm">
+                                                {{ item.product_name }}
+                                            </TableCell>
+                                            <TableCell class="font-mono text-sm">{{ item.lot_number }}</TableCell>
+                                            <TableCell class="text-center">
+                                                <Input v-model.number="item.quantity" type="number" min="0.0001"
+                                                    step="0.0001" class="w-16 text-center mx-auto" />
+                                            </TableCell>
+                                            <TableCell class="text-center text-sm font-medium">
+                                                {{ item.multiplier }}
+                                            </TableCell>
+                                            <TableCell class="text-center font-medium text-teal-600">
+                                                {{ (item.quantity * item.multiplier).toFixed(4) }}
+                                            </TableCell>
+                                            <TableCell class="text-center">
+                                                <Input v-model.number="item.selling_price" type="number" min="0"
+                                                    step="0.01" placeholder="0.00" class="w-24 text-center mx-auto" />
+                                            </TableCell>
+                                            <TableCell class="text-center">
+                                                <button type="button" @click="removeItem(index)"
+                                                    class="text-destructive hover:opacity-70">
+                                                    <X class="h-4 w-4" />
+                                                </button>
+                                            </TableCell>
+                                        </TableRow>
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </FieldGroup>
+                    </template>
+                </BaseField>
+            </div>
+
         </form>
 
         <template #footer>

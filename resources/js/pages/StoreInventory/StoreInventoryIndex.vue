@@ -4,13 +4,12 @@ import BaseIndex from "@/components/BaseIndex.vue";
 import { ref, computed } from "vue";
 import { toast } from "vue-sonner";
 import { router, Head } from "@inertiajs/vue3";
-import { Pill, Tag, AlertTriangle } from "lucide-vue-next";
+import { Pill, Tag } from "lucide-vue-next";
 
 import CreateProduct from "@/pages/Products/CreateProduct.vue";
-import UpdateProduct from "@/pages/Products/UpdateProduct.vue";
 import DeleteProduct from "@/pages/Products/DeleteProduct.vue";
 import UpdatePosQty from "@/pages/StoreInventory/UpdatePosQty.vue";
-import ReorderLevel from "@/pages/Products/ReorderLevel.vue";
+import SellingPrice from "@/pages/StoreInventory/SellingPrice.vue";
 import StoreProductHistory from "@/pages/StoreInventory/StoreProductHistory.vue";
 
 const breadcrumbs = [
@@ -38,26 +37,13 @@ const transformedColumns = computed(() =>
 );
 
 const showCreateProductModal = ref(false);
-const showUpdateProductModal = ref(false);
 const showDeleteProductModal = ref(false);
 const showInitialPosQtyModal = ref(false);
-const showReorderLevelModal = ref(false);
+const showSellingPriceModal = ref(false);
 const showHistoryModal = ref(false);
 const selectedProduct = ref(null);
 
 const currentType = ref(new URLSearchParams(window.location.search).get("type") || "all");
-const showReorderOnly = ref(false);
-
-const filteredProducts = computed(() => {
-    if (!showReorderOnly.value) return props.products;
-    const filtered = props.products.data.filter(row =>
-        row.is_inventory &&
-        row.pos_qty !== '-' &&
-        row.reorder_level !== '-' &&
-        Number(row.pos_qty) < Number(row.reorder_level)
-    );
-    return { ...props.products, data: filtered };
-});
 
 const handleTypeFilter = (type) => {
     currentType.value = type;
@@ -73,16 +59,12 @@ const handleTypeFilter = (type) => {
 
 const handleAction = ({ type, data }) => {
     switch (type) {
-        case "edit":
-            showUpdateProductModal.value = true;
-            selectedProduct.value = data;
-            break;
         case "initial":
             showInitialPosQtyModal.value = true;
             selectedProduct.value = data;
             break;
-        case "reorder":
-            showReorderLevelModal.value = true;
+        case "selling-price":
+            showSellingPriceModal.value = true;
             selectedProduct.value = data;
             break;
         case "history":
@@ -91,7 +73,7 @@ const handleAction = ({ type, data }) => {
             break;
         case "delete":
             showDeleteProductModal.value = true;
-           selectedProduct.value = data;
+            selectedProduct.value = data;
             break;
         default:
             break;
@@ -100,27 +82,21 @@ const handleAction = ({ type, data }) => {
 </script>
 
 <template>
+
     <Head title="Store Inventory" />
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
-            <BaseIndex IndexType="StoreInventory" :data="filteredProducts" :columnDefs="transformedColumns"
+            <BaseIndex IndexType="StoreInventory" :data="products" :columnDefs="transformedColumns"
                 :selectOptions="selectOptions" :row-class="(row) => {
                     if (!row.is_inventory) return 'bg-yellow-50 dark:bg-yellow-950';
-                    if (row.pos_qty !== '-' && row.reorder_level !== '-' && Number(row.pos_qty) < Number(row.reorder_level)) return 'bg-red-200 dark:bg-red-900';
                     return '';
                 }" v-model:selectModelValue="selectModelValue" @action="handleAction" :hover-fields="[
                     { field: 'productname', label: 'Product Name' },
                     { field: 'brand_name', label: 'Brand' },
                 ]">
 
-                <Button variant="default" class="mr-2" @click="showCreateProductModal = true">
+                <Button variant="default" class="mr-2" @click="showInitialPosQtyModal = true">
                     New Product
-                </Button>
-
-                <Button :variant="showReorderOnly ? 'destructive' : 'outline'" class="mr-2 gap-1"
-                    @click="showReorderOnly = !showReorderOnly">
-                    <AlertTriangle class="h-4 w-4" />
-                    {{ showReorderOnly ? 'Showing: Low Stock' : 'Low Stock' }}
                 </Button>
 
                 <div class="flex items-center gap-1 ml-2 border rounded-md p-1">
@@ -142,18 +118,13 @@ const handleAction = ({ type, data }) => {
             <CreateProduct v-if="showCreateProductModal" @form-closed="showCreateProductModal = false" :brands="brands"
                 :product-units="productUnits" :strengths="strengths" :drugforms="drugforms" />
 
-            <UpdateProduct v-if="showUpdateProductModal" :product="selectedProduct" :brands="brands"
-                :product-units="productUnits" :strengths="strengths" :drugforms="drugforms"
-                @product-form-closed="showUpdateProductModal = false" />
-
             <DeleteProduct v-if="showDeleteProductModal" :product="selectedProduct"
                 @product-form-closed="showDeleteProductModal = false" />
 
-            <UpdatePosQty v-if="showInitialPosQtyModal" :product="selectedProduct"
-                @form-closed="showInitialPosQtyModal = false" />
+            <UpdatePosQty v-if="showInitialPosQtyModal" @form-closed="showInitialPosQtyModal = false" />
 
-            <ReorderLevel v-if="showReorderLevelModal" :product="selectedProduct"
-                @form-closed="showReorderLevelModal = false" />
+            <SellingPrice v-if="showSellingPriceModal" :product="selectedProduct"
+                @form-closed="showSellingPriceModal = false" />
 
             <StoreProductHistory v-if="showHistoryModal" :product="selectedProduct"
                 @form-closed="showHistoryModal = false" />

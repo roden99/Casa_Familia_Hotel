@@ -16,8 +16,8 @@ class PosController extends Controller
         $column = $request->input('column');
 
         $query = PosTransaction::with('customer')
-            ->orderByDesc('sale_date')
-            ->orderByDesc('created_at');
+            ->withSum('items', 'total_price')
+            ->orderByDesc('id');
 
         if (!empty($search) && strlen($search) >= 3 && !empty($column)) {
             if ($column === 'receipt_no') {
@@ -39,9 +39,9 @@ class PosController extends Controller
             return [
                 'id'             => $tx->id,
                 'receipt_no'     => $tx->receipt_no ?? '—',
-                'sale_date'      => Carbon::parse($tx->sale_date)->format('m-d-Y'),
+                'sale_date'      => Carbon::parse($tx->sale_date)->format('m-d-Y H:i'),
                 'customer_name'  => $customerName,
-                'payment_method' => strtoupper($tx->payment_method),
+                'total_amount'   => number_format($tx->items_sum_total_price ?? 0, 2),
                 'notes'          => $tx->notes ?? '',
             ];
         });
@@ -49,9 +49,9 @@ class PosController extends Controller
         $columns = [
             ['accessorKey' => 'id',             'header' => 'ID',             'isVisible' => true,  'isParameter' => false],
             ['accessorKey' => 'receipt_no',      'header' => 'RECEIPT NO.',    'isVisible' => true,  'isParameter' => true],
-            ['accessorKey' => 'sale_date',       'header' => 'DATE',           'isVisible' => true,  'isParameter' => false],
+            ['accessorKey' => 'sale_date',       'header' => 'DATE & TIME',     'isVisible' => true,  'isParameter' => false],
             ['accessorKey' => 'customer_name',   'header' => 'CUSTOMER',       'isVisible' => true,  'isParameter' => false],
-            ['accessorKey' => 'payment_method',  'header' => 'PAYMENT',        'isVisible' => true,  'isParameter' => true],
+            ['accessorKey' => 'total_amount',    'header' => 'AMOUNT',         'isVisible' => true,  'isParameter' => false],
             ['accessorKey' => 'notes',           'header' => 'NOTES',          'isVisible' => false, 'isParameter' => false],
         ];
 
@@ -64,7 +64,6 @@ class PosController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'sale_date'                        => 'required|date',
             'receipt_no'                       => 'nullable|string|max:255',
             'customer_id'                      => 'nullable|exists:customers,id',
             'payment_method'                   => 'required|string|max:50',
@@ -78,7 +77,7 @@ class PosController extends Controller
 
         $transaction = PosTransaction::create([
             'receipt_no'     => $validated['receipt_no'] ?? null,
-            'sale_date'      => $validated['sale_date'],
+            'sale_date'      => now(),
             'customer_id'    => $validated['customer_id'] ?? null,
             'payment_method' => $validated['payment_method'],
             'notes'          => $validated['notes'] ?? null,
@@ -105,7 +104,9 @@ class PosController extends Controller
             }
         }
 
-        return redirect()->route('pos.index')->with('success', 'POS transaction saved successfully!');
+        return $request->wantsJson()
+            ? response()->json(['sale_date' => Carbon::parse($transaction->sale_date)->format('m-d-Y H:i')])
+            : redirect()->route('pos.index')->with('success', 'POS transaction saved successfully!');
     }
 
     public function show(string $id)
@@ -127,7 +128,7 @@ class PosController extends Controller
             'transaction' => [
                 'id'             => $transaction->id,
                 'receipt_no'     => $transaction->receipt_no ?? '—',
-                'sale_date'      => Carbon::parse($transaction->sale_date)->format('m-d-Y'),
+                'sale_date'      => Carbon::parse($transaction->sale_date)->format('m-d-Y H:i'),
                 'customer_name'  => $customerName,
                 'payment_method' => strtoupper($transaction->payment_method),
                 'notes'          => $transaction->notes ?? '',

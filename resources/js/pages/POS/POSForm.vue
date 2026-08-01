@@ -8,14 +8,10 @@ import { onMounted, ref, computed, watch } from 'vue';
 import { toast } from 'vue-sonner';
 import { Field, FieldGroup, FieldLabel, FieldSeparator } from '@/components/ui/field';
 import BaseField from '@/components/BaseField.vue';
-import BaseDatePick from '@/components/ui/BaseDatePick.vue';
 import { useFieldGroupSkeleton } from '@/composables/useFieldGroupSkeleton';
-import { useDateFormatter } from '@/composables/useDateFormatter';
 import BaseCombobox from '@/components/ui/BaseCombobox.vue';
 import POSItemsTable from './POSItemsTable.vue';
 import axios from 'axios';
-
-const { normalizeDate } = useDateFormatter();
 
 const props = defineProps({
     isProcessing: { type: Boolean, default: false },
@@ -26,7 +22,6 @@ const props = defineProps({
 const emit = defineEmits(['handleSubmit', 'form-closed']);
 
 const form = useForm({
-    sale_date: null,
     receipt_no: '',
     customer_id: '',
     payment_method: 'cash',
@@ -74,9 +69,9 @@ const handleSubmit = () => {
         emit('handleSubmit', {
             ...form.data(),
             customer_id: form.customer_id ? Number(form.customer_id) : null,
-            sale_date: normalizeDate(form.sale_date),
             items: orderItems.value.map(item => ({
                 product_id: Number(item.product_id),
+                product_name: item.product_name,
                 quantity: item.quantity,
                 unit_price: item.unit_price,
                 discount_percentage: item.discount_percentage ?? 0,
@@ -89,29 +84,9 @@ const handleSubmit = () => {
 
 onMounted(async () => {
     isLoading.value = true;
-    await loadCustomers();
+    await loadProducts();
     isLoading.value = false;
 });
-
-// ─── Customers combobox ───────────────────────────────────────────────────────
-const customerOptions = ref([]);
-
-async function loadCustomers(searchQuery = '') {
-    try {
-        const res = await axios.get('/customers', {
-            headers: { Accept: 'application/json' },
-            params: { search: searchQuery },
-        });
-        customerOptions.value = (res.data.customers ?? []).map(c => ({
-            value: String(c.id),
-            label: c.is_drugstore
-                ? c.company.toUpperCase()
-                : `${c.last_name.toUpperCase()}, ${c.first_name.toUpperCase()}`,
-        }));
-    } catch {
-        toast.error('Failed to load customers.');
-    }
-}
 
 // ─── Products combobox ────────────────────────────────────────────────────────
 const productOptions = ref([]);
@@ -141,6 +116,13 @@ const totalAmount = computed(() => {
         return sum + Number(item.quantity) * Number(item.unit_price) * (1 - disc / 100);
     }, 0);
     return raw.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+});
+
+// Auto-fill selling price when product is selected
+watch(selectedProduct, (newVal) => {
+    if (!newVal) return;
+    const product = productOptions.value.find(p => p.value === newVal);
+    itemPrice.value = product?.pos_selling_price ?? 0;
 });
 
 const addItem = () => {
@@ -181,20 +163,8 @@ const removeItem = (index) => {
                                 <div class="grid w-full grid-cols-12 gap-4">
 
                                     <Field class="col-span-12">
-                                        <FieldLabel class="font-normal">Sale Date:</FieldLabel>
-                                        <BaseDatePick v-model="form.sale_date" class="w-full" />
-                                    </Field>
-
-                                    <Field class="col-span-12">
                                         <FieldLabel class="font-normal">Receipt No.:</FieldLabel>
                                         <Input v-model="form.receipt_no" placeholder="e.g. RCP-001" />
-                                    </Field>
-
-                                    <Field class="col-span-12">
-                                        <FieldLabel class="font-normal">Customer (optional):</FieldLabel>
-                                        <BaseCombobox v-model="form.customer_id" :options="customerOptions"
-                                            empty-message="Search customer" width="w-full"
-                                            placeholder="Walk-in / Select customer" @search="loadCustomers" />
                                     </Field>
 
                                     <Field class="col-span-12">

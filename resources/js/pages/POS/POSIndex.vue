@@ -8,6 +8,9 @@ import { Head } from '@inertiajs/vue3';
 import CreatePOS from '@/pages/POS/CreatePOS.vue';
 import DeletePOS from '@/pages/POS/DeletePOS.vue';
 import ViewPOS from '@/pages/POS/ViewPOS.vue';
+import POSReceipt from '@/pages/POS/POSReceipt.vue';
+import axios from 'axios';
+import { toast } from 'vue-sonner';
 
 const breadcrumbs = [
     { title: 'Dashboard', href: '/dashboard' },
@@ -32,9 +35,11 @@ const transformedColumns = computed(() =>
 const showCreateModal = ref(false);
 const showDeleteModal = ref(false);
 const showViewModal = ref(false);
+const showReprintModal = ref(false);
 const selectedTransaction = ref(null);
+const reprintData = ref(null);
 
-const handleAction = ({ type, data }) => {
+const handleAction = async ({ type, data }) => {
     switch (type) {
         case 'view':
             selectedTransaction.value = data;
@@ -43,6 +48,23 @@ const handleAction = ({ type, data }) => {
         case 'delete':
             selectedTransaction.value = data;
             showDeleteModal.value = true;
+            break;
+        case 'reprint':
+            try {
+                const res = await axios.get(`/pos/${data.id}`, { headers: { Accept: 'application/json' } });
+                const tx = res.data.transaction;
+                reprintData.value = {
+                    sale_date: tx.sale_date,
+                    receipt_no: tx.receipt_no,
+                    payment_method: tx.payment_method,
+                    customer_name: tx.customer_name,
+                    notes: tx.notes,
+                    items: res.data.items,
+                };
+                showReprintModal.value = true;
+            } catch {
+                toast.error('Failed to load receipt data.');
+            }
             break;
         default:
             break;
@@ -69,6 +91,8 @@ const handleAction = ({ type, data }) => {
                 @form-closed="showDeleteModal = false" />
 
             <ViewPOS v-if="showViewModal" :transaction="selectedTransaction" @form-closed="showViewModal = false" />
+
+            <POSReceipt v-if="showReprintModal" :receipt="reprintData" @close="showReprintModal = false" />
         </div>
     </AppLayout>
 </template>

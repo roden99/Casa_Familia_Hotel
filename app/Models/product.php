@@ -26,6 +26,7 @@ class product extends Model
         'initial_qty',
         'is_inventory',
         'pos_qty',
+        'pos_selling_price',
         'initial_pos_date',
         'initial_pos_qty',
         'created_by',
