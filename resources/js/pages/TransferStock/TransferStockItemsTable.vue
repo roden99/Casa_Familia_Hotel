@@ -47,7 +47,7 @@ const emit = defineEmits(['remove']);
                             class="w-20 text-center mx-auto" />
                     </TableCell>
                     <TableCell class="text-center">
-                        <span class="text-sm font-medium">{{ item.multiplier }}</span>
+                        <span class="text-sm font-medium text-muted-foreground">{{ item.multiplier }}</span>
                     </TableCell>
                     <TableCell class="text-center font-medium text-teal-600">
                         {{ (item.quantity * item.multiplier).toFixed(4) }}

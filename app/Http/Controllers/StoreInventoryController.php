@@ -190,7 +190,8 @@ class StoreInventoryController extends Controller
 
         $query = product::with(['brand', 'unit', 'drugform'])
             ->where('status', true)
-            ->where('is_inventory', true);
+            ->where('is_inventory', true)
+            ->whereNotNull('initial_pos_date');
 
         if (!empty($search)) {
             $query->where(function ($q) use ($search) {

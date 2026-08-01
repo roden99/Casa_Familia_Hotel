@@ -31,10 +31,6 @@ const { skeletonLayout: skeletonLayoutItems } = useFieldGroupSkeleton([12]);
 // Product search
 const productOptions = ref([]);
 const selectedProduct = ref(null);
-
-// Lot search
-const lotOptions = ref([]);
-const selectedLot = ref(null);
 const itemQuantity = ref(1);
 
 // Items list
@@ -52,25 +48,7 @@ async function loadProducts(search = '') {
     }
 }
 
-watch(selectedProduct, async (newVal) => {
-    selectedLot.value = null;
-    lotOptions.value = [];
-    if (!newVal) return;
-    try {
-        const res = await axios.get(`/products/${newVal}/lots`, {
-            headers: { Accept: 'application/json' },
-        });
-        lotOptions.value = (res.data.lots ?? [])
-            .filter(l => l.quantity > 0)
-            .map(l => ({
-                value: String(l.id),
-                label: `${l.lot_number} (exp: ${l.expiration_date}) — qty: ${l.quantity}`,
-                lot_number: l.lot_number,
-            }));
-    } catch {
-        // no lots available
-    }
-});
+watch(selectedProduct, () => { /* reset if needed */ });
 
 const addItem = () => {
     if (!selectedProduct.value) {
@@ -81,28 +59,19 @@ const addItem = () => {
         toast.warning('Product already added.', { description: 'Remove the existing entry first.' });
         return;
     }
-    if (!selectedLot.value) {
-        toast.error('Please select a lot number.');
-        return;
-    }
     if (!itemQuantity.value || Number(itemQuantity.value) <= 0) {
         toast.error('Please enter a valid quantity.');
         return;
     }
     const product = productOptions.value.find(p => p.value === selectedProduct.value);
-    const lot = lotOptions.value.find(l => l.value === selectedLot.value);
     posItems.value.push({
         product_id: Number(selectedProduct.value),
         product_name: product?.label ?? '—',
-        lot_id: Number(selectedLot.value),
-        lot_number: lot?.lot_number ?? '—',
         quantity: Number(itemQuantity.value),
         multiplier: product?.multiplier ?? 1,
         selling_price: product?.pos_selling_price ?? '',
     });
     selectedProduct.value = null;
-    selectedLot.value = null;
-    lotOptions.value = [];
     itemQuantity.value = 1;
 };
 
@@ -149,21 +118,15 @@ onMounted(async () => {
 
             <div class="flex flex-col">
                 <BaseField legend="Initialize POS Quantities"
-                    description="Select products with available inventory, specify lot and quantity">
+                    description="Select products with available inventory, specify quantity">
                     <template #fields>
                         <FieldGroup :skeleton="isLoading" :skeleton-layout="skeletonLayoutItems">
                             <div class="grid w-full grid-cols-12 gap-3">
-                                <Field class="col-span-5">
+                                <Field class="col-span-7">
                                     <FieldLabel class="font-normal">Select Product:</FieldLabel>
                                     <BaseCombobox v-model="selectedProduct" :options="productOptions"
                                         empty-message="No products with available qty" width="w-full"
                                         @search="loadProducts" placeholder="Search product..." />
-                                </Field>
-                                <Field class="col-span-3">
-                                    <FieldLabel class="font-normal">Select Lot:</FieldLabel>
-                                    <BaseCombobox v-model="selectedLot" :options="lotOptions"
-                                        :disabled="!selectedProduct" empty-message="No lots with available quantity"
-                                        width="w-full" placeholder="Select lot..." />
                                 </Field>
                                 <Field class="col-span-2">
                                     <FieldLabel class="font-normal">Qty</FieldLabel>
@@ -182,7 +145,6 @@ onMounted(async () => {
                                     <TableHeader>
                                         <TableRow>
                                             <TableHead>Product</TableHead>
-                                            <TableHead class="w-28">Lot No.</TableHead>
                                             <TableHead class="text-center w-20">Qty</TableHead>
                                             <TableHead class="text-center w-20">Multiplier</TableHead>
                                             <TableHead class="text-center w-24">POS Qty</TableHead>
@@ -192,7 +154,7 @@ onMounted(async () => {
                                     </TableHeader>
                                     <TableBody>
                                         <TableRow v-if="posItems.length === 0">
-                                            <TableCell colspan="7" class="text-center text-muted-foreground py-4">
+                                            <TableCell colspan="6" class="text-center text-muted-foreground py-4">
                                                 No items added yet.
                                             </TableCell>
                                         </TableRow>
@@ -200,12 +162,11 @@ onMounted(async () => {
                                             <TableCell class="whitespace-normal break-words min-w-0 text-sm">
                                                 {{ item.product_name }}
                                             </TableCell>
-                                            <TableCell class="font-mono text-sm">{{ item.lot_number }}</TableCell>
                                             <TableCell class="text-center">
                                                 <Input v-model.number="item.quantity" type="number" min="0.0001"
                                                     step="0.0001" class="w-16 text-center mx-auto" />
                                             </TableCell>
-                                            <TableCell class="text-center text-sm font-medium">
+                                            <TableCell class="text-center text-sm font-medium text-muted-foreground">
                                                 {{ item.multiplier }}
                                             </TableCell>
                                             <TableCell class="text-center font-medium text-teal-600">
