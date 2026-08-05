@@ -2,6 +2,7 @@
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
 import BaseIndex from '@/components/BaseIndex.vue';
+import BaseCombobox from '@/components/ui/BaseCombobox.vue';
 import { ref, computed, h } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import { toast } from 'vue-sonner';
@@ -29,14 +30,30 @@ const props = defineProps({
         type: String,
         default: null,
     },
+    account: {
+        type: String,
+        default: null,
+    },
+    accounts: {
+        type: Array,
+        default: () => [],
+    },
+    customer: {
+        type: String,
+        default: null,
+    },
+    customers: {
+        type: Array,
+        default: () => [],
+    },
 });
 
 const selectOptions = props.columns
     .filter(col => col.isParameter === true)
     .map(s => ({ value: s.accessorKey, label: s.header }));
 
-const transformedColumns = computed(() =>
-    props.columns
+const transformedColumns = computed(() => {
+    const cols = props.columns
         .filter(col => col.isVisible === true)
         .map(col => {
             if (col.accessorKey === 'entry_type') {
@@ -67,8 +84,25 @@ const transformedColumns = computed(() =>
                 };
             }
             return col;
-        })
-);
+        });
+
+    const daysDueCol = {
+        accessorKey: 'days_due',
+        header: 'DAYS DUE',
+        cell: ({ row }) => {
+            const { payment_status, due_date } = row.original;
+            if (payment_status === 'Paid' || !due_date) return h('span', { class: 'text-gray-400' }, '—');
+            const due = parseDueDate(due_date);
+            const diff = Math.floor((today - due) / 86400000);
+            if (diff <= 0) return h('span', { class: 'text-gray-400' }, '—');
+            return h('span', { class: 'font-semibold text-red-600 dark:text-red-400' }, diff.toString());
+        },
+    };
+
+    const dueDateIdx = cols.findIndex(c => c.accessorKey === 'due_date');
+    dueDateIdx >= 0 ? cols.splice(dueDateIdx + 1, 0, daysDueCol) : cols.push(daysDueCol);
+    return cols;
+});
 
 const selectModelValue = ref(
     selectOptions.length > 0 ? selectOptions[0].value : ''
@@ -104,18 +138,52 @@ const getDueStatus = (row) => {
 
 // ─── Active filter (server-side) ─────────────────────────────────────────────
 const activeFilter = ref(props.filter ?? null);
+const selectedAccount = ref(props.account ?? '');
+const selectedCustomer = ref(props.customer ?? '');
+
+const accountOptions = computed(() => [
+    { value: '', label: 'All Accounts' },
+    ...props.accounts.map(a => ({ value: a, label: a })),
+]);
+
+const customerOptions = computed(() => {
+    const filtered = selectedAccount.value
+        ? props.customers.filter(c => c.account === selectedAccount.value)
+        : props.customers;
+    return [{ value: '', label: 'All Customers' }, ...filtered];
+});
+
+const applyFilters = (filter, account, customer) => {
+    const url = new URL(window.location.href);
+    url.searchParams.delete('page');
+    if (filter) url.searchParams.set('filter', filter);
+    else url.searchParams.delete('filter');
+    if (account) url.searchParams.set('account', account);
+    else url.searchParams.delete('account');
+    if (customer) url.searchParams.set('customer', customer);
+    else url.searchParams.delete('customer');
+    router.get(url.pathname + url.search, {}, { preserveScroll: true });
+};
 
 const toggleFilter = (filter) => {
     const next = activeFilter.value === filter ? null : filter;
     activeFilter.value = next;
-    const url = new URL(window.location.href);
-    url.searchParams.delete('page');
-    if (next) {
-        url.searchParams.set('filter', next);
-    } else {
-        url.searchParams.delete('filter');
+    applyFilters(next, selectedAccount.value, selectedCustomer.value);
+};
+
+const onAccountChange = (val) => {
+    selectedAccount.value = val;
+    // clear customer if it doesn't belong to the newly selected account
+    if (val && selectedCustomer.value) {
+        const stillValid = props.customers.some(c => c.value === selectedCustomer.value && c.account === val);
+        if (!stillValid) selectedCustomer.value = '';
     }
-    router.get(url.pathname + url.search, {}, { preserveScroll: true });
+    applyFilters(activeFilter.value, val, selectedCustomer.value);
+};
+
+const onCustomerChange = (val) => {
+    selectedCustomer.value = val;
+    applyFilters(activeFilter.value, selectedAccount.value, val);
 };
 
 // ─── Row class ────────────────────────────────────────────────────────────────
@@ -172,9 +240,15 @@ const handleAction = ({ type, data }) => {
                     New Sales Order
                 </Button>
 
+                <BaseCombobox :options="accountOptions" :modelValue="selectedAccount"
+                    @update:modelValue="onAccountChange" placeholder="All Accounts" width="w-[180px]" />
+
+                <BaseCombobox :options="customerOptions" :modelValue="selectedCustomer"
+                    @update:modelValue="onCustomerChange" placeholder="All Customers" width="w-[200px]" />
+
                 <div class="flex items-center gap-1 ml-2 border rounded-md p-1">
                     <Button :variant="activeFilter === null ? 'default' : 'ghost'" size="sm"
-                        @click="activeFilter = null">
+                        @click="applyFilters(null, selectedAccount, selectedCustomer)">
                         All
                     </Button>
                     <Button :variant="activeFilter === 'overdue' ? 'destructive' : 'ghost'" size="sm"

@@ -16,6 +16,8 @@ class SalesOrderController extends Controller
         $search = $request->input('search');
         $column = $request->input('column');
         $filter = $request->input('filter');
+        $account = $request->input('account');
+        $customer = $request->input('customer');
 
         // ── Sales Orders ──────────────────────────────────────────────────────
         $soQuery = DB::table('sales_orders as so')
@@ -43,6 +45,14 @@ class SalesOrderController extends Controller
                 'pmt.check_date as pmt_check_date',
                 'pmt.notes as pmt_notes'
             );
+
+        if (!empty($account)) {
+            $soQuery->where('sa.account_name', $account);
+        }
+
+        if (!empty($customer)) {
+            $soQuery->where('c.id', $customer);
+        }
 
         if (!empty($search) && strlen($search) >= 3 && !empty($column)) {
             if ($column === 'customer_name') {
@@ -148,6 +158,14 @@ class SalesOrderController extends Controller
                 'last_pmt.pmt_notes'
             );
 
+        if (!empty($account)) {
+            $invQuery->where('sa.account_name', $account);
+        }
+
+        if (!empty($customer)) {
+            $invQuery->where('c.id', $customer);
+        }
+
         if (!empty($search) && strlen($search) >= 3) {
             if ($column === 'customer_name') {
                 $invQuery->where(function ($q) use ($search) {
@@ -240,10 +258,34 @@ class SalesOrderController extends Controller
             ['accessorKey' => 'payment_status',  'header' => 'STATUS',       'isVisible' => true,  'isParameter' => false],
         ];
 
+        $accounts = DB::table('sales_accounts')
+            ->orderBy('account_name')
+            ->pluck('account_name');
+
+        $customers = DB::table('customers as c')
+            ->join('customer_sales_account as csa', 'csa.customer_id', '=', 'c.id')
+            ->join('sales_accounts as sa', 'sa.id', '=', 'csa.sales_account_id')
+            ->select('c.id', 'c.first_name', 'c.last_name', 'c.company', 'c.is_drugstore', 'sa.account_name')
+            ->distinct()
+            ->orderBy('c.last_name')
+            ->orderBy('c.company')
+            ->get()
+            ->map(fn($c) => [
+                'value'   => (string) $c->id,
+                'label'   => $c->is_drugstore
+                    ? strtoupper($c->company)
+                    : trim(strtoupper($c->last_name) . ', ' . strtoupper($c->first_name)),
+                'account' => strtoupper($c->account_name),
+            ]);
+
         return inertia('SalesOrders/SalesOrderIndex', [
-            'orders'  => $orders,
-            'columns' => $columns,
-            'filter'  => $filter,
+            'orders'    => $orders,
+            'columns'   => $columns,
+            'filter'    => $filter,
+            'account'   => $account,
+            'accounts'  => $accounts,
+            'customer'  => $customer,
+            'customers' => $customers,
         ]);
     }
 
