@@ -75,6 +75,7 @@ Route::delete('products/{product}/lots/{lot}', [ProductController::class, 'destr
 Route::resource('warehouses', WarehouseController::class);
 Route::resource('warehouse-items', WarehouseItemController::class);
 Route::resource('deliveries', DeliveryController::class);
+Route::get('sales-orders/overdue-report', [SalesOrderController::class, 'overdueReport'])->middleware(['auth'])->name('sales-orders.overdue-report');
 Route::resource('sales-orders', SalesOrderController::class);
 Route::resource('sales-accounts', SalesAccountController::class);
 

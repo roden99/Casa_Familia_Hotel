@@ -289,6 +289,116 @@ class SalesOrderController extends Controller
         ]);
     }
 
+    public function overdueReport(Request $request)
+    {
+        $account = $request->input('account');
+        $today   = Carbon::today();
+
+        // ── Sales Orders (unpaid) ─────────────────────────────────────────────
+        $soQuery = DB::table('sales_orders as so')
+            ->join('customer_sales_account as csa', 'csa.id', '=', 'so.customer_sales_account_id')
+            ->join('customers as c', 'c.id', '=', 'csa.customer_id')
+            ->join('sales_accounts as sa', 'sa.id', '=', 'csa.sales_account_id')
+            ->whereNull('so.payment_id')
+            ->select(
+                'so.id',
+                'so.invoice_no',
+                'so.invoice_date',
+                'so.terms',
+                'c.company',
+                'c.first_name',
+                'c.last_name',
+                'c.is_drugstore',
+                'c.address',
+                'sa.account_name'
+            );
+
+        if ($account) $soQuery->where('sa.account_name', $account);
+
+        $soRows = $soQuery->get()->map(function ($item) use ($today) {
+            if (!$item->invoice_date || $item->terms === null) return null;
+            $due = Carbon::parse($item->invoice_date)->addDays((int) $item->terms);
+            if ($due->gte($today)) return null;
+
+            $amount = DB::table('sales_order_items')
+                ->where('sales_order_id', $item->id)
+                ->sum(DB::raw('quantity * unit_price * (1 - IFNULL(discount_percentage, 0) / 100)'));
+
+            return [
+                'customer_name' => $item->is_drugstore
+                    ? strtoupper($item->company)
+                    : trim(strtoupper($item->last_name) . ', ' . strtoupper($item->first_name)),
+                'address'       => $item->address ?? '',
+                'invoice_date'  => Carbon::parse($item->invoice_date)->format('m/d/Y'),
+                'invoice_no'    => $item->invoice_no ?? '',
+                'amount'        => round((float) $amount, 2),
+                'days_overdue'  => $due->diffInDays($today),
+            ];
+        })->filter()->values();
+
+        // ── Manual Invoices (unpaid / partial) ───────────────────────────────
+        $invQuery = DB::table('customer_account_invoices as i')
+            ->join('customer_sales_account as csa', 'csa.id', '=', 'i.customer_sales_account_id')
+            ->join('customers as c', 'c.id', '=', 'csa.customer_id')
+            ->join('sales_accounts as sa', 'sa.id', '=', 'csa.sales_account_id')
+            ->leftJoinSub(
+                DB::table('customer_account_invoice_payments')
+                    ->select('customer_account_invoice_id', DB::raw('SUM(amount) as paid_amount'))
+                    ->groupBy('customer_account_invoice_id'),
+                'pmts',
+                'pmts.customer_account_invoice_id',
+                '=',
+                'i.id'
+            )
+            ->whereRaw('IFNULL(pmts.paid_amount, 0) < i.amount')
+            ->select(
+                'i.id',
+                'i.reference_no as invoice_no',
+                'i.invoice_date',
+                'i.terms',
+                'i.amount',
+                'c.company',
+                'c.first_name',
+                'c.last_name',
+                'c.is_drugstore',
+                'c.address',
+                'sa.account_name',
+                'pmts.paid_amount'
+            );
+
+        if ($account) $invQuery->where('sa.account_name', $account);
+
+        $invRows = $invQuery->get()->map(function ($item) use ($today) {
+            if (!$item->invoice_date || $item->terms === null) return null;
+            $due = Carbon::parse($item->invoice_date)->addDays((int) $item->terms);
+            if ($due->gte($today)) return null;
+
+            return [
+                'customer_name' => $item->is_drugstore
+                    ? strtoupper($item->company)
+                    : trim(strtoupper($item->last_name) . ', ' . strtoupper($item->first_name)),
+                'address'       => $item->address ?? '',
+                'invoice_date'  => Carbon::parse($item->invoice_date)->format('m/d/Y'),
+                'invoice_no'    => $item->invoice_no ?? '',
+                'amount'        => round((float) $item->amount - (float) ($item->paid_amount ?? 0), 2),
+                'days_overdue'  => $due->diffInDays($today),
+            ];
+        })->filter()->values();
+
+        $rows = $soRows->concat($invRows)
+            ->sortBy('customer_name')
+            ->values();
+
+        $accounts = DB::table('sales_accounts')->orderBy('account_name')->pluck('account_name');
+
+        return inertia('SalesOrders/OverdueAccountReport', [
+            'rows'     => $rows,
+            'account'  => $account,
+            'accounts' => $accounts,
+            'month'    => $today->format('F Y'),
+        ]);
+    }
+
     public function store(Request $request)
     {
         $validated = $request->validate([

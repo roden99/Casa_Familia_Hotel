@@ -3,6 +3,8 @@ import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
 import BaseIndex from '@/components/BaseIndex.vue';
 import BaseCombobox from '@/components/ui/BaseCombobox.vue';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Printer } from 'lucide-vue-next';
 import { ref, computed, h } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import { toast } from 'vue-sonner';
@@ -113,7 +115,16 @@ const showUpdateModal = ref(false);
 const showViewModal = ref(false);
 const showDeleteModal = ref(false);
 const showPaymentModal = ref(false);
+const showReportDialog = ref(false);
+const reportAccount = ref('');
 const selectedOrder = ref(null);
+
+const openReport = () => {
+    const url = new URL('/sales-orders/overdue-report', window.location.origin);
+    if (reportAccount.value) url.searchParams.set('account', reportAccount.value);
+    window.open(url.toString(), '_blank');
+    showReportDialog.value = false;
+};
 
 // ─── Due date helpers ─────────────────────────────────────────────────────────
 // due_date format from server: "m-d-Y" e.g. "07-15-2026"
@@ -240,6 +251,10 @@ const handleAction = ({ type, data }) => {
                     New Sales Order
                 </Button>
 
+                <Button variant="outline" class="mr-2" @click="showReportDialog = true">
+                    <Printer class="w-4 h-4 mr-1" /> Print Overdue
+                </Button>
+
                 <BaseCombobox :options="accountOptions" :modelValue="selectedAccount"
                     @update:modelValue="onAccountChange" placeholder="All Accounts" width="w-[180px]" />
 
@@ -288,6 +303,24 @@ const handleAction = ({ type, data }) => {
 
             <ViewSalesOrderPayment v-if="showPaymentModal" :order="selectedOrder"
                 @form-closed="showPaymentModal = false" />
+
+            <!-- Overdue Report dialog -->
+            <Dialog v-model:open="showReportDialog">
+                <DialogContent class="max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle>Overdue Account Report</DialogTitle>
+                    </DialogHeader>
+                    <div class="py-2">
+                        <label class="text-sm font-medium mb-1 block">Area (P.M.R.)</label>
+                        <BaseCombobox :options="accountOptions" v-model="reportAccount" placeholder="All Areas"
+                            width="w-full" />
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" @click="showReportDialog = false">Cancel</Button>
+                        <Button @click="openReport">Generate &amp; Print</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     </AppLayout>
 </template>
