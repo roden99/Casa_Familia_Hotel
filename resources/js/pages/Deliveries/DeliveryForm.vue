@@ -331,8 +331,8 @@ async function loadProducts(searchQuery = '', includeId = null) {
                                             :disabled="isBusy" :skeleton="isLoading">
                                         </BaseButton>
                                     </Field>
-                                    <!-- Expiry date shown only when lot number entered -->
-                                    <Field v-if="itemLotNumber" class="col-span-4">
+                                    <!-- Expiry date is always optional -->
+                                    <Field class="col-span-4">
                                         <FieldLabel class="font-normal flex items-center gap-1">
                                             <Tag class="h-3 w-3 text-amber-500" /> Expiration Date
                                         </FieldLabel>
