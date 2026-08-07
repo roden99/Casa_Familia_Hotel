@@ -24,6 +24,7 @@ use App\Http\Controllers\PosDashboardController;
 use App\Http\Controllers\ExpirationController;
 use App\Http\Controllers\SalesAgentController;
 use App\Http\Controllers\CarryItemController;
+use App\Http\Controllers\PaymentController;
 
 Route::get('/login', function () {
     return Inertia::render('Login/Index');
@@ -98,6 +99,8 @@ Route::resource('pos', PosController::class)->only(['index', 'store', 'show', 'd
 Route::resource('sales-agents', SalesAgentController::class)->only(['index', 'store', 'update', 'destroy']);
 Route::resource('carry-items', CarryItemController::class)->only(['index', 'store', 'show', 'destroy']);
 Route::patch('carry-item-details/{detail}/return', [CarryItemController::class, 'returnDetail'])->name('carry-item-details.return');
+
+Route::get('payments', [PaymentController::class, 'index'])->name('payments.index');
 
 
 

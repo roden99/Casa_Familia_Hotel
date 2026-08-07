@@ -113,6 +113,16 @@ class DeliveryController extends Controller
                     ->value('id');
             }
 
+            $product = \App\Models\product::find($item['product_id']);
+
+            if ($product && !$product->initial_date && !$product->is_inventory && $product->product_qty == 0) {
+                $product->update([
+                    'initial_date' => $validated['delivery_date'],
+                    'product_qty'  => $item['quantity_received'],
+                    'is_inventory' => 1,
+                ]);
+            }
+
             \App\Models\DeliveryItem::create([
                 'delivery_id'       => $delivery->id,
                 'product_id'        => $item['product_id'],
@@ -123,7 +133,6 @@ class DeliveryController extends Controller
                 'created_by'        => $request->user()->id,
             ]);
 
-            $product = \App\Models\product::find($item['product_id']);
             if ($product && $product->is_inventory) {
                 $afterInit = !$product->initial_date
                     || Carbon::parse($validated['delivery_date'])->startOfDay()->gte(Carbon::parse($product->initial_date)->startOfDay());
@@ -245,6 +254,16 @@ class DeliveryController extends Controller
                     ->value('id');
             }
 
+            $product = \App\Models\product::find($item['product_id']);
+
+            if ($product && !$product->initial_date && !$product->is_inventory && $product->product_qty == 0) {
+                $product->update([
+                    'initial_date' => $validated['delivery_date'],
+                    'product_qty'  => $item['quantity_received'],
+                    'is_inventory' => 1,
+                ]);
+            }
+
             \App\Models\DeliveryItem::create([
                 'delivery_id'       => $delivery->id,
                 'product_id'        => $item['product_id'],
@@ -255,7 +274,6 @@ class DeliveryController extends Controller
                 'created_by'        => $request->user()->id,
             ]);
 
-            $product = \App\Models\product::find($item['product_id']);
             if ($product && $product->is_inventory) {
                 $afterInit = !$product->initial_date
                     || Carbon::parse($validated['delivery_date'])->startOfDay()->gte(Carbon::parse($product->initial_date)->startOfDay());
