@@ -75,7 +75,8 @@ const buttonIcon = computed(() => {
 
 <template>
   <Skeleton v-if="skeleton" class="h-9 w-20 rounded-md" />
-  <Button v-else :variant="buttonVariant" :color="buttonColor" :type="type" :disabled="disabled" :loading="loading">
+  <Button v-else :variant="buttonVariant" :color="buttonColor" :type="type" :disabled="disabled || loading"
+    :loading="loading">
     <Loader2 v-if="loading" class="mr-2 h-4 w-4 animate-spin" />
     <component :is="buttonIcon" v-else-if="buttonIcon" class="mr-2 h-4 w-4" />
     {{ loading ? 'Please wait' : buttonText }}

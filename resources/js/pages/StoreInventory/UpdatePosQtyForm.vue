@@ -96,7 +96,7 @@ const handleSubmit = () => {
         emit('handleSubmit', {
             items: posItems.value.map(item => ({
                 product_id: item.product_id,
-                pos_qty: parseFloat((item.quantity * item.multiplier).toFixed(4)),
+                pos_qty: parseFloat(Number(item.quantity).toFixed(4)),
                 pos_selling_price: item.selling_price !== '' ? Number(item.selling_price) : null,
             })),
         });
@@ -146,7 +146,6 @@ onMounted(async () => {
                                         <TableRow>
                                             <TableHead>Product</TableHead>
                                             <TableHead class="text-center w-20">Qty</TableHead>
-                                            <TableHead class="text-center w-20">Multiplier</TableHead>
                                             <TableHead class="text-center w-24">POS Qty</TableHead>
                                             <TableHead class="text-center w-28">Selling Price</TableHead>
                                             <TableHead class="w-8" />
@@ -154,7 +153,7 @@ onMounted(async () => {
                                     </TableHeader>
                                     <TableBody>
                                         <TableRow v-if="posItems.length === 0">
-                                            <TableCell colspan="6" class="text-center text-muted-foreground py-4">
+                                            <TableCell colspan="5" class="text-center text-muted-foreground py-4">
                                                 No items added yet.
                                             </TableCell>
                                         </TableRow>
@@ -166,11 +165,8 @@ onMounted(async () => {
                                                 <Input v-model.number="item.quantity" type="number" min="0.0001"
                                                     step="0.0001" class="w-16 text-center mx-auto" />
                                             </TableCell>
-                                            <TableCell class="text-center text-sm font-medium text-muted-foreground">
-                                                {{ item.multiplier }}
-                                            </TableCell>
                                             <TableCell class="text-center font-medium text-teal-600">
-                                                {{ (item.quantity * item.multiplier).toFixed(4) }}
+                                                {{ Number(item.quantity).toFixed(4) }}
                                             </TableCell>
                                             <TableCell class="text-center">
                                                 <Input v-model.number="item.selling_price" type="number" min="0"

@@ -84,6 +84,8 @@ Route::get('store-inventory', [StoreInventoryController::class, 'index'])->name(
 Route::patch('store-inventory/{product}/pos-qty', [StoreInventoryController::class, 'updatePosQty'])->name('store-inventory.updatePosQty');
 Route::patch('store-inventory/{product}/selling-price', [StoreInventoryController::class, 'posSellingPrice'])->name('store-inventory.sellingPrice');
 Route::get('store-inventory/{product}/history', [StoreInventoryController::class, 'history'])->name('store-inventory.history');
+
+
 Route::get('store-inventory/init-pos-products', [StoreInventoryController::class, 'initPosProducts'])->name('store-inventory.init-pos-products');
 Route::post('store-inventory/bulk-init-pos-qty', [StoreInventoryController::class, 'bulkInitPosQty'])->name('store-inventory.bulk-init-pos-qty');
 

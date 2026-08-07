@@ -122,31 +122,6 @@ class StoreInventoryController extends Controller
         return redirect()->back()->with('success', 'POS quantity updated successfully!');
     }
 
-    public function bulkInitPosQty(Request $request)
-    {
-        $validated = $request->validate([
-            'items'                         => 'required|array|min:1',
-            'items.*.product_id'            => 'required|exists:products,id',
-            'items.*.pos_qty'               => 'required|numeric|min:0',
-            'items.*.pos_selling_price'     => 'nullable|numeric|min:0',
-        ]);
-
-        foreach ($validated['items'] as $item) {
-            $update = [
-                'pos_qty'          => $item['pos_qty'],
-                'initial_pos_qty'  => $item['pos_qty'],
-                'initial_pos_date' => now()->startOfDay(),
-                'updated_by'       => $request->user()->id,
-            ];
-            if (isset($item['pos_selling_price'])) {
-                $update['pos_selling_price'] = $item['pos_selling_price'];
-            }
-            product::findOrFail($item['product_id'])->update($update);
-        }
-
-        return redirect()->back()->with('success', 'POS quantities initialized successfully!');
-    }
-
     public function initPosProducts(Request $request)
     {
         $search = $request->input('search', '');
@@ -167,21 +142,46 @@ class StoreInventoryController extends Controller
         $products = $query->orderBy('productname')->limit(30)->get()->map(function ($product) {
             $parts = [$product->productname];
             if ($product->drugform) $parts[] = $product->drugform->drugformname;
-            if ($product->unit)     $parts[] = $product->unit->unit_name;
+            if ($product->unit)     $parts[] = $product->unit->pos_unit;
             $displayName = implode(' ', $parts);
             if ($product->brand) $displayName .= ' (' . $product->brand->brandname . ')';
 
             return [
-                'value'              => (string) $product->id,
-                'label'              => $displayName,
-                'product_qty'        => $product->product_qty ?? 0,
-                'pos_unit'           => $product->unit?->pos_unit ?? 'pcs',
-                'multiplier'         => $product->unit?->multiplier ?? 1,
-                'pos_selling_price'  => $product->pos_selling_price ?? '',
+                'value'             => (string) $product->id,
+                'label'             => $displayName,
+                'product_qty'       => $product->product_qty ?? 0,
+                'pos_unit'          => $product->unit?->pos_unit ?? 'pcs',
+                'multiplier'        => $product->unit?->multiplier ?? 1,
+                'pos_selling_price' => $product->pos_selling_price ?? '',
             ];
         });
 
         return response()->json(['products' => $products]);
+    }
+
+    public function bulkInitPosQty(Request $request)
+    {
+        $validated = $request->validate([
+            'items'                     => 'required|array|min:1',
+            'items.*.product_id'        => 'required|exists:products,id',
+            'items.*.pos_qty'           => 'required|numeric|min:0',
+            'items.*.pos_selling_price' => 'nullable|numeric|min:0',
+        ]);
+
+        foreach ($validated['items'] as $item) {
+            $update = [
+                'pos_qty'          => $item['pos_qty'],
+                'initial_pos_qty'  => $item['pos_qty'],
+                'initial_pos_date' => now()->startOfDay(),
+                'updated_by'       => $request->user()->id,
+            ];
+            if (isset($item['pos_selling_price'])) {
+                $update['pos_selling_price'] = $item['pos_selling_price'];
+            }
+            product::findOrFail($item['product_id'])->update($update);
+        }
+
+        return redirect()->back()->with('success', 'POS quantities initialized successfully!');
     }
 
     public function posProducts(Request $request)
