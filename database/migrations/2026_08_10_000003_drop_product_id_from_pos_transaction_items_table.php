@@ -9,14 +9,16 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('pos_transaction_items', function (Blueprint $table) {
-            $table->foreign('pos_product_lot_id')->references('id')->on('pos_product_lots')->nullOnDelete();
+            if (Schema::hasColumn('pos_transaction_items', 'product_id')) {
+                $table->dropColumn('product_id');
+            }
         });
     }
 
     public function down(): void
     {
         Schema::table('pos_transaction_items', function (Blueprint $table) {
-            $table->dropForeign(['pos_product_lot_id']);
+            $table->unsignedBigInteger('product_id')->nullable()->after('id');
         });
     }
 };
