@@ -53,7 +53,7 @@ class DeliveryController extends Controller
         return inertia('Deliveries/DeliveryIndex', [
             'deliveries' => $deliveries,
             'columns' => $columns,
-            'suppliers' => supplier::where('status', true)->orderBy('company')->get(['id', 'company']),
+            'suppliers' => supplier::where('status', 'active')->orderBy('company')->get(['id', 'company']),
         ]);
     }
 

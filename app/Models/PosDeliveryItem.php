@@ -4,21 +4,26 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class PosTransactionItem extends Model
+class PosDeliveryItem extends Model
 {
     protected $fillable = [
-        'pos_transaction_id',
+        'pos_delivery_id',
+        'product_id',
         'pos_product_lot_id',
         'quantity',
-        'unit_price',
-        'discount_percentage',
-        'total_price',
+        'cost',
+        'selling_price',
         'created_by',
     ];
 
-    public function posTransaction()
+    public function posDelivery()
     {
-        return $this->belongsTo(PosTransaction::class);
+        return $this->belongsTo(PosDelivery::class);
+    }
+
+    public function product()
+    {
+        return $this->belongsTo(product::class);
     }
 
     public function posProductLot()

@@ -19,11 +19,13 @@ use App\Http\Controllers\StrengthController;
 use App\Http\Controllers\DrugFormController;
 use App\Http\Controllers\StoreInventoryController;
 use App\Http\Controllers\TransferStockController;
+use App\Http\Controllers\PosDeliveryController;
 use App\Http\Controllers\PosController;
 use App\Http\Controllers\PosDashboardController;
 use App\Http\Controllers\ExpirationController;
 use App\Http\Controllers\SalesAgentController;
 use App\Http\Controllers\CarryItemController;
+use App\Http\Controllers\UserController;
 use App\Http\Controllers\PaymentController;
 
 Route::get('/login', function () {
@@ -67,6 +69,8 @@ Route::resource('drugforms', DrugFormController::class);
 Route::resource('product-units', ProductUnitController::class);
 Route::resource('product-types', ProductTypeController::class);
 Route::resource('products', ProductController::class);
+Route::get('pos-items', [ProductController::class, 'posItems'])->name('pos-items.index');
+Route::post('pos-items', [ProductController::class, 'storePosItem'])->name('pos-items.store');
 Route::patch('products/{product}/initial-inventory', [ProductController::class, 'initialInventory'])->name('products.initialInventory');
 Route::patch('products/{product}/reorder-level', [ProductController::class, 'reorderLevel'])->name('products.reorderLevel');
 Route::get('products/{product}/history', [ProductController::class, 'history'])->name('products.history');
@@ -92,15 +96,25 @@ Route::post('store-inventory/bulk-init-pos-qty', [StoreInventoryController::clas
 Route::get('expirations', [ExpirationController::class, 'index'])->name('expirations.index');
 
 Route::get('products/{product}/multiplier', [ProductController::class, 'multiplier'])->name('products.multiplier');
+Route::get('products/{product}/lots', [ProductController::class, 'productLots'])->name('products.lots');
 Route::resource('transfer-stocks', TransferStockController::class)->only(['index', 'store', 'show', 'destroy']);
+Route::resource('pos-deliveries', PosDeliveryController::class)->only(['index', 'store', 'show', 'destroy']);
 
 Route::get('pos-products', [StoreInventoryController::class, 'posProducts'])->name('pos-products.index');
+Route::get('pos-products/{product}/lots', [StoreInventoryController::class, 'posProductLots'])->name('pos-products.lots.index');
+Route::post('pos-products/{product}/lots', [StoreInventoryController::class, 'storePosProductLot'])->name('pos-products.lots.store');
+Route::patch('pos-products/{product}/lots/{lot}', [StoreInventoryController::class, 'updatePosProductLot'])->name('pos-products.lots.update');
+Route::delete('pos-products/{product}/lots/{lot}', [StoreInventoryController::class, 'destroyPosProductLot'])->name('pos-products.lots.destroy');
 Route::get('pos-dashboard', [PosDashboardController::class, 'index'])->name('pos-dashboard.index');
 Route::resource('pos', PosController::class)->only(['index', 'store', 'show', 'destroy']);
 
 Route::resource('sales-agents', SalesAgentController::class)->only(['index', 'store', 'update', 'destroy']);
 Route::resource('carry-items', CarryItemController::class)->only(['index', 'store', 'show', 'destroy']);
 Route::patch('carry-item-details/{detail}/return', [CarryItemController::class, 'returnDetail'])->name('carry-item-details.return');
+
+Route::resource('users', UserController::class)
+    ->only(['index', 'store', 'update', 'destroy'])
+    ->middleware('admin');
 
 Route::get('payments', [PaymentController::class, 'index'])->name('payments.index');
 

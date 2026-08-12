@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\TransferStock;
 use App\Models\TransferStockItem;
+use App\Models\ProductLot;
+use App\Models\PosProductLot;
 use App\Models\product;
 use Illuminate\Http\Request;
 
@@ -48,6 +50,7 @@ class TransferStockController extends Controller
             'notes'                  => 'nullable|string|max:500',
             'items'                  => 'required|array|min:1',
             'items.*.product_id'     => 'required|exists:products,id',
+            'items.*.lot_id'         => 'required|exists:product_lots,id',
             'items.*.quantity'       => 'required|numeric|min:0.0001',
             'items.*.multiplier'     => 'required|numeric|min:0',
         ]);
@@ -62,6 +65,7 @@ class TransferStockController extends Controller
             TransferStockItem::create([
                 'transfer_stock_id' => $transfer->id,
                 'product_id'        => $item['product_id'],
+                'lot_id'            => $item['lot_id'],
                 'quantity'          => $item['quantity'],
                 'multiplier'        => $item['multiplier'],
                 'created_by'        => $request->user()->id,
@@ -69,11 +73,38 @@ class TransferStockController extends Controller
 
             $product = product::find($item['product_id']);
             if ($product) {
-                // Subtract from warehouse product_qty
+                $posQtyAdded = $item['quantity'] * $item['multiplier'];
                 $product->decrement('product_qty', $item['quantity']);
+                $product->increment('pos_qty', $posQtyAdded);
 
-                // Add to pos_qty using multiplier
-                $product->increment('pos_qty', $item['quantity'] * $item['multiplier']);
+                // First time product enters POS — record the initial snapshot
+                if (!$product->initial_pos_date) {
+                    $product->update([
+                        'initial_pos_date' => now()->startOfDay(),
+                        'initial_pos_qty'  => $posQtyAdded,
+                    ]);
+                }
+            }
+
+            $warehouseLot = ProductLot::where('id', $item['lot_id'])
+                ->where('product_id', $item['product_id'])
+                ->first();
+
+            if ($warehouseLot) {
+                $warehouseLot->decrement('quantity', $item['quantity']);
+
+                $posLot = PosProductLot::firstOrNew([
+                    'product_id' => $item['product_id'],
+                    'lot_number' => $warehouseLot->lot_number,
+                ]);
+                if (!$posLot->exists) {
+                    $posLot->expiration_date = $warehouseLot->expiration_date;
+                    $posLot->quantity        = 0;
+                    $posLot->cost            = 0;
+                }
+                $posLot->quantity  += $item['quantity'] * $item['multiplier'];
+                $posLot->updated_by = $request->user()->id;
+                $posLot->save();
             }
         }
 
@@ -82,7 +113,7 @@ class TransferStockController extends Controller
 
     public function show(string $id)
     {
-        $transfer = TransferStock::with(['items.product.brand', 'items.product.unit', 'items.product.drugform'])->findOrFail($id);
+        $transfer = TransferStock::with(['items.product.brand', 'items.product.unit', 'items.product.drugform', 'items.productLot'])->findOrFail($id);
 
         return response()->json([
             'transfer' => $transfer,
@@ -95,11 +126,12 @@ class TransferStockController extends Controller
                 if ($product?->brand)    $displayName .= ' (' . $product->brand->brandname . ')';
 
                 return [
-                    'id'         => $item->id,
-                    'product_id' => (string) $item->product_id,
-                    'product_name' => $displayName ?: ('Product #' . $item->product_id),
-                    'quantity'   => $item->quantity,
-                    'multiplier' => $item->multiplier,
+                    'id'            => $item->id,
+                    'product_id'    => (string) $item->product_id,
+                    'product_name'  => $displayName ?: ('Product #' . $item->product_id),
+                    'lot_number'    => $item->productLot?->lot_number ?? null,
+                    'quantity'      => $item->quantity,
+                    'multiplier'    => $item->multiplier,
                     'pos_qty_added' => $item->quantity * $item->multiplier,
                 ];
             }),
@@ -111,10 +143,24 @@ class TransferStockController extends Controller
         $transfer = TransferStock::with('items')->findOrFail($id);
 
         foreach ($transfer->items as $item) {
-            $product = \App\Models\product::find($item->product_id);
+            $product = product::find($item->product_id);
             if ($product) {
                 $product->increment('product_qty', $item->quantity);
                 $product->decrement('pos_qty', $item->quantity * $item->multiplier);
+            }
+
+            if ($item->lot_id) {
+                $warehouseLot = ProductLot::find($item->lot_id);
+                if ($warehouseLot) {
+                    $warehouseLot->increment('quantity', $item->quantity);
+
+                    $posLot = PosProductLot::where('product_id', $item->product_id)
+                        ->where('lot_number', $warehouseLot->lot_number)
+                        ->first();
+                    if ($posLot) {
+                        $posLot->decrement('quantity', $item->quantity * $item->multiplier);
+                    }
+                }
             }
         }
 

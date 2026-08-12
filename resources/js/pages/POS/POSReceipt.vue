@@ -47,9 +47,13 @@ const printReceipt = () => {
         ${props.receipt.items.map(item => {
         const disc = Number(item.discount_percentage) || 0;
         const total = Number(item.quantity) * Number(item.unit_price) * (1 - disc / 100);
+        const lotLine = (item.lot_number || item.expiration_date)
+            ? `<div style="padding-left:8px; font-size:10px; color:#555;">Lot: ${item.lot_number ?? '—'} | Exp: ${item.expiration_date ?? '—'}</div>`
+            : '';
         return `
             <div style="margin-bottom:4px;">
-                <div class="item-name">${item.product_name}</div>
+                <div class="item-name">${item.product_name ?? '—'}</div>
+                ${lotLine}
                 <div class="row" style="padding-left:8px;">
                     <span>${item.quantity} x ${fmt(item.unit_price)}${disc ? ` (-${disc}%)` : ''}</span>
                     <span class="amount">${fmt(total)}</span>
@@ -94,10 +98,12 @@ const printReceipt = () => {
                             class="text-muted-foreground">Notes:</span><span>{{ receipt.notes }}</span></div>
                     <hr class="border-dashed my-2" />
                     <div v-for="(item, i) in receipt.items" :key="i" class="mb-1">
-                        <p class="font-medium break-words">{{ item.product_name }}</p>
+                        <p class="font-medium break-words">{{ item.product_name ?? '—' }}</p>
+                        <p v-if="item.lot_number || item.expiration_date" class="pl-2 text-muted-foreground" style="font-size:10px;">
+                            Lot: {{ item.lot_number ?? '—' }} | Exp: {{ item.expiration_date ?? '—' }}
+                        </p>
                         <div class="flex justify-between pl-2 text-muted-foreground">
-                            <span>{{ item.quantity }} × {{ fmt(item.unit_price) }}{{ item.discount_percentage ? `
-                                (-${item.discount_percentage}%)` : '' }}</span>
+                            <span>{{ item.quantity }} × {{ fmt(item.unit_price) }}{{ item.discount_percentage ? ` (-${item.discount_percentage}%)` : '' }}</span>
                             <span class="font-medium text-foreground">{{ fmt(lineTotal(item)) }}</span>
                         </div>
                     </div>

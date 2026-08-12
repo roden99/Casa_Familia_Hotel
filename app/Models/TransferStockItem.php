@@ -9,6 +9,7 @@ class TransferStockItem extends Model
     protected $fillable = [
         'transfer_stock_id',
         'product_id',
+        'lot_id',
         'quantity',
         'multiplier',
         'created_by',
@@ -22,5 +23,10 @@ class TransferStockItem extends Model
     public function product()
     {
         return $this->belongsTo(product::class);
+    }
+
+    public function productLot()
+    {
+        return $this->belongsTo(\App\Models\ProductLot::class, 'lot_id');
     }
 }

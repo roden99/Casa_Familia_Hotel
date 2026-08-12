@@ -74,6 +74,8 @@ const formatAmount = (value) =>
                     <TableHeader>
                         <TableRow>
                             <TableHead>Product</TableHead>
+                            <TableHead class="text-center w-28">Lot #</TableHead>
+                            <TableHead class="text-center w-24">Expiry</TableHead>
                             <TableHead class="text-center w-20">Qty</TableHead>
                             <TableHead class="text-center w-28">Unit Price</TableHead>
                             <TableHead class="text-center w-20">Disc %</TableHead>
@@ -82,10 +84,12 @@ const formatAmount = (value) =>
                     </TableHeader>
                     <TableBody>
                         <TableRow v-if="items.length === 0">
-                            <TableCell colspan="5" class="text-center text-muted-foreground py-4">No items.</TableCell>
+                            <TableCell colspan="7" class="text-center text-muted-foreground py-4">No items.</TableCell>
                         </TableRow>
                         <TableRow v-for="item in items" :key="item.id">
                             <TableCell class="whitespace-normal break-words">{{ item.product_name }}</TableCell>
+                            <TableCell class="text-center font-mono text-sm">{{ item.lot_number ?? '—' }}</TableCell>
+                            <TableCell class="text-center text-sm">{{ item.expiration_date ?? '—' }}</TableCell>
                             <TableCell class="text-center font-mono">{{ item.quantity }}</TableCell>
                             <TableCell class="text-center font-mono">{{ formatAmount(item.unit_price) }}</TableCell>
                             <TableCell class="text-center font-mono">{{ item.discount_percentage }}</TableCell>

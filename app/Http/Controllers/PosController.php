@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\PosTransaction;
 use App\Models\PosTransactionItem;
-use App\Models\product;
+use App\Models\PosProductLot;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 
@@ -69,7 +69,7 @@ class PosController extends Controller
             'payment_method'                   => 'required|string|max:50',
             'notes'                            => 'nullable|string|max:1000',
             'items'                            => 'required|array|min:1',
-            'items.*.product_id'               => 'required|exists:products,id',
+            'items.*.lot_id'                   => 'required|exists:pos_product_lots,id',
             'items.*.quantity'                 => 'required|numeric|min:0.0001',
             'items.*.unit_price'               => 'required|numeric|min:0',
             'items.*.discount_percentage'      => 'nullable|numeric|min:0|max:100',
@@ -90,7 +90,7 @@ class PosController extends Controller
 
             PosTransactionItem::create([
                 'pos_transaction_id'  => $transaction->id,
-                'product_id'          => $item['product_id'],
+                'pos_product_lot_id'  => $item['lot_id'],
                 'quantity'            => $item['quantity'],
                 'unit_price'          => $item['unit_price'],
                 'discount_percentage' => $disc,
@@ -98,9 +98,10 @@ class PosController extends Controller
                 'created_by'          => $request->user()->id,
             ]);
 
-            $product = product::find($item['product_id']);
-            if ($product) {
-                $product->decrement('pos_qty', $item['quantity']);
+            $posLot = PosProductLot::with('product')->find($item['lot_id']);
+            if ($posLot) {
+                $posLot->decrement('quantity', $item['quantity']);
+                $posLot->product?->decrement('pos_qty', $item['quantity']);
             }
         }
 
@@ -111,7 +112,7 @@ class PosController extends Controller
 
     public function show(string $id)
     {
-        $transaction = PosTransaction::with(['items.product.unit', 'items.product.brand', 'items.product.drugform', 'customer'])
+        $transaction = PosTransaction::with(['items.posProductLot.product.unit', 'items.posProductLot.product.brand', 'items.posProductLot.product.drugform', 'customer'])
             ->findOrFail($id);
 
         $customerName = '—';
@@ -135,7 +136,8 @@ class PosController extends Controller
                 'total_amount'   => number_format($totalAmount, 2),
             ],
             'items' => $transaction->items->map(function ($item) {
-                $product = $item->product;
+                $lot     = $item->posProductLot;
+                $product = $lot?->product;
                 $parts   = [$product?->productname];
                 if ($product?->drugform) $parts[] = $product->drugform->drugformname;
                 if ($product?->unit)     $parts[] = strtolower($product->unit->pos_unit) . ' (pcs)';
@@ -144,11 +146,13 @@ class PosController extends Controller
 
                 return [
                     'id'                  => $item->id,
-                    'product_name'        => $displayName ?: ('Product #' . $item->product_id),
+                    'product_name'        => $displayName ?: ('Lot #' . $item->pos_product_lot_id),
                     'quantity'            => $item->quantity,
                     'unit_price'          => $item->unit_price,
                     'discount_percentage' => $item->discount_percentage,
                     'total_price'         => $item->total_price,
+                    'lot_number'          => $lot?->lot_number,
+                    'expiration_date'     => $lot ? Carbon::parse($lot->expiration_date)->format('m-d-Y') : null,
                 ];
             }),
         ]);
@@ -156,13 +160,13 @@ class PosController extends Controller
 
     public function destroy(string $id)
     {
-        $transaction = PosTransaction::with('items')->findOrFail($id);
+        $transaction = PosTransaction::with(['items.posProductLot'])->findOrFail($id);
 
-        // Restore pos_qty for each item
+        // Restore pos_product_lot qty and the product's pos_qty through the lot
         foreach ($transaction->items as $item) {
-            $product = product::find($item->product_id);
-            if ($product) {
-                $product->increment('pos_qty', $item->quantity);
+            if ($item->posProductLot) {
+                $item->posProductLot->increment('quantity', $item->quantity);
+                $item->posProductLot->product?->increment('pos_qty', $item->quantity);
             }
         }
 

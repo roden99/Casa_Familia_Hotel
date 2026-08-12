@@ -37,6 +37,8 @@ const computeTotal = (item) => {
                 <TableRow>
                     <TableHead class="text-xs">Item Name</TableHead>
                     <TableHead class="text-xs text-center w-20">POS Qty</TableHead>
+                    <TableHead class="text-xs text-center w-28">Lot #</TableHead>
+                    <TableHead class="text-xs text-center w-24">Expiry</TableHead>
                     <TableHead class="text-xs text-center w-20">Qty</TableHead>
                     <TableHead class="text-xs text-center w-28">Unit Price</TableHead>
                     <TableHead class="text-xs text-center w-20">Disc %</TableHead>
@@ -46,7 +48,7 @@ const computeTotal = (item) => {
             </TableHeader>
             <TableBody>
                 <TableRow v-if="items.length === 0">
-                    <TableCell colspan="7" class="text-xs text-center text-muted-foreground py-4">
+                    <TableCell colspan="9" class="text-xs text-center text-muted-foreground py-4">
                         No items added yet.
                     </TableCell>
                 </TableRow>
@@ -56,6 +58,12 @@ const computeTotal = (item) => {
                     </TableCell>
                     <TableCell class="text-center text-xs text-muted-foreground">
                         {{ item.pos_qty }}
+                    </TableCell>
+                    <TableCell class="text-center text-xs font-mono">
+                        {{ item.lot_number ?? '—' }}
+                    </TableCell>
+                    <TableCell class="text-center text-xs">
+                        {{ item.expiration_date ?? '—' }}
                     </TableCell>
                     <TableCell class="text-center">
                         <Input v-model.number="item.quantity" type="number" min="0.0001" step="0.0001"

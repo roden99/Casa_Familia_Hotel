@@ -70,10 +70,12 @@ const handleSubmit = () => {
             ...form.data(),
             customer_id: form.customer_id ? Number(form.customer_id) : null,
             items: orderItems.value.map(item => ({
-                product_id: Number(item.product_id),
-                product_name: item.product_name,
-                quantity: item.quantity,
-                unit_price: item.unit_price,
+                lot_id:              Number(item.lot_id),
+                product_name:        item.product_name,
+                lot_number:          item.lot_number,
+                expiration_date:     item.expiration_date,
+                quantity:            item.quantity,
+                unit_price:          item.unit_price,
                 discount_percentage: item.discount_percentage ?? 0,
             })),
         });
@@ -118,11 +120,11 @@ const totalAmount = computed(() => {
     return raw.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 });
 
-// Auto-fill selling price when product is selected
+// Auto-fill selling price when a lot/product entry is selected
 watch(selectedProduct, (newVal) => {
     if (!newVal) return;
-    const product = productOptions.value.find(p => p.value === newVal);
-    itemPrice.value = product?.pos_selling_price ?? 0;
+    const entry = productOptions.value.find(p => p.value === newVal);
+    itemPrice.value = entry?.pos_selling_price ?? 0;
 });
 
 const addItem = () => {
@@ -130,13 +132,15 @@ const addItem = () => {
         toast.error('Please select a product.');
         return;
     }
-    const product = productOptions.value.find(p => p.value === selectedProduct.value);
+    const entry = productOptions.value.find(p => p.value === selectedProduct.value);
     orderItems.value.push({
-        product_id: selectedProduct.value,
-        product_name: product?.label ?? selectedProduct.value,
-        pos_qty: product?.pos_qty ?? 0,
-        quantity: Number(itemQuantity.value),
-        unit_price: Number(itemPrice.value),
+        lot_id:              selectedProduct.value,
+        product_name:        entry?.product_name ?? entry?.label ?? selectedProduct.value,
+        lot_number:          entry?.lot_number ?? null,
+        expiration_date:     entry?.expiration_date ?? null,
+        pos_qty:             entry?.pos_qty ?? 0,
+        quantity:            Number(itemQuantity.value),
+        unit_price:          Number(itemPrice.value),
         discount_percentage: Number(itemDiscount.value) || 0,
     });
     selectedProduct.value = null;
@@ -197,11 +201,11 @@ const removeItem = (index) => {
                             <FieldGroup :skeleton="isLoading" :skeleton-layout="skeletonLayoutItems"
                                 class="flex flex-col flex-1">
                                 <div class="grid w-full grid-cols-12 gap-3">
-                                    <Field class="col-span-5">
-                                        <FieldLabel class="font-normal">Product / Barcode:</FieldLabel>
+                                    <Field class="col-span-6">
+                                        <FieldLabel class="font-normal">Product / Lot:</FieldLabel>
                                         <BaseCombobox v-model="selectedProduct" :options="productOptions"
                                             empty-message="No products found" width="w-full"
-                                            placeholder="Search by name or code..." @search="loadProducts" />
+                                            placeholder="Search by name, code or lot..." @search="loadProducts" />
                                     </Field>
                                     <Field class="col-span-2">
                                         <FieldLabel class="font-normal">Qty</FieldLabel>
@@ -213,10 +217,10 @@ const removeItem = (index) => {
                                         <Input v-model="itemPrice" type="number" min="0" step="0.01"
                                             placeholder="0.00" />
                                     </Field>
-                                    <Field class="col-span-2">
+                                    <Field class="col-span-1">
                                         <FieldLabel class="font-normal">Disc %</FieldLabel>
                                         <Input v-model="itemDiscount" type="number" min="0" max="100" step="0.01"
-                                            placeholder="0.00" />
+                                            placeholder="0" />
                                     </Field>
                                     <Field class="col-span-1">
                                         <FieldLabel class="invisible">-</FieldLabel>

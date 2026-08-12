@@ -1,4 +1,5 @@
-<script setup>import { Button } from "@/components/ui/button";
+<script setup>
+import { Button } from "@/components/ui/button";
 import AppLayout from "@/layouts/AppLayout.vue";
 import BaseIndex from "@/components/BaseIndex.vue";
 import { ref, computed } from "vue";
@@ -9,7 +10,7 @@ import { Pill, Tag } from "lucide-vue-next";
 import CreateProduct from "@/pages/Products/CreateProduct.vue";
 import DeleteProduct from "@/pages/Products/DeleteProduct.vue";
 import UpdatePosQty from "@/pages/StoreInventory/UpdatePosQty.vue";
-import SellingPrice from "@/pages/StoreInventory/SellingPrice.vue";
+import PosProductLotsView from '@/pages/StoreInventory/PosProductLotsView.vue';
 import StoreProductHistory from "@/pages/StoreInventory/StoreProductHistory.vue";
 
 const breadcrumbs = [
@@ -39,7 +40,7 @@ const transformedColumns = computed(() =>
 const showCreateProductModal = ref(false);
 const showDeleteProductModal = ref(false);
 const showInitialPosQtyModal = ref(false);
-const showSellingPriceModal = ref(false);
+const showLotsModal = ref(false);
 const showHistoryModal = ref(false);
 const selectedProduct = ref(null);
 
@@ -63,8 +64,8 @@ const handleAction = ({ type, data }) => {
             showInitialPosQtyModal.value = true;
             selectedProduct.value = data;
             break;
-        case "selling-price":
-            showSellingPriceModal.value = true;
+        case "viewlots":
+            showLotsModal.value = true;
             selectedProduct.value = data;
             break;
         case "history":
@@ -123,8 +124,7 @@ const handleAction = ({ type, data }) => {
 
             <UpdatePosQty v-if="showInitialPosQtyModal" @form-closed="showInitialPosQtyModal = false" />
 
-            <SellingPrice v-if="showSellingPriceModal" :product="selectedProduct"
-                @form-closed="showSellingPriceModal = false" />
+            <PosProductLotsView v-if="showLotsModal" :product="selectedProduct" @form-closed="showLotsModal = false" />
 
             <StoreProductHistory v-if="showHistoryModal" :product="selectedProduct"
                 @form-closed="showHistoryModal = false" />

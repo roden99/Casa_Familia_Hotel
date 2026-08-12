@@ -4,9 +4,13 @@ import NavMain from '@/components/NavMain.vue';
 import NavUser from '@/components/NavUser.vue';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
-import { Link } from '@inertiajs/vue3';
-import { BookOpen, Warehouse, Folder, Settings2Icon, UserRoundCogIcon, Store, UsersRoundIcon, NotebookText, ShoppingCartIcon, BaggageClaim, LayoutGrid, LucideNotebookText, ScanBarcode, Package, UserCheck, UserRoundSearch, UsersRound, ShoppingCart, UserRoundCog, Settings2, Truck, ClipboardList, Ruler, Zap, Pill, Notebook, BriefcaseMedical, CalendarClock, BarChart2, CreditCard } from 'lucide-vue-next';
+import { Link, usePage } from '@inertiajs/vue3';
+import { BookOpen, Warehouse, Folder, Settings2Icon, UserRoundCogIcon, Store, UsersRoundIcon, NotebookText, ShoppingCartIcon, BaggageClaim, LayoutGrid, LucideNotebookText, ScanBarcode, Package, UserCheck, UserRoundSearch, UsersRound, ShoppingCart, UserRoundCog, Settings2, Truck, ClipboardList, Ruler, Zap, Pill, Notebook, BriefcaseMedical, CalendarClock, BarChart2, CreditCard, Tag } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
+import { computed } from 'vue';
+
+const page = usePage();
+const isAdmin = computed(() => page.props.auth?.user?.role === 'admin');
 
 const mainNavItems: NavItem[] = [
   {
@@ -41,6 +45,18 @@ const mainNavItems: NavItem[] = [
         title: 'POS Transactions',
         href: '/pos',
         icon: ShoppingCart,
+      },
+
+      {
+        title: 'POS Deliveries',
+        href: '/pos-deliveries',
+        icon: Truck,
+      },
+
+      {
+        title: 'POS Items',
+        href: '/pos-items',
+        icon: Tag,
       },
 
       //   {
@@ -175,13 +191,20 @@ const mainNavItems: NavItem[] = [
       },
       {
         title: 'User Management',
-        href: '/under-construction',
+        href: '/users',
         icon: UserRoundCog,
       },
     ],
   },
 
 ];
+
+// POS users only see Dashboard and the Point of Sale section
+const visibleNavItems = computed(() =>
+  isAdmin.value ? mainNavItems : mainNavItems.filter(item =>
+    item.href === '/dashboard' || item.title === 'Point of Sale'
+  )
+);
 </script>
 
 <template>
@@ -199,7 +222,7 @@ const mainNavItems: NavItem[] = [
     </SidebarHeader>
 
     <SidebarContent>
-      <NavMain :items="mainNavItems" />
+      <NavMain :items="visibleNavItems" />
     </SidebarContent>
 
     <SidebarFooter>

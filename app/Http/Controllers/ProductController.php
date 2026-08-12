@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\product;
 use App\Models\brand;
 use App\Models\ProductUnit;
+use App\Models\ProductLot;
 use App\Models\strength;
 use App\Models\drugform;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class ProductController extends Controller
@@ -173,6 +175,86 @@ class ProductController extends Controller
         return redirect()->route('products.index')->with('success', 'Product created successfully!');
     }
 
+    public function posItems(Request $request)
+    {
+        $search = $request->input('search');
+        $column = $request->input('column');
+
+        $query = product::with(['brand', 'unit', 'drugform', 'productType'])
+            ->where('status', true)
+            ->where('is_inventory', false);
+
+        if (!empty($search) && !empty($column)) {
+            if ($column === 'brand_name') {
+                $query->whereHas('brand', fn($q) => $q->where('brandname', 'like', "%{$search}%"));
+            } elseif ($column === 'type_name') {
+                $query->whereHas('productType', fn($q) => $q->where('type_name', 'like', "%{$search}%"));
+            } else {
+                $query->where($column, 'like', "%{$search}%");
+            }
+        }
+
+        $products = $query->orderBy('productname')->paginate(15)->through(function ($p) {
+            $parts = [$p->productname];
+            if ($p->drugform) $parts[] = $p->drugform->drugformname;
+            if ($p->unit)     $parts[] = strtolower($p->unit->pos_unit) . ' (pcs)';
+            $displayName = implode(' ', $parts);
+            if ($p->brand) $displayName .= ' (' . $p->brand->brandname . ')';
+
+            $p->display_name  = $displayName;
+            $p->brand_name    = $p->brand?->brandname ?? 'N/A';
+            $p->type_name     = $p->productType?->type_name ?? 'N/A';
+            $p->generic_text  = $p->isgeneric ? 'Generic' : 'Branded';
+            return $p;
+        });
+
+        $columns = [
+            ['accessorKey' => 'id',           'header' => 'ID',           'isVisible' => false, 'isParameter' => false],
+            ['accessorKey' => 'generic_text', 'header' => 'TYPE',         'isVisible' => true,  'isParameter' => false],
+            ['accessorKey' => 'type_name',    'header' => 'CATEGORY',     'isVisible' => true,  'isParameter' => true],
+            ['accessorKey' => 'display_name', 'header' => 'PRODUCT NAME', 'isVisible' => true,  'isParameter' => false],
+            ['accessorKey' => 'productname',  'header' => 'PRODUCT NAME', 'isVisible' => false, 'isParameter' => true],
+            ['accessorKey' => 'brand_name',   'header' => 'BRAND',        'isVisible' => false, 'isParameter' => true],
+            ['accessorKey' => 'created_at',   'header' => 'CREATED AT',   'isVisible' => false, 'isParameter' => false],
+        ];
+
+        return inertia('PosItems/PosItemsIndex', [
+            'products' => $products,
+            'columns'  => $columns,
+        ]);
+    }
+
+    // Creates a POS-only product; excluded from main inventory via is_inventory=0
+    public function storePosItem(Request $request)
+    {
+        $validated = $request->validate([
+            'productname'     => 'required|string|max:255',
+            'brand_id'        => 'nullable|exists:brands,id',
+            'product_unit_id' => 'required|exists:product_units,id',
+            'product_type_id' => 'required|exists:product_types,id',
+            'drugform_id'     => 'nullable|exists:drugforms,id',
+            'isgeneric'       => 'boolean',
+        ]);
+
+        $product = product::create([
+            ...$validated,
+            'is_inventory' => false,
+            'created_by'   => $request->user()->id,
+        ]);
+
+        $product->load(['brand', 'unit', 'drugform']);
+
+        $parts = [$product->productname];
+        if ($product->drugform) $parts[] = $product->drugform->drugformname;
+        if ($product->unit)     $parts[] = strtolower($product->unit->pos_unit) . ' (pcs)';
+        $displayName = implode(' ', $parts);
+        if ($product->brand) $displayName .= ' (' . $product->brand->brandname . ')';
+
+        return response()->json([
+            'product' => array_merge($product->toArray(), ['display_name' => $displayName]),
+        ], 201);
+    }
+
     /**
      * Display the specified resource.
      */
@@ -307,6 +389,23 @@ class ProductController extends Controller
         return response()->json([
             'multiplier' => $product->unit?->multiplier ?? 1,
         ]);
+    }
+
+    public function productLots(product $product)
+    {
+        $lots = ProductLot::where('product_id', $product->id)
+            ->where('quantity', '>', 0)
+            ->orderBy('expiration_date')
+            ->get()
+            ->map(fn($lot) => [
+                'value'           => (string) $lot->id,
+                'label'           => $lot->lot_number . ' — exp: ' . Carbon::parse($lot->expiration_date)->format('m/d/Y') . ' (qty: ' . $lot->quantity . ')',
+                'lot_number'      => $lot->lot_number,
+                'expiration_date' => $lot->expiration_date,
+                'available_qty'   => (float) $lot->quantity,
+            ]);
+
+        return response()->json(['lots' => $lots]);
     }
 
     public function history(product $product)

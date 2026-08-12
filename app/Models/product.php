@@ -91,4 +91,9 @@ class product extends Model
     {
         return $this->belongsTo(User::class, 'updated_by');
     }
+
+    public function posProductLots()
+    {
+        return $this->hasMany(PosProductLot::class);
+    }
 }

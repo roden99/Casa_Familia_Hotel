@@ -84,7 +84,8 @@ class PosDashboardController extends Controller
         // ── Top selling products this month ──────────────────────────────
         $topProducts = DB::table('pos_transaction_items as pti')
             ->join('pos_transactions as pt', 'pt.id', '=', 'pti.pos_transaction_id')
-            ->join('products as p', 'p.id', '=', 'pti.product_id')
+            ->join('pos_product_lots as ppl', 'ppl.id', '=', 'pti.pos_product_lot_id')
+            ->join('products as p', 'p.id', '=', 'ppl.product_id')
             ->whereYear('pt.sale_date', $year)
             ->whereMonth('pt.sale_date', $month)
             ->selectRaw('p.productname, SUM(pti.quantity) as total_qty, SUM(pti.total_price) as total_revenue')

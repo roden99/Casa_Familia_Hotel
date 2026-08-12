@@ -67,6 +67,7 @@ const handleSubmit = () => {
             transfer_date: normalizeDate(form.transfer_date),
             items: transferItems.value.map(item => ({
                 product_id: Number(item.product_id),
+                lot_id: Number(item.lot_id),
                 quantity: item.quantity,
                 multiplier: item.multiplier,
             })),
@@ -79,6 +80,8 @@ const handleSubmit = () => {
 // ── Product search ──────────────────────────────────────────
 const productsOptions = ref([]);
 const selectedProduct = ref(null);
+const lotOptions = ref([]);
+const selectedLot = ref(null);
 const itemQuantity = ref(1);
 const transferItems = ref([]);
 
@@ -100,6 +103,20 @@ async function loadProducts(searchQuery = '') {
     }
 }
 
+async function loadLots(productId) {
+    lotOptions.value = [];
+    selectedLot.value = null;
+    if (!productId) return;
+    try {
+        const res = await axios.get(`/products/${productId}/lots`, {
+            headers: { Accept: 'application/json' },
+        });
+        lotOptions.value = res.data.lots ?? [];
+    } catch {
+        toast.error('Failed to load lots.');
+    }
+}
+
 async function fetchMultiplier(productId) {
     if (productMultiplierMap.value[productId] !== undefined) {
         return productMultiplierMap.value[productId];
@@ -116,9 +133,29 @@ async function fetchMultiplier(productId) {
     }
 }
 
+watch(selectedProduct, (newVal) => {
+    loadLots(newVal);
+});
+
+const selectedLotData = computed(() => lotOptions.value.find(l => l.value === selectedLot.value) ?? null);
+
 const addItem = async () => {
     if (!selectedProduct.value) {
         toast.error('Please select a product.');
+        return;
+    }
+    if (!selectedLot.value) {
+        toast.error('Please select a lot number.');
+        return;
+    }
+    const lot = selectedLotData.value;
+    if (!lot) { toast.error('Invalid lot selected.'); return; }
+    if (Number(itemQuantity.value) <= 0) {
+        toast.error('Quantity must be greater than 0.');
+        return;
+    }
+    if (Number(itemQuantity.value) > lot.available_qty) {
+        toast.error(`Quantity cannot exceed available lot qty (${lot.available_qty}).`);
         return;
     }
     const product = productsOptions.value.find(p => p.value === selectedProduct.value);
@@ -127,11 +164,15 @@ const addItem = async () => {
     transferItems.value.push({
         product_id: selectedProduct.value,
         product_name: product?.label ?? selectedProduct.value,
+        lot_id: lot.value,
+        lot_number: lot.lot_number,
         quantity: Number(itemQuantity.value),
         multiplier: Number(multiplier),
     });
 
     selectedProduct.value = null;
+    selectedLot.value = null;
+    lotOptions.value = [];
     itemQuantity.value = 1;
 };
 
@@ -181,18 +222,31 @@ onMounted(async () => {
                             <FieldGroup :skeleton="isLoading" :skeleton-layout="skeletonLayoutItems"
                                 class="flex flex-col flex-1">
                                 <div class="grid w-full grid-cols-12 gap-3">
-                                    <Field class="col-span-7">
+                                    <Field class="col-span-5">
                                         <FieldLabel class="font-normal">Select Product:</FieldLabel>
                                         <BaseCombobox v-model="selectedProduct" :options="productsOptions"
                                             empty-message="No products found" width="w-full" @search="loadProducts"
                                             placeholder="Search product..." />
                                     </Field>
-                                    <Field class="col-span-3">
-                                        <FieldLabel class="font-normal">Qty</FieldLabel>
-                                        <Input v-model="itemQuantity" type="number" min="0.0001" step="0.0001"
-                                            placeholder="1" />
+                                    <Field class="col-span-4">
+                                        <FieldLabel class="font-normal">Lot Number: <span
+                                                class="text-destructive">*</span></FieldLabel>
+                                        <BaseCombobox v-model="selectedLot" :options="lotOptions"
+                                            :disabled="!selectedProduct || lotOptions.length === 0"
+                                            empty-message="No lots available" width="w-full"
+                                            placeholder="Select lot..." />
                                     </Field>
                                     <Field class="col-span-2">
+                                        <FieldLabel class="font-normal">
+                                            Qty
+                                            <span v-if="selectedLotData"
+                                                class="text-xs text-muted-foreground ml-1">(max: {{
+                                                selectedLotData.available_qty }})</span>
+                                        </FieldLabel>
+                                        <Input v-model="itemQuantity" type="number" min="0.0001"
+                                            :max="selectedLotData?.available_qty" step="0.0001" placeholder="1" />
+                                    </Field>
+                                    <Field class="col-span-1">
                                         <FieldLabel class="invisible">-</FieldLabel>
                                         <BaseButton type="button" @click="addItem" :transactionType="'add'"
                                             :disabled="isBusy" :skeleton="isLoading" />
