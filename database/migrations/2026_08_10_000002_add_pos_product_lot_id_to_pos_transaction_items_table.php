@@ -9,11 +9,13 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('pos_transaction_items', function (Blueprint $table) {
-            $table->foreignId('pos_product_lot_id')
-                ->nullable()
-                ->after('product_id')
-                ->constrained('pos_product_lots')
-                ->nullOnDelete();
+            if (!Schema::hasColumn('pos_transaction_items', 'pos_product_lot_id')) {
+                $table->foreignId('pos_product_lot_id')
+                    ->nullable()
+                    ->after('product_id')
+                    ->constrained('pos_product_lots')
+                    ->nullOnDelete();
+            }
         });
     }
 
