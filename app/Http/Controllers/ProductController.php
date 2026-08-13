@@ -403,6 +403,7 @@ class ProductController extends Controller
                 'lot_number'      => $lot->lot_number,
                 'expiration_date' => $lot->expiration_date,
                 'available_qty'   => (float) $lot->quantity,
+                'quantity'        => (float) $lot->quantity,
             ]);
 
         return response()->json(['lots' => $lots]);

@@ -12,7 +12,6 @@ class RestrictPosUser
         'pos',
         'store-inventory',
         'transfer-stocks',
-        'dashboard',
         'login',
         'logout',
         'settings',

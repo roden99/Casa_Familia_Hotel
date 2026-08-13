@@ -199,10 +199,10 @@ const mainNavItems: NavItem[] = [
 
 ];
 
-// POS users only see Dashboard and the Point of Sale section
+// POS users only see the Point of Sale section
 const visibleNavItems = computed(() =>
   isAdmin.value ? mainNavItems : mainNavItems.filter(item =>
-    item.href === '/dashboard' || item.title === 'Point of Sale'
+    item.title === 'Point of Sale'
   )
 );
 </script>

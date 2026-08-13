@@ -75,7 +75,7 @@ Route::patch('products/{product}/initial-inventory', [ProductController::class, 
 Route::patch('products/{product}/reorder-level', [ProductController::class, 'reorderLevel'])->name('products.reorderLevel');
 Route::get('products/{product}/history', [ProductController::class, 'history'])->name('products.history');
 Route::post('products/{product}/lots', [ProductController::class, 'storeLot'])->name('products.lots.store');
-Route::get('products/{product}/lots', [ProductController::class, 'getLots'])->name('products.lots.index');
+Route::get('products/{product}/lots/all', [ProductController::class, 'getLots'])->name('products.lots.index');
 Route::delete('products/{product}/lots/{lot}', [ProductController::class, 'destroyLot'])->name('products.lots.destroy');
 Route::resource('warehouses', WarehouseController::class);
 Route::resource('warehouse-items', WarehouseItemController::class);

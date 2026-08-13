@@ -30,7 +30,7 @@ const showDeleteDialog = ref(false);
 
 const loadLots = async () => {
     try {
-        const res = await axios.get(`/products/${props.product.id}/lots`, {
+        const res = await axios.get(`/products/${props.product.id}/lots/all`, {
             headers: { Accept: 'application/json' },
         });
         lots.value = res.data.lots ?? [];
@@ -109,7 +109,7 @@ const submitLot = () => {
 };
 
 const fmt = (val) =>
-    Number(val).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    Number(val ?? 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
 onMounted(loadLots);
 </script>
