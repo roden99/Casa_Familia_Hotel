@@ -4,7 +4,11 @@ import { router } from '@inertiajs/vue3'
 import { ref } from 'vue'
 import { toast } from 'vue-sonner'
 
-const emit = defineEmits(['form-closed']);
+const props = defineProps({
+    isPosModule: { type: Boolean, default: false },
+});
+
+const emit = defineEmits(['form-closed', 'member-form-closed']);
 const isProcessing = ref(false);
 
 
@@ -40,7 +44,7 @@ const handleSubmit = (formData) => {
 
     <div>
         <SupplierForm @handleSubmit="handleSubmit" @form-closed="emit('form-closed')" :is-processing="isProcessing"
-            :card-title="'New Supplier'" :transaction-type="'create'" />
+            :card-title="'New Supplier'" :transaction-type="'create'" :is-pos-module="props.isPosModule" />
     </div>
 
 </template>

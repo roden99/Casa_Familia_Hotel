@@ -66,7 +66,7 @@ const computeTotal = (item) => {
                         {{ item.expiration_date ?? '—' }}
                     </TableCell>
                     <TableCell class="text-center">
-                        <Input v-model.number="item.quantity" type="number" min="0.0001" step="0.0001"
+                        <Input v-model.number="item.quantity" type="number" min="1" step="1"
                             class="w-20 text-xs text-center mx-auto" />
                     </TableCell>
                     <TableCell class="text-center">

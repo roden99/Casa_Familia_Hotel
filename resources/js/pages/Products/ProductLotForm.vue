@@ -116,7 +116,7 @@ onMounted(() => {
 
                             <Field class="col-span-6">
                                 <FieldLabel class="font-normal">Quantity:</FieldLabel>
-                                <Input v-model.number="form.quantity" type="number" min="0" step="any"
+                                <Input v-model.number="form.quantity" type="number" min="0" step="1"
                                     placeholder="0" />
                                 <p v-if="form.errors.quantity" class="text-xs text-destructive mt-1">{{
                                     form.errors.quantity }}</p>

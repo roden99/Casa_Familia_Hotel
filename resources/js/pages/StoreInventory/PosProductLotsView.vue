@@ -242,8 +242,8 @@ onMounted(loadLots);
                                                 class="text-xs text-muted-foreground ml-1">(max: {{ product.pos_qty
                                                 }})</span>
                                         </FieldLabel>
-                                        <Input v-model.number="form.quantity" type="number" min="0.0001"
-                                            :max="product.pos_qty" step="any" placeholder="0" />
+                                        <Input v-model.number="form.quantity" type="number" min="1"
+                                            :max="product.pos_qty" step="1" placeholder="0" />
                                     </Field>
                                     <Field class="col-span-12">
                                         <FieldLabel class="font-normal">Selling Price:</FieldLabel>

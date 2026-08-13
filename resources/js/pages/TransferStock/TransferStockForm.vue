@@ -243,8 +243,8 @@ onMounted(async () => {
                                                 class="text-xs text-muted-foreground ml-1">(max: {{
                                                 selectedLotData.available_qty }})</span>
                                         </FieldLabel>
-                                        <Input v-model="itemQuantity" type="number" min="0.0001"
-                                            :max="selectedLotData?.available_qty" step="0.0001" placeholder="1" />
+                                        <Input v-model="itemQuantity" type="number" min="1"
+                                            :max="selectedLotData?.available_qty" step="1" placeholder="1" />
                                     </Field>
                                     <Field class="col-span-1">
                                         <FieldLabel class="invisible">-</FieldLabel>

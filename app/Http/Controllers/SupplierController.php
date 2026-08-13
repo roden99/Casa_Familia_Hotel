@@ -17,9 +17,14 @@ class SupplierController extends Controller
 
 
         if (request()->wantsJson()) {
-            $search = $request->input('search');
+            $search   = $request->input('search');
+            $posOnly  = $request->boolean('pos_only');
 
             $query = supplier::where('status', 'active');
+
+            if ($posOnly) {
+                $query->where('is_pos_supplier', true);
+            }
 
             if (!empty($search)) {
                 $query->where('company', 'like', "{$search}%");
@@ -60,23 +65,47 @@ class SupplierController extends Controller
             ['accessorKey' => 'full_name', 'header' => 'REPRESENTATIVE', 'isVisible' => true, 'isParameter' => false],
             ['accessorKey' => 'contact_email', 'header' => 'EMAIL', 'false' => true, 'isParameter' => false],
             ['accessorKey' => 'contact_phone', 'header' => 'CONTACT #', 'isVisible' => true, 'isParameter' => true],
-
-
-            // ['accessorKey' => 'id', 'header' => 'ID', 'isVisible' => false, 'isParameter' => false],
-            // ['accessorKey' => 'pin', 'header' => 'PHILHEALTH NO.', 'isVisible' => true, 'isParameter' => f],
-            // ['accessorKey' => 'full_name', 'header' => 'MEMBER NAME', 'isVisible' => true, 'isParameter' => false],
-            // ['accessorKey' => 'last_name', 'header' => 'LAST NAME', 'isVisible' => false, 'isParameter' => true],
-            // ['accessorKey' => 'first_name', 'header' => 'FIRST NAME', 'isVisible' => false, 'isParameter' => true],
-            // ['accessorKey' => 'middle_name', 'header' => 'MIDDLE NAME', 'isVisible' => false, 'isParameter' => false],
-            // ['accessorKey' => 'suffix', 'header' => 'SUFFIX', 'isVisible' => false, 'isParameter' => false],
-            // ['accessorKey' => 'birth_date', 'header' => 'BIRTH DATE', 'isVisible' => true, 'isParameter' => false],
-            // ['accessorKey' => 'sex', 'header' => 'SEX', 'isVisible' => true, 'isParameter' => false],
+            ['accessorKey' => 'is_pos_supplier', 'header' => 'TAG', 'isVisible' => true, 'isParameter' => false],
         ];
 
 
         return inertia('Suppliers/SupplierIndex', [
             'suppliers' => $suppliers,
             'columns' => $columns
+        ]);
+    }
+
+    public function posIndex(Request $request)
+    {
+        $search = $request->input('search');
+        $column = $request->input('column');
+
+        $query = supplier::where('status', 'active')->where('is_pos_supplier', true);
+
+        if (!empty($search) && strlen($search) >= 3 && !empty($column)) {
+            $query->where($column, 'like', "{$search}%");
+        }
+
+        $suppliers = $query->orderBy('company')->paginate(15)->through(function ($supplier) {
+            $supplier->full_name = trim(
+                strtoupper($supplier->lastname) . ', ' .
+                    strtoupper($supplier->firstname) . ' ' .
+                    strtoupper($supplier->middlename)
+            );
+            return $supplier;
+        });
+
+        $columns = [
+            ['accessorKey' => 'id',            'header' => 'ID',             'isVisible' => false, 'isParameter' => false],
+            ['accessorKey' => 'company',       'header' => 'COMPANY',        'isVisible' => true,  'isParameter' => true],
+            ['accessorKey' => 'tin',           'header' => 'TIN',            'isVisible' => true,  'isParameter' => true],
+            ['accessorKey' => 'full_name',     'header' => 'REPRESENTATIVE', 'isVisible' => true,  'isParameter' => false],
+            ['accessorKey' => 'contact_phone', 'header' => 'CONTACT #',      'isVisible' => true,  'isParameter' => true],
+        ];
+
+        return inertia('POS/PosSupplierIndex', [
+            'suppliers' => $suppliers,
+            'columns'   => $columns,
         ]);
     }
 
@@ -109,7 +138,7 @@ class SupplierController extends Controller
 
             // Address information
             'address' => 'nullable|string|max:500',
-
+            'is_pos_supplier' => 'boolean',
         ]);
 
         // Add system-generated fields
@@ -162,6 +191,7 @@ class SupplierController extends Controller
 
             // Address information
             'address' => 'nullable|string|max:500',
+            'is_pos_supplier' => 'boolean',
 
 
         ]);

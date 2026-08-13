@@ -9,6 +9,7 @@ import { router, Head } from '@inertiajs/vue3';
 import CreateTransferStock from '@/pages/TransferStock/CreateTransferStock.vue';
 import DeleteTransferStock from '@/pages/TransferStock/DeleteTransferStock.vue';
 import ViewTransferStock from '@/pages/TransferStock/ViewTransferStock.vue';
+import PrintTransferStock from '@/pages/TransferStock/PrintTransferStock.vue';
 
 const breadcrumbs = [
     { title: 'Dashboard', href: '/dashboard' },
@@ -32,7 +33,8 @@ const transformedColumns = computed(() =>
 
 const showCreateModal = ref(false);
 const showDeleteModal = ref(false);
-const showViewModal = ref(false);
+const showViewModal   = ref(false);
+const showPrintModal  = ref(false);
 const selectedTransfer = ref(null);
 
 const handleAction = ({ type, data }) => {
@@ -40,6 +42,10 @@ const handleAction = ({ type, data }) => {
         case 'view':
             selectedTransfer.value = data;
             showViewModal.value = true;
+            break;
+        case 'print':
+            selectedTransfer.value = data;
+            showPrintModal.value = true;
             break;
         case 'delete':
             selectedTransfer.value = data;
@@ -70,6 +76,8 @@ const handleAction = ({ type, data }) => {
                 @form-closed="showDeleteModal = false" />
 
             <ViewTransferStock v-if="showViewModal" :transfer="selectedTransfer" @form-closed="showViewModal = false" />
+
+            <PrintTransferStock v-if="showPrintModal" :transfer="selectedTransfer" @form-closed="showPrintModal = false" />
         </div>
     </AppLayout>
 </template>

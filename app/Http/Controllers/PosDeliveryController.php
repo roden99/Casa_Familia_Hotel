@@ -48,7 +48,7 @@ class PosDeliveryController extends Controller
         return inertia('PosDelivery/PosDeliveryIndex', [
             'deliveries' => $deliveries,
             'columns'    => $columns,
-            'suppliers'  => supplier::where('status', 'active')->orderBy('company')->get(['id', 'company']),
+            'suppliers'  => supplier::where('status', 'active')->where('is_pos_supplier', true)->orderBy('company')->get(['id', 'company']),
         ]);
     }
 

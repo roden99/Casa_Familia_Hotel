@@ -20,6 +20,7 @@ class supplier extends Model
         'contact_phone',
         'address',
         'status',
+        'is_pos_supplier',
         'created_by',
         'updated_by',
     ];

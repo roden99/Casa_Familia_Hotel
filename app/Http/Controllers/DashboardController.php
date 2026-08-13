@@ -83,15 +83,19 @@ class DashboardController extends Controller
         $salesThisMonth = $salesByAccount->sum('raw');
 
         // ── Low stock items ──────────────────────────────────────────────
-        $lowStockItems = DB::table('products')
-            ->whereColumn('product_qty', '<=', 'reorder_level')
-            ->where('status', true)
-            ->where('is_inventory', true)
-            ->whereNotNull('reorder_level')
-            ->where('reorder_level', '>', 0)
-            ->orderByRaw('product_qty - reorder_level ASC')
+        $lowStockItems = DB::table('products as p')
+            ->leftJoin('drugforms as df', 'df.id', '=', 'p.drugform_id')
+            ->leftJoin('product_units as pu', 'pu.id', '=', 'p.product_unit_id')
+            ->leftJoin('brands as b', 'b.id', '=', 'p.brand_id')
+            ->whereColumn('p.product_qty', '<=', 'p.reorder_level')
+            ->where('p.status', true)
+            ->where('p.is_inventory', true)
+            ->whereNotNull('p.reorder_level')
+            ->where('p.reorder_level', '>', 0)
+            ->orderByRaw('p.product_qty - p.reorder_level ASC')
             ->limit(10)
-            ->get(['id', 'productname', 'product_qty', 'reorder_level']);
+            ->selectRaw("p.id, TRIM(CONCAT_WS(' ', p.productname, df.drugformname, pu.unit_name, IF(b.brandname IS NOT NULL, CONCAT('(', b.brandname, ')'), NULL))) as productname, p.product_qty, p.reorder_level")
+            ->get();
 
         $lowStockCount = DB::table('products')
             ->whereColumn('product_qty', '<=', 'reorder_level')
@@ -104,12 +108,16 @@ class DashboardController extends Controller
         // ── Expiring soon (within 90 days) ───────────────────────────────
         $expiringSoon = DB::table('product_lots as pl')
             ->join('products as p', 'p.id', '=', 'pl.product_id')
+            ->leftJoin('drugforms as df', 'df.id', '=', 'p.drugform_id')
+            ->leftJoin('product_units as pu', 'pu.id', '=', 'p.product_unit_id')
+            ->leftJoin('brands as b', 'b.id', '=', 'p.brand_id')
             ->where('pl.expiration_date', '<=', $now->copy()->addDays(90)->toDateString())
             ->where('pl.expiration_date', '>=', $now->toDateString())
             ->where('pl.quantity', '>', 0)
             ->orderBy('pl.expiration_date')
             ->limit(10)
-            ->get(['p.productname', 'pl.lot_number', 'pl.expiration_date', 'pl.quantity']);
+            ->selectRaw("TRIM(CONCAT_WS(' ', p.productname, df.drugformname, pu.unit_name, IF(b.brandname IS NOT NULL, CONCAT('(', b.brandname, ')'), NULL))) as productname, pl.lot_number, pl.expiration_date, pl.quantity")
+            ->get();
 
         // ── Monthly sales total this year (for sparkline) ────────────────
         $soMonthly = DB::table('sales_orders as so')
@@ -138,9 +146,12 @@ class DashboardController extends Controller
         $fastMoving = DB::table('sales_order_items as soi')
             ->join('sales_orders as so', 'so.id', '=', 'soi.sales_order_id')
             ->join('products as p', 'p.id', '=', 'soi.product_id')
+            ->leftJoin('drugforms as df', 'df.id', '=', 'p.drugform_id')
+            ->leftJoin('product_units as pu', 'pu.id', '=', 'p.product_unit_id')
+            ->leftJoin('brands as b', 'b.id', '=', 'p.brand_id')
             ->where('so.invoice_date', '>=', $cutoff)
-            ->selectRaw('p.id, p.productname, SUM(soi.quantity) as total_qty')
-            ->groupBy('p.id', 'p.productname')
+            ->selectRaw("p.id, TRIM(CONCAT_WS(' ', p.productname, df.drugformname, pu.unit_name, IF(b.brandname IS NOT NULL, CONCAT('(', b.brandname, ')'), NULL))) as productname, SUM(soi.quantity) as total_qty")
+            ->groupBy('p.id', 'p.productname', 'df.drugformname', 'pu.unit_name', 'b.brandname')
             ->orderByDesc('total_qty')
             ->limit(10)
             ->get();
@@ -152,13 +163,17 @@ class DashboardController extends Controller
             ->pluck('soi.product_id')
             ->unique();
 
-        $slowMoving = DB::table('products')
-            ->whereNotIn('id', $soldIds)
-            ->where('product_qty', '>', 0)
-            ->where('status', true)
-            ->where('is_inventory', true)
-            ->orderByDesc('product_qty')
-            ->get(['id', 'productname', 'product_qty']);
+        $slowMoving = DB::table('products as p')
+            ->leftJoin('drugforms as df', 'df.id', '=', 'p.drugform_id')
+            ->leftJoin('product_units as pu', 'pu.id', '=', 'p.product_unit_id')
+            ->leftJoin('brands as b', 'b.id', '=', 'p.brand_id')
+            ->whereNotIn('p.id', $soldIds)
+            ->where('p.product_qty', '>', 0)
+            ->where('p.status', true)
+            ->where('p.is_inventory', true)
+            ->orderByDesc('p.product_qty')
+            ->selectRaw("p.id, TRIM(CONCAT_WS(' ', p.productname, df.drugformname, pu.unit_name, IF(b.brandname IS NOT NULL, CONCAT('(', b.brandname, ')'), NULL))) as productname, p.product_qty")
+            ->get();
 
         return Inertia::render('Dashboard', [
             'stats' => [

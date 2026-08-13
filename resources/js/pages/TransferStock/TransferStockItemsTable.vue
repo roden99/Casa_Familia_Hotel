@@ -45,14 +45,14 @@ const emit = defineEmits(['remove']);
                     <TableCell class="whitespace-normal break-words min-w-0">{{ item.product_name }}</TableCell>
                     <TableCell class="text-center font-mono text-xs">{{ item.lot_number ?? '—' }}</TableCell>
                     <TableCell class="text-center">
-                        <Input v-model.number="item.quantity" type="number" min="0.0001" step="0.0001"
+                        <Input v-model.number="item.quantity" type="number" min="1" step="1"
                             class="w-20 text-center mx-auto" />
                     </TableCell>
                     <TableCell class="text-center">
                         <span class="text-sm font-medium text-muted-foreground">{{ item.multiplier }}</span>
                     </TableCell>
                     <TableCell class="text-center font-medium text-teal-600">
-                        {{ (item.quantity * item.multiplier).toFixed(4) }}
+                        {{ Math.floor(item.quantity * item.multiplier) }}
                     </TableCell>
                     <TableCell class="text-center">
                         <button type="button" @click="emit('remove', index)" class="text-destructive hover:opacity-70">

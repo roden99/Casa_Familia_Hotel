@@ -8,7 +8,8 @@ const props = defineProps({
     supplier: {
         type: Object,
         required: true,
-    }
+    },
+    isPosModule: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(['form-closed']);
@@ -45,7 +46,7 @@ const handleSubmit = (formData) => {
 
     <div>
         <SupplierForm @handleSubmit="handleSubmit" @form-closed="emit('form-closed')" :is-processing="isProcessing"
-            :card-title="'Update Supplier'" :transaction-type="'update'" :supplier="supplier" />
+            :card-title="'Update Supplier'" :transaction-type="'update'" :supplier="supplier" :is-pos-module="props.isPosModule" />
     </div>
 
 </template>

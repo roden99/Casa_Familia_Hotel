@@ -44,6 +44,7 @@ Route::get('under-construction', function () {
 })->middleware(['auth', 'verified'])->name('under-construction');
 
 Route::resource('suppliers', SupplierController::class);
+Route::get('pos-suppliers', [SupplierController::class, 'posIndex'])->name('pos-suppliers.index');
 
 Route::resource('customers', CustomerController::class);
 Route::get('customer-accounts', [CustomerAccountController::class, 'index'])->name('customer-accounts.index');
@@ -118,6 +119,7 @@ Route::resource('users', UserController::class)
     ->middleware('admin');
 
 Route::get('payments', [PaymentController::class, 'index'])->name('payments.index');
+Route::get('payments/{id}/details', [PaymentController::class, 'details'])->name('payments.details');
 
 
 

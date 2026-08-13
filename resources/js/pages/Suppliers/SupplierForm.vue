@@ -23,6 +23,7 @@ import { Field, FieldGroup, FieldLabel, FieldLegend, FieldSeparator, FieldSet } 
 import BaseTab from '@/components/BaseTab.vue'
 import BaseField from '@/components/BaseField.vue';
 import { useFieldGroupSkeleton } from '@/composables/useFieldGroupSkeleton';
+import { Checkbox } from '@/components/ui/checkbox';
 
 
 
@@ -47,6 +48,11 @@ const props = defineProps({
     transactionType: {
         type: String,
         default: 'create',
+    },
+
+    isPosModule: {
+        type: Boolean,
+        default: false,
     },
 
 });
@@ -100,6 +106,7 @@ const form = useForm({
     contact_email: props.supplier?.contact_email || '',
     contact_phone: props.supplier?.contact_phone || '',
     address: props.supplier?.address || '',
+    is_pos_supplier: props.supplier?.is_pos_supplier ?? props.isPosModule,
 });
 
 
@@ -256,6 +263,16 @@ onMounted(async () => {
                                 <FieldLabel class="font-normal">Street Address / Unit / Building:</FieldLabel>
                                 <Input v-model="form.address"
                                     placeholder="Enter street address, unit number, building name, etc." />
+                            </Field>
+
+                            <Field v-if="!isPosModule" class="col-span-12">
+                                <div class="flex items-center gap-3 rounded-md border bg-muted/40 px-4 py-3">
+                                    <Checkbox :id="'is_pos_supplier'" v-model="form.is_pos_supplier" />
+                                    <div>
+                                        <FieldLabel :for="'is_pos_supplier'" class="font-medium cursor-pointer">POS Supplier</FieldLabel>
+                                        <p class="text-xs text-muted-foreground">Tag this supplier as available in the POS delivery module.</p>
+                                    </div>
+                                </div>
                             </Field>
                         </div>
                     </FieldGroup>

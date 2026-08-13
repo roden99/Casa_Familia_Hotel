@@ -97,7 +97,7 @@ const handleSubmit = () => {
         emit('handleSubmit', {
             items: posItems.value.map(item => ({
                 product_id: item.product_id,
-                pos_qty: parseFloat(Number(item.quantity).toFixed(4)),
+                pos_qty: Math.round(Number(item.quantity)),
             })),
         });
     } catch (error) {
@@ -128,7 +128,7 @@ onMounted(async () => {
                 </div>
                 <div class="col-span-3">
                     <FieldLabel class="font-normal text-xs">Qty</FieldLabel>
-                    <Input v-model="itemQuantity" type="number" min="0.0001" step="0.0001" placeholder="1" />
+                    <Input v-model="itemQuantity" type="number" min="1" step="1" placeholder="1" />
                 </div>
                 <div class="col-span-2">
                     <BaseButton type="button" @click="addItem" :transactionType="'add'"
@@ -156,8 +156,8 @@ onMounted(async () => {
                                 {{ item.product_name }}
                             </TableCell>
                             <TableCell class="text-center py-1">
-                                <Input v-model.number="item.quantity" type="number" min="0.0001"
-                                    step="0.0001" class="w-20 text-xs text-center mx-auto h-7" />
+                                <Input v-model.number="item.quantity" type="number" min="1"
+                                    step="1" class="w-20 text-xs text-center mx-auto h-7" />
                             </TableCell>
                             <TableCell class="text-center py-1">
                                 <button type="button" @click="removeItem(index)"

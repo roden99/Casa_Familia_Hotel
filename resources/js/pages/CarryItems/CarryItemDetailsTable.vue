@@ -35,7 +35,7 @@ const emit = defineEmits(['remove']);
                     <TableCell class="whitespace-normal break-words min-w-0">{{ item.product_name }}</TableCell>
                     <TableCell class="text-muted-foreground text-sm">{{ item.lot_number ?? '—' }}</TableCell>
                     <TableCell class="text-center">
-                        <Input v-model.number="item.quantity" type="number" min="0.0001" step="0.0001"
+                        <Input v-model.number="item.quantity" type="number" min="1" step="1"
                             class="w-24 text-center mx-auto" />
                     </TableCell>
                     <TableCell class="text-center">
