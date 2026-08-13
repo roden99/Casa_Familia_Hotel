@@ -373,6 +373,26 @@ class ProductController extends Controller
         return response()->json(['lots' => $lots]);
     }
 
+    public function updateLot(Request $request, product $product, int $lot)
+    {
+        $validated = $request->validate([
+            'lot_number'      => 'required|string|max:100',
+            'expiration_date' => 'required|date',
+        ]);
+
+        \Illuminate\Support\Facades\DB::table('product_lots')
+            ->where('id', $lot)
+            ->where('product_id', $product->id)
+            ->update([
+                'lot_number'      => $validated['lot_number'],
+                'expiration_date' => $validated['expiration_date'],
+                'updated_by'      => $request->user()->id,
+                'updated_at'      => now(),
+            ]);
+
+        return response()->json(['success' => true]);
+    }
+
     public function destroyLot(Request $request, product $product, int $lot)
     {
         \Illuminate\Support\Facades\DB::table('product_lots')

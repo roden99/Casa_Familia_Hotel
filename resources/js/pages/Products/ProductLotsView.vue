@@ -10,10 +10,10 @@ import { toast } from 'vue-sonner';
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 import BaseField from '@/components/BaseField.vue';
 import { useDateFormatter } from '@/composables/useDateFormatter';
-import { Layers, Trash2, AlertTriangle } from 'lucide-vue-next';
+import { Layers, Trash2, AlertTriangle, Pencil } from 'lucide-vue-next';
 import axios from 'axios';
 
-const { normalizeDate } = useDateFormatter();
+const { normalizeDate, reverseDate } = useDateFormatter();
 
 const props = defineProps({
     product: { type: Object, required: true },
@@ -111,6 +111,47 @@ const submitLot = () => {
 const fmt = (val) =>
     Number(val ?? 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
+// ── Edit lot ──────────────────────────────────────────────────────────────────
+const editTarget = ref(null);
+const isEditProcessing = ref(false);
+const showEditDialog = ref(false);
+const editForm = ref({ lot_number: '', expiration_date: null });
+
+const openEdit = (lot) => {
+    editTarget.value = lot;
+    editForm.value = { lot_number: lot.lot_number, expiration_date: reverseDate(lot.expiration_raw) };
+};
+
+const cancelEdit = () => {
+    editTarget.value = null;
+    editForm.value = { lot_number: '', expiration_date: null };
+};
+
+const openEditDialog = () => {
+    if (!editForm.value.lot_number.trim()) { toast.error('Please enter a lot number.'); return; }
+    if (!editForm.value.expiration_date) { toast.error('Please select an expiration date.'); return; }
+    showEditDialog.value = true;
+};
+
+const submitEdit = async () => {
+    if (!editTarget.value) return;
+    isEditProcessing.value = true;
+    try {
+        await axios.patch(`/products/${props.product.id}/lots/${editTarget.value.id}`, {
+            lot_number: editForm.value.lot_number,
+            expiration_date: normalizeDate(editForm.value.expiration_date),
+        }, { headers: { Accept: 'application/json' } });
+        toast.success('Lot updated successfully!');
+        showEditDialog.value = false;
+        cancelEdit();
+        await loadLots();
+    } catch (error) {
+        toast.error(error.response?.data?.message ?? 'Failed to update lot.');
+    } finally {
+        isEditProcessing.value = false;
+    }
+};
+
 onMounted(loadLots);
 </script>
 
@@ -155,7 +196,7 @@ onMounted(loadLots);
                                                 <th class="text-left px-3 py-2 font-semibold">Lot No.</th>
                                                 <th class="text-left px-3 py-2 font-semibold">Expiry</th>
                                                 <th class="text-right px-3 py-2 font-semibold">Qty</th>
-                                                <th class="w-8 px-2 py-2"></th>
+                                                <th class="w-16 px-2 py-2"></th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -175,10 +216,16 @@ onMounted(loadLots);
                                                 </td>
                                                 <td class="px-3 py-2 text-right font-mono">{{ fmt(lot.quantity) }}</td>
                                                 <td class="px-2 py-2 text-center">
-                                                    <button @click="openDelete(lot)"
-                                                        class="text-muted-foreground hover:text-destructive transition-colors">
-                                                        <Trash2 class="h-3.5 w-3.5" />
-                                                    </button>
+                                                    <div class="flex items-center justify-center gap-1.5">
+                                                        <button @click="openEdit(lot)"
+                                                            class="text-muted-foreground hover:text-primary transition-colors">
+                                                            <Pencil class="h-3.5 w-3.5" />
+                                                        </button>
+                                                        <button @click="openDelete(lot)"
+                                                            class="text-muted-foreground hover:text-destructive transition-colors">
+                                                            <Trash2 class="h-3.5 w-3.5" />
+                                                        </button>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         </tbody>
@@ -189,9 +236,44 @@ onMounted(loadLots);
                     </BaseField>
                 </div>
 
-                <!-- Right: Add lot form -->
+                <!-- Right: Add / Edit lot form -->
                 <div class="col-span-5">
-                    <BaseField legend="Add New Lot" description="Record a new lot for this product">
+
+                    <!-- Edit mode -->
+                    <BaseField v-if="editTarget" legend="Edit Lot" description="Update lot number or expiry date">
+                        <template #fields>
+                            <FieldGroup :skeleton-rows="1" :skeleton-cols="1">
+                                <div class="grid w-full grid-cols-12 gap-3">
+
+                                    <Field class="col-span-12">
+                                        <FieldLabel class="font-normal">Lot Number: <span
+                                                class="text-destructive">*</span></FieldLabel>
+                                        <Input v-model="editForm.lot_number" placeholder="e.g. LOT-2026-001" />
+                                    </Field>
+
+                                    <Field class="col-span-12">
+                                        <FieldLabel class="font-normal">Expiration Date: <span
+                                                class="text-destructive">*</span></FieldLabel>
+                                        <BaseDatePick v-model="editForm.expiration_date" />
+                                    </Field>
+
+                                    <Field class="col-span-12 mt-1">
+                                        <div class="flex gap-2">
+                                            <BaseButton type="button" transactionType="cancel"
+                                                :disabled="isEditProcessing" @click="cancelEdit" class="flex-1" />
+                                            <BaseButton type="button" transactionType="update"
+                                                :loading="isEditProcessing" :disabled="isEditProcessing"
+                                                @click="openEditDialog" class="flex-1" />
+                                        </div>
+                                    </Field>
+
+                                </div>
+                            </FieldGroup>
+                        </template>
+                    </BaseField>
+
+                    <!-- Add mode -->
+                    <BaseField v-else legend="Add New Lot" description="Record a new lot for this product">
                         <template #fields>
                             <FieldGroup :skeleton-rows="1" :skeleton-cols="1">
                                 <div class="grid w-full grid-cols-12 gap-3">
@@ -244,6 +326,10 @@ onMounted(loadLots);
         <!-- Confirm add lot -->
         <BaseAlertDialog v-model:open="isFormDialogOpen" :loading="isProcessing" transaction-type="create"
             @cancel="isFormDialogOpen = false" @confirm="submitLot" />
+
+        <!-- Confirm edit lot -->
+        <BaseAlertDialog v-model:open="showEditDialog" :loading="isEditProcessing" transaction-type="update"
+            @cancel="showEditDialog = false" @confirm="submitEdit" />
 
         <!-- Confirm delete lot -->
         <BaseAlertDialog v-model:open="showDeleteDialog" :loading="isDeleting" transaction-type="delete"
