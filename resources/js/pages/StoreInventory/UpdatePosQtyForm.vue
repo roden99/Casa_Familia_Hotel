@@ -122,17 +122,16 @@ onMounted(async () => {
             <div class="grid w-full grid-cols-12 gap-2 items-end">
                 <div class="col-span-7">
                     <FieldLabel class="font-normal text-xs">Product</FieldLabel>
-                    <BaseCombobox v-model="selectedProduct" :options="productOptions"
-                        empty-message="No products found" width="w-full"
-                        @search="loadProducts" placeholder="Search product..." />
+                    <BaseCombobox v-model="selectedProduct" :options="productOptions" empty-message="No products found"
+                        width="w-full" @search="loadProducts" placeholder="Search product..." />
                 </div>
                 <div class="col-span-3">
                     <FieldLabel class="font-normal text-xs">Qty</FieldLabel>
                     <Input v-model="itemQuantity" type="number" min="1" step="1" placeholder="1" />
                 </div>
                 <div class="col-span-2">
-                    <BaseButton type="button" @click="addItem" :transactionType="'add'"
-                        :disabled="isBusy" :skeleton="isLoading" class="w-full" />
+                    <BaseButton type="button" @click="addItem" :transactionType="'add'" :disabled="isBusy"
+                        :skeleton="isLoading" class="w-full" />
                 </div>
             </div>
 
@@ -156,8 +155,8 @@ onMounted(async () => {
                                 {{ item.product_name }}
                             </TableCell>
                             <TableCell class="text-center py-1">
-                                <Input v-model.number="item.quantity" type="number" min="1"
-                                    step="1" class="w-20 text-xs text-center mx-auto h-7" />
+                                <Input v-model.number="item.quantity" type="number" min="1" step="1"
+                                    class="w-20 text-xs text-center mx-auto h-7" />
                             </TableCell>
                             <TableCell class="text-center py-1">
                                 <button type="button" @click="removeItem(index)"

@@ -33,8 +33,8 @@ const transformedColumns = computed(() =>
 
 const showCreateModal = ref(false);
 const showDeleteModal = ref(false);
-const showViewModal   = ref(false);
-const showPrintModal  = ref(false);
+const showViewModal = ref(false);
+const showPrintModal = ref(false);
 const selectedTransfer = ref(null);
 
 const handleAction = ({ type, data }) => {
@@ -77,7 +77,8 @@ const handleAction = ({ type, data }) => {
 
             <ViewTransferStock v-if="showViewModal" :transfer="selectedTransfer" @form-closed="showViewModal = false" />
 
-            <PrintTransferStock v-if="showPrintModal" :transfer="selectedTransfer" @form-closed="showPrintModal = false" />
+            <PrintTransferStock v-if="showPrintModal" :transfer="selectedTransfer"
+                @form-closed="showPrintModal = false" />
         </div>
     </AppLayout>
 </template>

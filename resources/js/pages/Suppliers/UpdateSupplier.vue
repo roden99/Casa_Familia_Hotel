@@ -46,7 +46,8 @@ const handleSubmit = (formData) => {
 
     <div>
         <SupplierForm @handleSubmit="handleSubmit" @form-closed="emit('form-closed')" :is-processing="isProcessing"
-            :card-title="'Update Supplier'" :transaction-type="'update'" :supplier="supplier" :is-pos-module="props.isPosModule" />
+            :card-title="'Update Supplier'" :transaction-type="'update'" :supplier="supplier"
+            :is-pos-module="props.isPosModule" />
     </div>
 
 </template>

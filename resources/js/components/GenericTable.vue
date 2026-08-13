@@ -36,7 +36,7 @@ const actionConfig: Record<string, { label: string; icon: any; class: string }> 
   return: { label: 'Return to Inventory', icon: Undo2, class: 'text-teal-600' },
   'selling-price': { label: 'Selling Price', icon: Tag, class: 'text-emerald-600' },
   reprint: { label: 'Reprint Receipt', icon: Printer, class: 'text-blue-600' },
-  print:   { label: 'Print Report',   icon: Printer, class: 'text-blue-600' },
+  print: { label: 'Print Report', icon: Printer, class: 'text-blue-600' },
 }
 
 const emit = defineEmits<{

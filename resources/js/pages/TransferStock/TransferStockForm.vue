@@ -241,7 +241,7 @@ onMounted(async () => {
                                             Qty
                                             <span v-if="selectedLotData"
                                                 class="text-xs text-muted-foreground ml-1">(max: {{
-                                                selectedLotData.available_qty }})</span>
+                                                    selectedLotData.available_qty }})</span>
                                         </FieldLabel>
                                         <Input v-model="itemQuantity" type="number" min="1"
                                             :max="selectedLotData?.available_qty" step="1" placeholder="1" />

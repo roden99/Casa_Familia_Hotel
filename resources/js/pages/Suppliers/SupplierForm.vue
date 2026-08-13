@@ -269,8 +269,10 @@ onMounted(async () => {
                                 <div class="flex items-center gap-3 rounded-md border bg-muted/40 px-4 py-3">
                                     <Checkbox :id="'is_pos_supplier'" v-model="form.is_pos_supplier" />
                                     <div>
-                                        <FieldLabel :for="'is_pos_supplier'" class="font-medium cursor-pointer">POS Supplier</FieldLabel>
-                                        <p class="text-xs text-muted-foreground">Tag this supplier as available in the POS delivery module.</p>
+                                        <FieldLabel :for="'is_pos_supplier'" class="font-medium cursor-pointer">POS
+                                            Supplier</FieldLabel>
+                                        <p class="text-xs text-muted-foreground">Tag this supplier as available in the
+                                            POS delivery module.</p>
                                     </div>
                                 </div>
                             </Field>

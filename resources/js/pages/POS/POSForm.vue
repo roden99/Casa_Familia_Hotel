@@ -70,12 +70,12 @@ const handleSubmit = () => {
             ...form.data(),
             customer_id: form.customer_id ? Number(form.customer_id) : null,
             items: orderItems.value.map(item => ({
-                lot_id:              Number(item.lot_id),
-                product_name:        item.product_name,
-                lot_number:          item.lot_number,
-                expiration_date:     item.expiration_date,
-                quantity:            item.quantity,
-                unit_price:          item.unit_price,
+                lot_id: Number(item.lot_id),
+                product_name: item.product_name,
+                lot_number: item.lot_number,
+                expiration_date: item.expiration_date,
+                quantity: item.quantity,
+                unit_price: item.unit_price,
                 discount_percentage: item.discount_percentage ?? 0,
             })),
         });
@@ -134,13 +134,13 @@ const addItem = () => {
     }
     const entry = productOptions.value.find(p => p.value === selectedProduct.value);
     orderItems.value.push({
-        lot_id:              selectedProduct.value,
-        product_name:        entry?.product_name ?? entry?.label ?? selectedProduct.value,
-        lot_number:          entry?.lot_number ?? null,
-        expiration_date:     entry?.expiration_date ?? null,
-        pos_qty:             entry?.pos_qty ?? 0,
-        quantity:            Number(itemQuantity.value),
-        unit_price:          Number(itemPrice.value),
+        lot_id: selectedProduct.value,
+        product_name: entry?.product_name ?? entry?.label ?? selectedProduct.value,
+        lot_number: entry?.lot_number ?? null,
+        expiration_date: entry?.expiration_date ?? null,
+        pos_qty: entry?.pos_qty ?? 0,
+        quantity: Number(itemQuantity.value),
+        unit_price: Number(itemPrice.value),
         discount_percentage: Number(itemDiscount.value) || 0,
     });
     selectedProduct.value = null;
@@ -209,8 +209,7 @@ const removeItem = (index) => {
                                     </Field>
                                     <Field class="col-span-2">
                                         <FieldLabel class="font-normal">Qty</FieldLabel>
-                                        <Input v-model="itemQuantity" type="number" min="1" step="1"
-                                            placeholder="1" />
+                                        <Input v-model="itemQuantity" type="number" min="1" step="1" placeholder="1" />
                                     </Field>
                                     <Field class="col-span-2">
                                         <FieldLabel class="font-normal">Unit Price</FieldLabel>

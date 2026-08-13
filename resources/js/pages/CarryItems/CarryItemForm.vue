@@ -231,8 +231,7 @@ onMounted(async () => {
                                     </Field>
                                     <Field class="col-span-2">
                                         <FieldLabel class="font-normal">Qty</FieldLabel>
-                                        <Input v-model="itemQuantity" type="number" min="1" step="1"
-                                            placeholder="1" />
+                                        <Input v-model="itemQuantity" type="number" min="1" step="1" placeholder="1" />
                                     </Field>
                                     <Field class="col-span-2">
                                         <FieldLabel class="invisible">-</FieldLabel>

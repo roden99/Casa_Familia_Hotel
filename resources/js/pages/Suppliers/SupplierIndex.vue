@@ -127,11 +127,10 @@ const enrichedColumns = computed(() =>
                         const val = row.original.is_pos_supplier;
                         const isPos = val === true || val === 1;
                         return h('span', {
-                            class: `inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
-                                isPos
+                            class: `inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${isPos
                                     ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
                                     : 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400'
-                            }`,
+                                }`,
                         }, isPos ? 'POS' : 'Main');
                     },
                 };
@@ -150,9 +149,9 @@ const enrichedColumns = computed(() =>
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
             <!-- Use the reactive suppliers data -->
-            <BaseIndex IndexType="Suppliers" :data="formattedSuppliers"
-                :columnDefs="enrichedColumns" :selectOptions="selectOptions"
-                v-model:selectModelValue="selectModelValue" @action="handleAction" :hover-fields="[
+            <BaseIndex IndexType="Suppliers" :data="formattedSuppliers" :columnDefs="enrichedColumns"
+                :selectOptions="selectOptions" v-model:selectModelValue="selectModelValue" @action="handleAction"
+                :hover-fields="[
                     { field: 'company', label: 'Company' },
                     { field: 'representative', label: 'Representative' },
                     { field: 'contact_phone', label: 'Contact Phone' }

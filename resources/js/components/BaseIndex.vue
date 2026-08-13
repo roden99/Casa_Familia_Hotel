@@ -138,7 +138,7 @@ const getActionsForIndex = (indexType) => {
         'CustomerAccounts': ['ledger', 'payment', 'invoice'],
         'StoreInventory': ['initial', 'viewlots', 'history', 'delete'],
         'TransferStock': ['view', 'print', 'delete'],
-        'PosDelivery':   ['view', 'delete'],
+        'PosDelivery': ['view', 'delete'],
         'POS': ['view', 'reprint', 'delete'],
         'Sales Orders': ['view', 'edit', 'payment_details', 'delete'],
         'Expirations': [],
