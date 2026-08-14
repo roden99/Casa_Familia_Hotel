@@ -72,6 +72,8 @@ Route::resource('product-types', ProductTypeController::class);
 Route::resource('products', ProductController::class);
 Route::get('pos-items', [ProductController::class, 'posItems'])->name('pos-items.index');
 Route::post('pos-items', [ProductController::class, 'storePosItem'])->name('pos-items.store');
+Route::patch('pos-items/{product}', [ProductController::class, 'updatePosItem'])->name('pos-items.update');
+Route::delete('pos-items/{product}', [ProductController::class, 'destroyPosItem'])->name('pos-items.destroy');
 Route::patch('products/{product}/initial-inventory', [ProductController::class, 'initialInventory'])->name('products.initialInventory');
 Route::patch('products/{product}/reorder-level', [ProductController::class, 'reorderLevel'])->name('products.reorderLevel');
 Route::get('products/{product}/history', [ProductController::class, 'history'])->name('products.history');

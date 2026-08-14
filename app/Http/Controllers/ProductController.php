@@ -255,6 +255,29 @@ class ProductController extends Controller
         ], 201);
     }
 
+    public function updatePosItem(Request $request, product $product)
+    {
+        $validated = $request->validate([
+            'productname'     => 'required|string|max:255',
+            'brand_id'        => 'nullable|exists:brands,id',
+            'product_unit_id' => 'required|exists:product_units,id',
+            'product_type_id' => 'required|exists:product_types,id',
+            'drugform_id'     => 'nullable|exists:drugforms,id',
+            'isgeneric'       => 'boolean',
+        ]);
+
+        $product->update(array_merge($validated, ['updated_by' => $request->user()->id]));
+
+        return response()->json(['success' => true]);
+    }
+
+    public function destroyPosItem(Request $request, product $product)
+    {
+        $product->update(['status' => false, 'updated_by' => $request->user()->id]);
+
+        return response()->json(['success' => true]);
+    }
+
     /**
      * Display the specified resource.
      */

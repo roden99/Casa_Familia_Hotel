@@ -20,39 +20,41 @@ import axios from 'axios';
 
 const props = defineProps({
     isProcessing: { type: Boolean, default: false },
+    product: { type: Object, default: null },
+    transactionType: { type: String, default: 'create' },
 });
 
 const emit = defineEmits(['handleSubmit', 'form-closed']);
 
 const form = useForm({
-    productname:     '',
-    product_type_id: null,
-    brand_id:        null,
-    drugform_id:     null,
-    product_unit_id: null,
-    isgeneric:       false,
+    productname: props.product?.productname ?? '',
+    product_type_id: props.product?.product_type_id ?? null,
+    brand_id: props.product?.brand_id ?? null,
+    drugform_id: props.product?.drugform_id ?? null,
+    product_unit_id: props.product?.product_unit_id ?? null,
+    isgeneric: props.product?.isgeneric ?? false,
 });
 
-const isLoading    = ref(true);
+const isLoading = ref(true);
 const isDialogOpen = ref(false);
 const isBusy = computed(() => isLoading.value || props.isProcessing);
 
 const { skeletonLayout } = useFieldGroupSkeleton([12, 6, 6, 6, 6]);
 
-const selectedProductType = ref(null);
-const selectedBrand       = ref(null);
-const selectedDrugForm    = ref(null);
-const selectedUnit        = ref(null);
+const selectedProductType = ref(props.product?.product_type_id ? String(props.product.product_type_id) : null);
+const selectedBrand = ref(props.product?.brand_id ? String(props.product.brand_id) : null);
+const selectedDrugForm = ref(props.product?.drugform_id ? String(props.product.drugform_id) : null);
+const selectedUnit = ref(props.product?.product_unit_id ? String(props.product.product_unit_id) : null);
 
 watch(selectedProductType, val => { form.product_type_id = val ? Number(val) : null; });
-watch(selectedBrand,       val => { form.brand_id        = val ? Number(val) : null; });
-watch(selectedDrugForm,    val => { form.drugform_id     = val ? Number(val) : null; });
-watch(selectedUnit,        val => { form.product_unit_id = val ? Number(val) : null; });
+watch(selectedBrand, val => { form.brand_id = val ? Number(val) : null; });
+watch(selectedDrugForm, val => { form.drugform_id = val ? Number(val) : null; });
+watch(selectedUnit, val => { form.product_unit_id = val ? Number(val) : null; });
 
 const productTypesOptions = ref([]);
-const brandTypesOptions   = ref([]);
-const drugFormsOptions    = ref([]);
-const unitTypesOptions    = ref([]);
+const brandTypesOptions = ref([]);
+const drugFormsOptions = ref([]);
+const unitTypesOptions = ref([]);
 
 async function loadProductTypes(q = '', includeId = null) {
     try {
@@ -83,9 +85,11 @@ async function loadUnits(q = '', includeId = null) {
 }
 
 const openConfirmDialog = () => {
-    if (!form.productname.trim())  { toast.error('Product name is required.'); return; }
-    if (!form.product_unit_id)     { toast.error('Unit is required.'); return; }
-    if (!form.product_type_id)     { toast.error('Type is required.'); return; }
+    if (props.transactionType !== 'delete') {
+        if (!form.productname.trim()) { toast.error('Product name is required.'); return; }
+        if (!form.product_unit_id) { toast.error('Unit is required.'); return; }
+        if (!form.product_type_id) { toast.error('Type is required.'); return; }
+    }
     isDialogOpen.value = true;
 };
 
@@ -99,15 +103,23 @@ const handleSubmit = () => {
 
 onMounted(async () => {
     isLoading.value = true;
-    await Promise.all([loadProductTypes(), loadBrands(), loadDrugForms(), loadUnits()]);
+    await Promise.all([
+        loadProductTypes('', props.product?.product_type_id),
+        loadBrands('', props.product?.brand_id),
+        loadDrugForms('', props.product?.drugform_id),
+        loadUnits('', props.product?.product_unit_id),
+    ]);
     isLoading.value = false;
+    if (props.transactionType === 'delete') isDialogOpen.value = true;
 });
 </script>
 
 <template>
     <FormCard size="lg" :loading="false">
         <form @submit.prevent class="space-y-4 mt-4">
-            <BaseField legend="New POS Item" description="Product will not be tracked in main inventory">
+            <BaseField
+                :legend="transactionType === 'update' ? 'Update POS Item' : transactionType === 'delete' ? 'Delete POS Item' : 'New POS Item'"
+                description="Product will not be tracked in main inventory">
                 <template #fields>
                     <FieldGroup :skeleton="isLoading" :skeleton-layout="skeletonLayout">
                         <div class="grid w-full grid-cols-12 gap-4">
@@ -121,12 +133,14 @@ onMounted(async () => {
                             </Field>
 
                             <Field class="col-span-12">
-                                <FieldLabel class="font-normal">Generic Name / Product Name: <span class="text-destructive">*</span></FieldLabel>
+                                <FieldLabel class="font-normal">Generic Name / Product Name: <span
+                                        class="text-destructive">*</span></FieldLabel>
                                 <Input v-model="form.productname" placeholder="Enter product name" />
                             </Field>
 
                             <Field class="col-span-6">
-                                <FieldLabel class="font-normal">Type: <span class="text-destructive">*</span></FieldLabel>
+                                <FieldLabel class="font-normal">Type: <span class="text-destructive">*</span>
+                                </FieldLabel>
                                 <BaseCombobox v-model="selectedProductType" :options="productTypesOptions"
                                     empty-message="No types" width="w-full" placeholder="Select type..."
                                     @search="q => loadProductTypes(q, selectedProductType)">
@@ -165,7 +179,8 @@ onMounted(async () => {
                             </Field>
 
                             <Field class="col-span-6">
-                                <FieldLabel class="font-normal">Unit: <span class="text-destructive">*</span></FieldLabel>
+                                <FieldLabel class="font-normal">Unit: <span class="text-destructive">*</span>
+                                </FieldLabel>
                                 <BaseCombobox v-model="selectedUnit" :options="unitTypesOptions"
                                     empty-message="No units" width="w-full" placeholder="Select unit..."
                                     @search="q => loadUnits(q, selectedUnit)">
@@ -188,11 +203,13 @@ onMounted(async () => {
             <Skeleton v-if="isLoading" class="h-9 w-20" />
             <BaseButton v-else type="button" @click="emit('form-closed')" transactionType="cancel" />
             <Skeleton v-if="isLoading" class="h-9 w-20" />
-            <BaseButton v-else type="button" transactionType="create" :loading="isBusy" :disabled="isBusy"
-                @click="openConfirmDialog" />
+            <BaseButton v-else type="button"
+                :transactionType="transactionType === 'update' ? 'update' : transactionType === 'delete' ? 'delete' : 'create'"
+                :loading="isBusy" :disabled="isBusy" @click="openConfirmDialog" />
         </template>
 
-        <BaseAlertDialog v-model:open="isDialogOpen" :loading="props.isProcessing" transaction-type="create"
+        <BaseAlertDialog v-model:open="isDialogOpen" :loading="props.isProcessing"
+            :transaction-type="transactionType === 'update' ? 'update' : transactionType === 'delete' ? 'delete' : 'create'"
             @cancel="isDialogOpen = false" @confirm="handleSubmit" />
     </FormCard>
 </template>

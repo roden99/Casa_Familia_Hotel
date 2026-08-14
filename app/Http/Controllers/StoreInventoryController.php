@@ -51,7 +51,7 @@ class StoreInventoryController extends Controller
             $product->generic_text = $product->isgeneric ? 'Generic' : 'Branded';
             $product->brand_name   = $product->brand?->brandname ?? 'N/A';
             $product->type_name    = $product->productType?->type_name ?? 'N/A';
-            $product->pos_qty      = $product->is_inventory ? ($product->pos_qty ?? 0) : '-';
+            $product->pos_qty      = $product->is_inventory ? ((float) ($product->pos_qty ?? 0) + 0) : '-';
             $product->pos_unit     = $product->unit?->pos_unit ?? '';
 
             // Build display name: productname drugform pos_unit (pcs) (brand)
