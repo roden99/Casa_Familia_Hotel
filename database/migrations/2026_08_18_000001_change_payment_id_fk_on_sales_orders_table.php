@@ -23,6 +23,15 @@ return new class extends Migration
                 if ($fkExists) {
                     $table->dropForeign('so_payment_fk');
                 }
+            });
+
+            // Null out orphaned payment_id values before adding the new FK
+            DB::table('sales_orders')
+                ->whereNotNull('payment_id')
+                ->whereNotIn('payment_id', DB::table('customer_payment_items')->pluck('id'))
+                ->update(['payment_id' => null]);
+
+            Schema::table('sales_orders', function (Blueprint $table) {
                 $table->foreign('payment_id', 'so_payment_fk')
                     ->references('id')->on('customer_payment_items')->onDelete('set null');
             });
