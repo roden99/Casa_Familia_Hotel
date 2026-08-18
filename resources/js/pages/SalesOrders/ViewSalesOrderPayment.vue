@@ -1,5 +1,5 @@
 <script setup>
-import { CreditCard, CheckCircle, AlertCircle, FileText, Building2, CalendarDays, Hash, StickyNote, X, Clock } from 'lucide-vue-next';
+import { CreditCard, CheckCircle, AlertCircle, FileText, Building2, X, Clock } from 'lucide-vue-next';
 
 const props = defineProps({
     order: {
@@ -10,11 +10,12 @@ const props = defineProps({
 
 const emit = defineEmits(['form-closed']);
 
-const pd   = props.order?.payment_details;
+const pd     = props.order?.payment_details;
+const list   = props.order?.payment_list ?? [];
 const status = props.order?.payment_status ?? (pd ? 'Paid' : 'Unpaid');
 
 const totalRaw  = parseFloat((props.order?.total_amount ?? '0').replace(/,/g, ''));
-const paidRaw   = parseFloat((pd?.amount ?? '0').replace(/,/g, ''));
+const paidRaw   = list.reduce((s, p) => s + parseFloat(p.amount.replace(/,/g, '')), 0);
 const remaining = Math.max(0, totalRaw - paidRaw);
 
 const fmt = (n) => Number(n).toLocaleString('en-PH', { minimumFractionDigits: 2 });
@@ -25,8 +26,7 @@ const methodColors = {
     'Bank Transfer': 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300',
     'Online':        'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
 };
-
-const methodClass = methodColors[pd?.method] ?? 'bg-muted text-muted-foreground';
+const methodClass = (method) => methodColors[method] ?? 'bg-muted text-muted-foreground';
 </script>
 
 <template>
@@ -93,43 +93,53 @@ const methodClass = methodColors[pd?.method] ?? 'bg-muted text-muted-foreground'
                 </div>
 
                 <!-- No payment -->
-                <div v-if="!pd"
+                <div v-if="list.length === 0"
                     class="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed py-10 text-muted-foreground">
                     <AlertCircle class="h-8 w-8 opacity-40" />
                     <p class="text-sm font-medium">No payment linked to this invoice</p>
                 </div>
 
                 <template v-else>
-                    <!-- Amount + Method -->
-                    <div class="grid grid-cols-3 gap-3">
+                    <!-- Summary cards -->
+                    <div class="grid grid-cols-2 gap-3">
                         <div class="rounded-lg border bg-emerald-50 dark:bg-emerald-950/30 px-4 py-3">
-                            <p class="text-xs text-muted-foreground uppercase tracking-wide font-medium mb-1">Amount Paid</p>
-                            <p class="text-xl font-bold text-emerald-700 dark:text-emerald-400 font-mono">{{ pd.amount }}</p>
+                            <p class="text-xs text-muted-foreground uppercase tracking-wide font-medium mb-1">Total Paid</p>
+                            <p class="text-xl font-bold text-emerald-700 dark:text-emerald-400 font-mono">{{ fmt(paidRaw) }}</p>
                         </div>
-                        <div v-if="status === 'Partial'" class="rounded-lg border bg-amber-50 dark:bg-amber-950/30 px-4 py-3">
+                        <div class="rounded-lg border px-4 py-3"
+                            :class="status === 'Partial' ? 'bg-amber-50 dark:bg-amber-950/30' : 'bg-muted/30'">
                             <p class="text-xs text-muted-foreground uppercase tracking-wide font-medium mb-1">Remaining</p>
-                            <p class="text-xl font-bold text-amber-700 dark:text-amber-400 font-mono">{{ fmt(remaining) }}</p>
-                        </div>
-                        <div class="rounded-lg border bg-muted/30 px-4 py-3">
-                            <p class="text-xs text-muted-foreground uppercase tracking-wide font-medium mb-2">Method</p>
-                            <span :class="['inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold', methodClass]">
-                                {{ pd.method ?? '—' }}
-                            </span>
+                            <p class="text-xl font-bold font-mono"
+                                :class="status === 'Partial' ? 'text-amber-700 dark:text-amber-400' : 'text-green-600 dark:text-green-400'">
+                                {{ fmt(remaining) }}
+                            </p>
                         </div>
                     </div>
 
-                    <!-- Detail rows -->
-                    <div class="rounded-lg border divide-y text-sm">
-                        <div class="flex items-center gap-3 px-4 py-2.5">
-                            <CalendarDays class="h-4 w-4 text-muted-foreground shrink-0" />
-                            <span class="text-muted-foreground w-32 shrink-0">Payment Date</span>
-                            <span class="ml-auto font-medium">{{ pd.date ?? '—' }}</span>
-                        </div>
-                        <div class="flex items-center gap-3 px-4 py-2.5">
-                            <Hash class="h-4 w-4 text-muted-foreground shrink-0" />
-                            <span class="text-muted-foreground w-32 shrink-0">Reference No.</span>
-                            <span class="ml-auto font-medium font-mono">{{ pd.reference || '—' }}</span>
-                        </div>
+                    <!-- Payment list -->
+                    <div class="rounded-lg border overflow-hidden">
+                        <table class="w-full text-sm">
+                            <thead class="bg-muted/50">
+                                <tr class="text-xs text-muted-foreground uppercase tracking-wide">
+                                    <th class="text-left px-4 py-2 font-medium">Date</th>
+                                    <th class="text-left px-4 py-2 font-medium">Method</th>
+                                    <th class="text-left px-4 py-2 font-medium">Reference</th>
+                                    <th class="text-right px-4 py-2 font-medium">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y">
+                                <tr v-for="(p, i) in list" :key="i">
+                                    <td class="px-4 py-2.5 text-muted-foreground">{{ p.date ?? '—' }}</td>
+                                    <td class="px-4 py-2.5">
+                                        <span :class="['inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold', methodClass(p.method)]">
+                                            {{ p.method ?? '—' }}
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-2.5 font-mono text-xs text-muted-foreground">{{ p.reference || '—' }}</td>
+                                    <td class="px-4 py-2.5 text-right font-mono font-semibold text-emerald-700 dark:text-emerald-400">{{ p.amount }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </template>
 

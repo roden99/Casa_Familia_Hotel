@@ -60,7 +60,7 @@ class SalesOrderController extends Controller
 
         $soRawRows = $soQuery->orderByDesc('so.invoice_date')->get();
 
-        // Batch-fetch payment totals and latest details per SO
+        // Batch-fetch payment totals per SO
         $soIds = $soRawRows->pluck('id');
         $paymentsBySoId = DB::table('customer_payment_items as cpi')
             ->join('customer_payments as cp', 'cp.id', '=', 'cpi.customer_payment_id')
@@ -68,15 +68,22 @@ class SalesOrderController extends Controller
             ->select(
                 'cpi.sales_order_id',
                 DB::raw('SUM(cpi.sub_amount) as total_paid'),
-                DB::raw('MAX(cp.payment_date) as pmt_date'),
-                DB::raw('MAX(cp.payment_method) as pmt_method'),
-                DB::raw("GROUP_CONCAT(cp.reference_no ORDER BY cp.payment_date SEPARATOR ', ') as pmt_reference")
+                DB::raw('MAX(cp.id) as last_pmt_id')
             )
             ->groupBy('cpi.sales_order_id')
             ->get()
             ->keyBy('sales_order_id');
 
-        $soRows = $soRawRows->map(function ($item) use ($paymentsBySoId) {
+        // Batch-fetch all individual payment rows per SO
+        $soPaymentListById = DB::table('customer_payment_items as cpi')
+            ->join('customer_payments as cp', 'cp.id', '=', 'cpi.customer_payment_id')
+            ->whereIn('cpi.sales_order_id', $soIds)
+            ->select('cpi.sales_order_id', 'cpi.sub_amount', 'cp.payment_date', 'cp.payment_method', 'cp.reference_no')
+            ->orderBy('cp.payment_date')
+            ->get()
+            ->groupBy('sales_order_id');
+
+        $soRows = $soRawRows->map(function ($item) use ($paymentsBySoId, $soPaymentListById) {
             $customerName = $item->is_drugstore
                 ? strtoupper($item->company)
                 : trim(strtoupper($item->last_name) . ', ' . strtoupper($item->first_name));
@@ -86,9 +93,15 @@ class SalesOrderController extends Controller
                 ->sum(DB::raw('quantity * unit_price * (1 - IFNULL(discount_percentage, 0) / 100)'));
 
             $pmt = $paymentsBySoId->get($item->id);
-            $totalFloat = (float) $total;
-            $totalPaid  = (float) ($pmt->total_paid ?? 0);
-            $status     = $totalPaid >= $totalFloat && $totalFloat > 0 ? 'Paid' : ($totalPaid > 0 ? 'Partial' : 'Unpaid');
+            $totalFloat   = (float) $total;
+            $totalPaid    = (float) ($pmt->total_paid ?? 0);
+            $status       = $totalPaid >= $totalFloat && $totalFloat > 0 ? 'Paid' : ($totalPaid > 0 ? 'Partial' : 'Unpaid');
+            $paymentList  = ($soPaymentListById->get($item->id) ?? collect())->map(fn($p) => [
+                'amount'    => number_format((float) $p->sub_amount, 2, '.', ','),
+                'date'      => $p->payment_date ? Carbon::parse($p->payment_date)->format('m-d-Y') : null,
+                'method'    => $p->payment_method ?? 'Cash',
+                'reference' => $p->reference_no ?? null,
+            ])->values();
 
             return [
                 'id'                        => $item->id,
@@ -104,12 +117,14 @@ class SalesOrderController extends Controller
                 'terms'                     => $item->terms !== null ? (int) $item->terms : null,
                 'total_amount'              => number_format($totalFloat, 2, '.', ','),
                 'payment_id'                => $pmt ? $item->id : null,
+                'pmt_id'                    => $pmt?->last_pmt_id,
                 'payment_status'            => $status,
+                'payment_list'              => $paymentList,
                 'payment_details'           => $pmt ? [
                     'amount'    => number_format($totalPaid, 2, '.', ','),
-                    'date'      => $pmt->pmt_date ? Carbon::parse($pmt->pmt_date)->format('m-d-Y') : null,
-                    'method'    => $pmt->pmt_method ?? null,
-                    'reference' => $pmt->pmt_reference ?? null,
+                    'date'      => null,
+                    'method'    => null,
+                    'reference' => null,
                 ] : null,
             ];
         });
@@ -135,16 +150,12 @@ class SalesOrderController extends Controller
                     ->whereNotNull('cpi2.customer_account_invoice_id')
                     ->select(
                         'cpi2.customer_account_invoice_id',
-                        'cp2.amount as pmt_amount',
-                        'cp2.payment_date as pmt_date',
-                        'cp2.payment_method as pmt_method',
-                        'cp2.reference_no as pmt_reference',
-                        'cp2.check_number as pmt_check_number',
-                        'cp2.check_date as pmt_check_date',
-                        'cp2.notes as pmt_notes'
+                        DB::raw('MAX(cp2.id) as last_pmt_id'),
+                        DB::raw('MAX(cp2.payment_date) as pmt_date'),
+                        DB::raw('MAX(cp2.payment_method) as pmt_method'),
+                        DB::raw("GROUP_CONCAT(cp2.reference_no ORDER BY cp2.payment_date SEPARATOR ', ') as pmt_reference")
                     )
-                    ->orderByDesc('cp2.payment_date')
-                    ->orderByDesc('cp2.id'),
+                    ->groupBy('cpi2.customer_account_invoice_id'),
                 'last_pmt',
                 'last_pmt.customer_account_invoice_id',
                 '=',
@@ -163,13 +174,10 @@ class SalesOrderController extends Controller
                 'c.is_drugstore',
                 'sa.account_name',
                 'pmts.paid_amount',
-                'last_pmt.pmt_amount',
+                'last_pmt.last_pmt_id',
                 'last_pmt.pmt_date',
                 'last_pmt.pmt_method',
-                'last_pmt.pmt_reference',
-                'last_pmt.pmt_check_number',
-                'last_pmt.pmt_check_date',
-                'last_pmt.pmt_notes'
+                'last_pmt.pmt_reference'
             );
 
         if (!empty($account)) {
@@ -193,10 +201,29 @@ class SalesOrderController extends Controller
             }
         }
 
-        $invRows = $invQuery->orderByDesc('i.invoice_date')->get()->map(function ($item) {
+        $invRawRows = $invQuery->orderByDesc('i.invoice_date')->get();
+
+        // Batch-fetch all individual payment rows per invoice
+        $invIds = $invRawRows->pluck('id');
+        $invPaymentListById = DB::table('customer_payment_items as cpi')
+            ->join('customer_payments as cp', 'cp.id', '=', 'cpi.customer_payment_id')
+            ->whereIn('cpi.customer_account_invoice_id', $invIds)
+            ->select('cpi.customer_account_invoice_id', 'cpi.sub_amount', 'cp.payment_date', 'cp.payment_method', 'cp.reference_no')
+            ->orderBy('cp.payment_date')
+            ->get()
+            ->groupBy('customer_account_invoice_id');
+
+        $invRows = $invRawRows->map(function ($item) use ($invPaymentListById) {
             $customerName = $item->is_drugstore
                 ? strtoupper($item->company)
                 : trim(strtoupper($item->last_name) . ', ' . strtoupper($item->first_name));
+
+            $paymentList = ($invPaymentListById->get($item->id) ?? collect())->map(fn($p) => [
+                'amount'    => number_format((float) $p->sub_amount, 2, '.', ','),
+                'date'      => $p->payment_date ? Carbon::parse($p->payment_date)->format('m-d-Y') : null,
+                'method'    => $p->payment_method ?? 'Cash',
+                'reference' => $p->reference_no ?? null,
+            ])->values();
 
             return [
                 'id'                        => $item->id,
@@ -212,15 +239,14 @@ class SalesOrderController extends Controller
                 'terms'                     => $item->terms !== null ? (int) $item->terms : null,
                 'total_amount'              => number_format((float) $item->amount, 2, '.', ','),
                 'payment_id'                => null,
+                'pmt_id'                    => $item->last_pmt_id ?? null,
                 'payment_status'            => ($item->paid_amount ?? 0) >= $item->amount ? 'Paid' : (($item->paid_amount ?? 0) > 0 ? 'Partial' : 'Unpaid'),
-                'payment_details'           => $item->pmt_amount ? [
-                    'amount'       => number_format((float) $item->pmt_amount, 2, '.', ','),
-                    'date'         => $item->pmt_date ? Carbon::parse($item->pmt_date)->format('m-d-Y') : null,
-                    'method'       => $item->pmt_method ?? null,
-                    'reference'    => $item->pmt_reference ?? null,
-                    'check_number' => $item->pmt_check_number ?? null,
-                    'check_date'   => $item->pmt_check_date ? Carbon::parse($item->pmt_check_date)->format('m-d-Y') : null,
-                    'notes'        => $item->pmt_notes ?? null,
+                'payment_list'              => $paymentList,
+                'payment_details'           => ($item->paid_amount ?? 0) > 0 ? [
+                    'amount'    => number_format((float) $item->paid_amount, 2, '.', ','),
+                    'date'      => null,
+                    'method'    => null,
+                    'reference' => null,
                 ] : null,
             ];
         });
