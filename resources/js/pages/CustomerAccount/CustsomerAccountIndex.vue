@@ -9,7 +9,7 @@ import CustomerAccountPayment from './CustomerAccountPayment.vue';
 import CustomerAccountInvoice from './CustomerAccountInvoice.vue';
 import { ref, computed } from 'vue';
 import { router, Head } from '@inertiajs/vue3';
-import { Hospital, User, Phone, MapPin, BookOpen, CreditCard, FilePlus, Search } from 'lucide-vue-next';
+import { Hospital, User, Phone, MapPin, BookOpen, CreditCard, FilePlus, Search, ChevronLeft, ChevronRight } from 'lucide-vue-next';
 
 const breadcrumbs = [
     { title: 'Dashboard', href: '/dashboard' },
@@ -24,24 +24,29 @@ const props = defineProps({
 
 const currentAccount = ref(new URLSearchParams(window.location.search).get('account') || 'all');
 const currentType = ref(new URLSearchParams(window.location.search).get('type') || 'all');
-const searchText = ref('');
+const searchText = ref(new URLSearchParams(window.location.search).get('search') || '');
 
 const customerList = computed(() =>
     Array.isArray(props.customers) ? props.customers : (props.customers?.data ?? [])
 );
 
-const filtered = computed(() => {
-    const q = searchText.value.trim().toLowerCase();
-    return customerList.value.filter(c => {
-        if (!q) return true;
-        return (
-            (c.display_name ?? '').toLowerCase().includes(q) ||
-            (c.account_name ?? '').toLowerCase().includes(q) ||
-            (c.phone ?? '').toLowerCase().includes(q) ||
-            (c.company ?? '').toLowerCase().includes(q)
-        );
-    });
-});
+// pagination meta from Laravel paginator
+const pagination = computed(() =>
+    props.customers && typeof props.customers === 'object' && props.customers.current_page
+        ? props.customers : null
+);
+
+let searchTimer = null;
+const handleSearch = (e) => {
+    searchText.value = e.target.value;
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+        const url = new URL(window.location.href);
+        searchText.value ? url.searchParams.set('search', searchText.value) : url.searchParams.delete('search');
+        url.searchParams.delete('page');
+        router.get(url.pathname + url.search, {}, { preserveState: true });
+    }, 400);
+};
 
 const isDrugstore = (c) => c.is_drugstore === true || c.is_drugstore === 'YES' || c.is_drugstore === 1;
 
@@ -68,6 +73,12 @@ const handleAccountFilter = (value) => {
     router.get(url.pathname + url.search);
 };
 
+const goToPage = (page) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('page', page);
+    router.get(url.pathname + url.search, {}, { preserveScroll: true });
+};
+
 const showCreateModal = ref(false);
 const showLedgerModal = ref(false);
 const showPaymentModal = ref(false);
@@ -91,7 +102,7 @@ const openInvoice = (c) => { selectedAccount.value = c; showInvoiceModal.value =
 
                 <div class="relative flex-1 min-w-48 max-w-64">
                     <Search class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input v-model="searchText" placeholder="Search…" class="pl-8" />
+                    <Input :value="searchText" @input="handleSearch" placeholder="Search…" class="pl-8" />
                 </div>
 
                 <Select :model-value="currentAccount" @update:model-value="handleAccountFilter">
@@ -119,17 +130,19 @@ const openInvoice = (c) => { selectedAccount.value = c; showInvoiceModal.value =
                     </Button>
                 </div>
 
-                <span class="text-xs text-muted-foreground ml-auto">{{ filtered.length }} record{{ filtered.length !== 1
-                    ? 's' : '' }}</span>
+                <span class="text-xs text-muted-foreground ml-auto">
+                    <template v-if="pagination">{{ pagination.from }}–{{ pagination.to }} of {{ pagination.total }}</template>
+                    <template v-else>{{ customerList.length }} record{{ customerList.length !== 1 ? 's' : '' }}</template>
+                </span>
             </div>
 
             <!-- Card grid -->
             <div class="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 overflow-y-auto">
-                <div v-if="filtered.length === 0" class="col-span-full text-center text-muted-foreground py-16 text-sm">
+                <div v-if="customerList.length === 0" class="col-span-full text-center text-muted-foreground py-16 text-sm">
                     No accounts found.
                 </div>
 
-                <div v-for="c in filtered" :key="c.csa_id"
+                <div v-for="c in customerList" :key="c.csa_id"
                     class="relative flex flex-col gap-3 rounded-xl border bg-card p-4 shadow-sm hover:shadow-md transition-shadow">
                     <!-- Type icon badge top-right (icon only) -->
                     <div :class="isDrugstore(c)
@@ -183,6 +196,28 @@ const openInvoice = (c) => { selectedAccount.value = c; showInvoiceModal.value =
                             <FilePlus class="h-3.5 w-3.5" /> Invoice
                         </button>
                     </div>
+                </div>
+            </div>
+
+            <!-- Pagination -->
+            <div v-if="pagination && pagination.last_page > 1"
+                class="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t">
+                <span>Page {{ pagination.current_page }} of {{ pagination.last_page }}</span>
+                <div class="flex items-center gap-1">
+                    <Button variant="outline" size="sm" :disabled="pagination.current_page <= 1"
+                        @click="goToPage(pagination.current_page - 1)">
+                        <ChevronLeft class="h-4 w-4" />
+                    </Button>
+                    <template v-for="p in pagination.last_page" :key="p">
+                        <Button v-if="Math.abs(p - pagination.current_page) <= 2 || p === 1 || p === pagination.last_page"
+                            :variant="p === pagination.current_page ? 'default' : 'outline'" size="sm"
+                            @click="goToPage(p)">{{ p }}</Button>
+                        <span v-else-if="Math.abs(p - pagination.current_page) === 3" class="px-1">…</span>
+                    </template>
+                    <Button variant="outline" size="sm" :disabled="pagination.current_page >= pagination.last_page"
+                        @click="goToPage(pagination.current_page + 1)">
+                        <ChevronRight class="h-4 w-4" />
+                    </Button>
                 </div>
             </div>
 

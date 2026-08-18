@@ -19,6 +19,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        DB::statement('ALTER TABLE customer_payment_items DROP CHECK cpi_one_target');
+        DB::statement('ALTER TABLE customer_payment_items DROP CONSTRAINT cpi_one_target');
     }
 };

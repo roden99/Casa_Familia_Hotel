@@ -110,7 +110,7 @@ class CustomerAccountController extends Controller
             });
         }
 
-        $customers = $query->orderBy('sa.account_name')->orderBy('c.last_name')->get()->map(function ($row) {
+        $customers = $query->orderBy('sa.account_name')->orderBy('c.last_name')->paginate(20)->through(function ($row) {
             return [
                 'id'           => $row->id,
                 'csa_id'       => $row->csa_id,
