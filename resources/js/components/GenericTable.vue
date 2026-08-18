@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { MoreHorizontal, Pencil, Trash2, Eye, Copy, Download, PlusCircle, Users, ShieldCheck, History, UserSearch, TrendingDown, BookOpen, CreditCard, ArrowRightFromLine, FilePlus, PackagePlus, Receipt, Layers, Undo2, Tag, Printer } from 'lucide-vue-next'
+import { MoreHorizontal, Pencil, Trash2, Eye, Copy, Download, PlusCircle, Users, ShieldCheck, History, UserSearch, TrendingDown, TrendingUp, BookOpen, CreditCard, ArrowRightFromLine, FilePlus, PackagePlus, Receipt, Layers, Undo2, Tag, Printer } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
@@ -22,6 +22,7 @@ const actionConfig: Record<string, { label: string; icon: any; class: string }> 
   download: { label: 'Download', icon: Download, class: 'text-purple-600' },
   add: { label: 'Add', icon: PlusCircle, class: 'text-blue-600' },
   history: { label: 'History', icon: History, class: 'text-yellow-600' },
+  pricing_history: { label: 'Pricing History', icon: TrendingUp, class: 'text-violet-600' },
   clients: { label: 'Clients', icon: Users, class: 'text-indigo-600' },
   customers: { label: 'View Customers', icon: UserSearch, class: 'text-indigo-600' },
   initial: { label: 'Initial Inventory', icon: PlusCircle, class: 'text-blue-600' },

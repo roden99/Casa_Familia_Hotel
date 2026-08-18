@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useForm } from '@inertiajs/vue3';
-import { onMounted, ref, computed } from 'vue';
+import { onMounted, ref, computed, watch } from 'vue';
 import { toast } from 'vue-sonner';
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 import BaseField from '@/components/BaseField.vue';
@@ -60,31 +60,46 @@ const isBusy = computed(() => props.isProcessing);
 // ─── Orders for this payment ──────────────────────────────────────────────────
 const orders = ref([]);
 const selectedKeys = ref([]);
+const rowAmounts = ref({});
 
 const key = (item) => `${item.type}-${item.id}`;
 
 const selectedTotal = computed(() =>
-    orders.value
-        .filter(o => selectedKeys.value.includes(key(o)))
-        .reduce((sum, o) => sum + Number(o.total), 0)
+    selectedKeys.value.reduce((sum, k) => sum + (Number(rowAmounts.value[k]) || 0), 0)
 );
 
 const fmt = (val) =>
     Number(val).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const toggleOrder = (item) => {
+    if (item.type === 'untagged' || item.paid >= item.total) return;
     const k = key(item);
     const idx = selectedKeys.value.indexOf(k);
-    if (idx === -1) selectedKeys.value.push(k);
-    else selectedKeys.value.splice(idx, 1);
+    if (idx === -1) {
+        selectedKeys.value.push(k);
+        rowAmounts.value[k] = Math.round((Number(item.total) - Number(item.paid ?? 0)) * 100) / 100;
+    } else {
+        selectedKeys.value.splice(idx, 1);
+        delete rowAmounts.value[k];
+    }
 };
+
+watch(selectedTotal, (val) => {
+    if (selectedKeys.value.length === 1) {
+        form.amount = Math.round(val * 100) / 100;
+    }
+});
+
+const effectiveAmount = computed(() =>
+    selectedKeys.value.length > 0 ? Math.round(selectedTotal.value * 100) / 100 : Number(form.amount)
+);
 
 const handleAlertClose = () => {
     isDialogOpen.value = false;
 };
 
 const isFormValidated = () => {
-    if (!form.amount || Number(form.amount) <= 0) {
+    if (!effectiveAmount.value || effectiveAmount.value <= 0) {
         toast.error('Please enter a valid payment amount.');
         return false;
     }
@@ -116,10 +131,17 @@ const handleSubmit = () => {
     try {
         emit('handleSubmit', {
             ...form.data(),
+            amount: effectiveAmount.value,
             payment_date: normalizeDate(form.payment_date),
             check_date: form.check_date ? normalizeDate(form.check_date) : null,
             sales_order_ids: selectedKeys.value.filter(k => k.startsWith('order-')).map(k => Number(k.split('-')[1])),
             invoice_ids: selectedKeys.value.filter(k => k.startsWith('invoice-')).map(k => Number(k.split('-')[1])),
+            sales_order_amounts: Object.fromEntries(
+                selectedKeys.value.filter(k => k.startsWith('order-')).map(k => [k.split('-')[1], Number(rowAmounts.value[k])])
+            ),
+            invoice_amounts: Object.fromEntries(
+                selectedKeys.value.filter(k => k.startsWith('invoice-')).map(k => [k.split('-')[1], Number(rowAmounts.value[k])])
+            ),
         });
     } catch (error) {
         toast.error('ERROR', { description: error.message });
@@ -140,7 +162,14 @@ onMounted(async () => {
                 { headers: { Accept: 'application/json' } }
             );
             orders.value = res.data.orders ?? [];
-            selectedKeys.value = orders.value.filter(o => o.selected).map(o => key(o));
+            // pre-populate selection and allocations from existing payment
+            orders.value.forEach(o => {
+                if (o.selected) {
+                    const k = key(o);
+                    selectedKeys.value.push(k);
+                    rowAmounts.value[k] = o.allocate ?? Math.round((Number(o.total) - Number(o.paid ?? 0)) * 100) / 100;
+                }
+            });
         }
     } catch {
         toast.error('Failed to load invoices.');
@@ -151,7 +180,7 @@ onMounted(async () => {
 </script>
 
 <template>
-    <FormCard :loading="isProcessing" size="lg">
+    <FormCard :loading="isProcessing" size="4xl">
         <form @submit.prevent class="space-y-4 mt-4">
             <div class="grid grid-cols-12 gap-6">
 
@@ -182,8 +211,13 @@ onMounted(async () => {
 
                                     <Field class="col-span-6">
                                         <FieldLabel class="font-normal">Amount:</FieldLabel>
-                                        <Input v-model.number="form.amount" type="number" min="0.01" step="0.01"
+                                        <Input v-if="selectedKeys.length === 0"
+                                            v-model.number="form.amount" type="number" min="0.01" step="0.01"
                                             placeholder="0.00" required />
+                                        <div v-else
+                                            class="flex h-9 w-full items-center rounded-md border bg-muted px-3 text-sm font-mono font-semibold">
+                                            {{ fmt(effectiveAmount) }}
+                                        </div>
                                     </Field>
 
                                     <Field class="col-span-6">
@@ -238,43 +272,86 @@ onMounted(async () => {
                                     No invoices available for this account.
                                 </div>
 
-                                <div v-else class="overflow-y-auto max-h-64 rounded-md border">
-                                    <table class="w-full text-xs">
-                                        <thead class="sticky top-0 bg-muted/80 z-10">
+                                <div v-if="selectedKeys.length === 0 && !isLoading"
+                                    class="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+                                    <span class="font-semibold">Untagged Payment</span> — no invoice selected. This payment will be saved as a general account credit.
+                                </div>
+
+                                <div v-if="orders.length > 0" class="overflow-y-auto max-h-[32rem] rounded-md border">
+                                    <table class="w-full text-sm">
+                                        <thead class="sticky top-0 bg-muted/80 z-10 text-sm">
                                             <tr>
-                                                <th class="w-8 px-3 py-2"></th>
-                                                <th class="text-left px-3 py-2">Type</th>
-                                                <th class="text-left px-3 py-2">Invoice No.</th>
-                                                <th class="text-left px-3 py-2">Date</th>
-                                                <th class="text-left px-3 py-2">Due</th>
-                                                <th class="text-right px-3 py-2">Amount</th>
+                                                <th class="w-8 px-2 py-1.5"></th>
+                                                <th class="text-left px-2 py-1.5">Type</th>
+                                                <th class="text-left px-2 py-1.5">Invoice No.</th>
+                                                <th class="text-left px-2 py-1.5">Date</th>
+                                                <th class="text-left px-2 py-1.5">Due</th>
+                                                <th class="text-right px-2 py-1.5">Amount</th>
+                                                <th class="text-right px-2 py-1.5">Paid</th>
+                                                <th class="text-right px-2 py-1.5">Allocate</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             <tr v-for="order in orders" :key="key(order)"
-                                                class="border-t hover:bg-muted/40 cursor-pointer"
-                                                :class="selectedKeys.includes(key(order)) ? 'bg-primary/10' : ''"
+                                                class="border-t"
+                                                :class="order.type === 'untagged'
+                                                    ? 'bg-purple-50/50 dark:bg-purple-950/20 cursor-not-allowed'
+                                                    : order.paid >= order.total && !selectedKeys.includes(key(order))
+                                                        ? 'bg-muted/30 opacity-60 cursor-not-allowed'
+                                                        : [selectedKeys.includes(key(order)) ? 'bg-primary/10' : 'hover:bg-muted/40 cursor-pointer']"
                                                 @click="toggleOrder(order)">
                                                 <td class="px-3 py-2 text-center" @click.stop>
-                                                    <Checkbox :model-value="selectedKeys.includes(key(order))"
+                                                    <span v-if="order.type === 'untagged'"
+                                                        class="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300">
+                                                        CREDIT
+                                                    </span>
+                                                    <Checkbox v-else-if="order.paid === 0 || selectedKeys.includes(key(order))"
+                                                        :model-value="selectedKeys.includes(key(order))"
                                                         @update:model-value="() => toggleOrder(order)" />
+                                                    <div v-else class="flex flex-col items-center gap-0.5">
+                                                        <span v-if="order.paid >= order.total"
+                                                            class="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300">
+                                                            PAID<template v-if="order.paid_refs"> · {{ order.paid_refs }}</template>
+                                                        </span>
+                                                        <template v-else>
+                                                            <span class="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300">
+                                                                PARTIAL<template v-if="order.paid_refs"> · {{ order.paid_refs }}</template>
+                                                            </span>
+                                                            <Checkbox
+                                                                :model-value="selectedKeys.includes(key(order))"
+                                                                @update:model-value="() => toggleOrder(order)" />
+                                                        </template>
+                                                    </div>
                                                 </td>
                                                 <td class="px-3 py-2">
-                                                    <span
-                                                        :class="order.type === 'order'
-                                                            ? 'inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                                                    <span :class="order.type === 'order'
+                                                        ? 'inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                                                        : order.type === 'untagged'
+                                                            ? 'inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300'
                                                             : 'inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'">
-                                                        {{ order.type === 'order' ? 'SO' : 'INV' }}
+                                                        {{ order.type === 'order' ? 'SO' : order.type === 'untagged' ? 'PMT' : 'INV' }}
                                                     </span>
                                                 </td>
-                                                <td class="px-3 py-2 font-medium">{{ order.invoice_no }}</td>
-                                                <td class="px-3 py-2 text-muted-foreground">{{ order.invoice_date ?? '—'
-                                                    }}</td>
-                                                <td class="px-3 py-2"
+                                                <td class="px-2 py-1.5 font-medium">{{ order.invoice_no }}</td>
+                                                <td class="px-2 py-1.5 text-muted-foreground">{{ order.invoice_date ?? '—' }}</td>
+                                                <td class="px-2 py-1.5"
                                                     :class="order.due_date && new Date(order.due_date) < new Date() ? 'text-red-600 font-semibold' : 'text-muted-foreground'">
                                                     {{ order.due_date ?? '—' }}
                                                 </td>
-                                                <td class="px-3 py-2 text-right font-mono">{{ fmt(order.total) }}</td>
+                                                <td class="px-2 py-1.5 text-right font-mono">{{ fmt(order.total) }}</td>
+                                                <td class="px-2 py-1.5 text-right font-mono"
+                                                    :class="order.paid > 0 ? 'text-sky-600 font-semibold' : 'text-muted-foreground'">
+                                                    {{ order.paid > 0 ? fmt(order.paid) : '—' }}
+                                                </td>
+                                                <td class="px-2 py-1.5 text-right font-mono" @click.stop>
+                                                    <span v-if="order.type === 'untagged' || order.paid >= order.total" class="text-muted-foreground">—</span>
+                                                    <input v-else-if="selectedKeys.includes(key(order))"
+                                                        v-model.number="rowAmounts[key(order)]"
+                                                        type="number" min="0.01" step="0.01"
+                                                        :max="order.total - order.paid"
+                                                        class="w-24 text-right text-xs font-mono border rounded px-1.5 py-0.5 bg-background focus:outline-none focus:ring-1 focus:ring-ring" />
+                                                    <span v-else class="text-muted-foreground">{{ fmt(order.total - order.paid) }}</span>
+                                                </td>
                                             </tr>
                                         </tbody>
                                     </table>

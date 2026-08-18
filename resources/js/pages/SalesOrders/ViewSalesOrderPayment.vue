@@ -1,5 +1,5 @@
 <script setup>
-import { CreditCard, CheckCircle, AlertCircle, FileText, Building2, CalendarDays, Hash, StickyNote, X } from 'lucide-vue-next';
+import { CreditCard, CheckCircle, AlertCircle, FileText, Building2, CalendarDays, Hash, StickyNote, X, Clock } from 'lucide-vue-next';
 
 const props = defineProps({
     order: {
@@ -10,17 +10,23 @@ const props = defineProps({
 
 const emit = defineEmits(['form-closed']);
 
-const pd = props.order?.payment_details;
+const pd   = props.order?.payment_details;
+const status = props.order?.payment_status ?? (pd ? 'Paid' : 'Unpaid');
+
+const totalRaw  = parseFloat((props.order?.total_amount ?? '0').replace(/,/g, ''));
+const paidRaw   = parseFloat((pd?.amount ?? '0').replace(/,/g, ''));
+const remaining = Math.max(0, totalRaw - paidRaw);
+
+const fmt = (n) => Number(n).toLocaleString('en-PH', { minimumFractionDigits: 2 });
 
 const methodColors = {
-    'Cash': 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
-    'Cheque': 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+    'Cash':          'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
+    'Cheque':        'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
     'Bank Transfer': 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300',
-    'Online': 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
+    'Online':        'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
 };
 
 const methodClass = methodColors[pd?.method] ?? 'bg-muted text-muted-foreground';
-const isCheque = pd?.method === 'Cheque';
 </script>
 
 <template>
@@ -44,9 +50,13 @@ const isCheque = pd?.method === 'Cheque';
                     </div>
                 </div>
                 <div class="flex items-center gap-3">
-                    <span v-if="pd"
+                    <span v-if="status === 'Paid'"
                         class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
                         <CheckCircle class="h-3.5 w-3.5" /> Paid
+                    </span>
+                    <span v-else-if="status === 'Partial'"
+                        class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300">
+                        <Clock class="h-3.5 w-3.5" /> Partial
                     </span>
                     <span v-else
                         class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400">
@@ -91,18 +101,18 @@ const isCheque = pd?.method === 'Cheque';
 
                 <template v-else>
                     <!-- Amount + Method -->
-                    <div class="grid grid-cols-2 gap-3">
+                    <div class="grid grid-cols-3 gap-3">
                         <div class="rounded-lg border bg-emerald-50 dark:bg-emerald-950/30 px-4 py-3">
-                            <p class="text-xs text-muted-foreground uppercase tracking-wide font-medium mb-1">Amount
-                                Paid</p>
-                            <p class="text-xl font-bold text-emerald-700 dark:text-emerald-400 font-mono">
-                                {{ pd.amount }}
-                            </p>
+                            <p class="text-xs text-muted-foreground uppercase tracking-wide font-medium mb-1">Amount Paid</p>
+                            <p class="text-xl font-bold text-emerald-700 dark:text-emerald-400 font-mono">{{ pd.amount }}</p>
+                        </div>
+                        <div v-if="status === 'Partial'" class="rounded-lg border bg-amber-50 dark:bg-amber-950/30 px-4 py-3">
+                            <p class="text-xs text-muted-foreground uppercase tracking-wide font-medium mb-1">Remaining</p>
+                            <p class="text-xl font-bold text-amber-700 dark:text-amber-400 font-mono">{{ fmt(remaining) }}</p>
                         </div>
                         <div class="rounded-lg border bg-muted/30 px-4 py-3">
                             <p class="text-xs text-muted-foreground uppercase tracking-wide font-medium mb-2">Method</p>
-                            <span
-                                :class="['inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold', methodClass]">
+                            <span :class="['inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold', methodClass]">
                                 {{ pd.method ?? '—' }}
                             </span>
                         </div>
@@ -119,23 +129,6 @@ const isCheque = pd?.method === 'Cheque';
                             <Hash class="h-4 w-4 text-muted-foreground shrink-0" />
                             <span class="text-muted-foreground w-32 shrink-0">Reference No.</span>
                             <span class="ml-auto font-medium font-mono">{{ pd.reference || '—' }}</span>
-                        </div>
-                        <template v-if="isCheque">
-                            <div class="flex items-center gap-3 px-4 py-2.5">
-                                <Hash class="h-4 w-4 text-muted-foreground shrink-0" />
-                                <span class="text-muted-foreground w-32 shrink-0">Cheque Number</span>
-                                <span class="ml-auto font-medium font-mono">{{ pd.check_number || '—' }}</span>
-                            </div>
-                            <div class="flex items-center gap-3 px-4 py-2.5">
-                                <CalendarDays class="h-4 w-4 text-muted-foreground shrink-0" />
-                                <span class="text-muted-foreground w-32 shrink-0">Cheque Date</span>
-                                <span class="ml-auto font-medium">{{ pd.check_date || '—' }}</span>
-                            </div>
-                        </template>
-                        <div v-if="pd.notes" class="flex items-start gap-3 px-4 py-2.5">
-                            <StickyNote class="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-                            <span class="text-muted-foreground w-32 shrink-0">Notes</span>
-                            <span class="ml-auto text-right text-muted-foreground italic">{{ pd.notes }}</span>
                         </div>
                     </div>
                 </template>

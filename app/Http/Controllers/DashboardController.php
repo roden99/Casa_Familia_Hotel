@@ -33,13 +33,13 @@ class DashboardController extends Controller
                     SELECT SUM(i2.amount) FROM customer_account_invoices i2
                 ), 0)
                 - IFNULL((
-                    SELECT SUM(p2.amount) FROM customer_sales_account_payments p2
+                    SELECT SUM(p2.amount) FROM customer_payments p2
                 ), 0) as total
             ')
             ->value('total') ?? 0;
 
         // ── Payments made this month ─────────────────────────────────────
-        $paymentsThisMonth = DB::table('customer_sales_account_payments')
+        $paymentsThisMonth = DB::table('customer_payments')
             ->whereYear('payment_date', $year)
             ->whereMonth('payment_date', $month)
             ->sum('amount');
@@ -96,6 +96,70 @@ class DashboardController extends Controller
             ->limit(10)
             ->selectRaw("p.id, TRIM(CONCAT_WS(' ', p.productname, df.drugformname, pu.unit_name, IF(b.brandname IS NOT NULL, CONCAT('(', b.brandname, ')'), NULL))) as productname, p.product_qty, p.reorder_level")
             ->get();
+
+        // ── AR by account (outstanding balance per customer_sales_account) ──
+        $arByAccount = DB::table('customer_sales_account as csa')
+            ->join('customers as c', 'c.id', '=', 'csa.customer_id')
+            ->join('sales_accounts as sa', 'sa.id', '=', 'csa.sales_account_id')
+            ->selectRaw("
+                csa.id,
+                IF(c.is_drugstore, UPPER(c.company), TRIM(CONCAT(UPPER(c.last_name), ', ', UPPER(c.first_name)))) as customer_name,
+                UPPER(sa.account_name) as account_name,
+                IFNULL(csa.forward_balance, 0) as forward_balance,
+                IFNULL((
+                    SELECT SUM(soi.quantity * soi.unit_price * (1 - IFNULL(soi.discount_percentage,0)/100))
+                    FROM sales_orders so JOIN sales_order_items soi ON soi.sales_order_id = so.id
+                    WHERE so.customer_sales_account_id = csa.id
+                ), 0) as so_total,
+                IFNULL((
+                    SELECT SUM(i.amount) FROM customer_account_invoices i
+                    WHERE i.customer_sales_account_id = csa.id
+                ), 0) as invoice_total,
+                IFNULL((
+                    SELECT SUM(cpi.sub_amount) FROM customer_payment_items cpi
+                    WHERE cpi.customer_sales_account_id = csa.id
+                       OR cpi.customer_account_invoice_id IN (SELECT id FROM customer_account_invoices WHERE customer_sales_account_id = csa.id)
+                       OR cpi.sales_order_id IN (SELECT id FROM sales_orders WHERE customer_sales_account_id = csa.id)
+                ), 0) as paid_total
+            ")
+            ->get()
+            ->map(function ($row) {
+                $outstanding = (float)$row->forward_balance + (float)$row->so_total + (float)$row->invoice_total - (float)$row->paid_total;
+                return [
+                    'id'            => $row->id,
+                    'customer_name' => $row->customer_name,
+                    'account_name'  => $row->account_name,
+                    'outstanding'   => round($outstanding, 2),
+                    'formatted'     => number_format($outstanding, 2),
+                ];
+            })
+            ->filter(fn($r) => $r['outstanding'] > 0)
+            ->sortByDesc('outstanding')
+            ->values();
+
+        // ── AR aging buckets (based on document invoice dates) ────────────
+        $soAgingRows = DB::table('sales_orders as so')
+            ->join('sales_order_items as soi', 'soi.sales_order_id', '=', 'so.id')
+            ->whereNotNull('so.invoice_date')
+            ->selectRaw('so.invoice_date, SUM(soi.quantity * soi.unit_price * (1 - IFNULL(soi.discount_percentage,0)/100)) as amount')
+            ->groupBy('so.id', 'so.invoice_date')
+            ->get();
+
+        $invAgingRows = DB::table('customer_account_invoices')
+            ->whereNotNull('invoice_date')
+            ->select('invoice_date', 'amount')
+            ->get();
+
+        $arAging = ['current' => 0.0, 'days_31_60' => 0.0, 'days_61_90' => 0.0, 'over_90' => 0.0];
+        foreach ($soAgingRows->concat($invAgingRows) as $row) {
+            $age    = (int) Carbon::parse($row->invoice_date)->diffInDays($now);
+            $amount = (float) $row->amount;
+            if ($age <= 30)     $arAging['current']    += $amount;
+            elseif ($age <= 60) $arAging['days_31_60'] += $amount;
+            elseif ($age <= 90) $arAging['days_61_90'] += $amount;
+            else                $arAging['over_90']    += $amount;
+        }
+        $arAging = array_map(fn($v) => round($v, 2), $arAging);
 
         $lowStockCount = DB::table('products')
             ->whereColumn('product_qty', '<=', 'reorder_level')
@@ -190,6 +254,8 @@ class DashboardController extends Controller
                 'monthly_sales'       => $monthlySales,
                 'fast_moving_items'   => $fastMoving,
                 'slow_moving_items'   => $slowMoving,
+                'ar_by_account'       => $arByAccount,
+                'ar_aging'            => $arAging,
                 'month_label'         => $now->format('F Y'),
                 'year_label'          => (string) $year,
             ],

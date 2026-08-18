@@ -594,6 +594,41 @@ class ProductController extends Controller
         ]);
     }
 
+    public function pricingHistory(product $product)
+    {
+        $product->load(['unit', 'brand', 'drugform']);
+
+        $parts = [$product->productname];
+        if ($product->drugform) $parts[] = $product->drugform->drugformname;
+        if ($product->unit)     $parts[] = $product->unit->unit_name;
+        $displayName = implode(' ', $parts);
+        if ($product->brand) $displayName .= ' (' . $product->brand->brandname . ')';
+
+        $rows = \App\Models\DeliveryItem::with('delivery.supplier')
+            ->where('product_id', $product->id)
+            ->get()
+            ->map(function ($item) {
+                $delivery = $item->delivery;
+                return [
+                    'date'          => $delivery?->delivery_date
+                        ? \Carbon\Carbon::parse($delivery->delivery_date)->format('m-d-Y')
+                        : '—',
+                    'reference'     => $delivery?->invoice_no ?? '—',
+                    'supplier'      => $delivery?->supplier?->company ?? '—',
+                    'quantity'      => (float) $item->quantity_received,
+                    'unit_price'    => number_format((float) $item->unit_price, 2),
+                    'selling_price' => '—',
+                ];
+            })
+            ->sortBy('date')
+            ->values();
+
+        return response()->json([
+            'product' => ['display_name' => $displayName],
+            'rows'    => $rows,
+        ]);
+    }
+
     /**
      * Remove the specified resource from storage.
      */

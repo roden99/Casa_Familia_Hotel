@@ -17,6 +17,7 @@ import InitialProduct from '@/pages/Products/InitialProduct.vue';
 import ReorderLevel from '@/pages/Products/ReorderLevel.vue';
 import ProductHistory from '@/pages/Products/ProductHistory.vue';
 import ProductLotsView from '@/pages/Products/ProductLotsView.vue';
+import PricingHistory from '@/pages/StoreInventory/PricingHistory.vue';
 
 
 const breadcrumbs = [
@@ -95,6 +96,7 @@ const showDeleteProductModal = ref(false);
 const showInitialProductModal = ref(false);
 const showReorderLevelModal = ref(false);
 const showHistoryModal = ref(false);
+const showPricingHistoryModal = ref(false);
 const showLotsModal = ref(false);
 const selectedProduct = ref(null);
 
@@ -156,6 +158,11 @@ const handleAction = ({ type, data }) => {
 
         case 'history':
             showHistoryModal.value = true;
+            selectedProduct.value = data;
+            break;
+
+        case 'pricing_history':
+            showPricingHistoryModal.value = true;
             selectedProduct.value = data;
             break;
 
@@ -252,6 +259,10 @@ const handleAction = ({ type, data }) => {
 
             <ProductHistory v-if="showHistoryModal" :product="selectedProduct"
                 @form-closed="showHistoryModal = false" />
+
+            <PricingHistory v-if="showPricingHistoryModal" :product="selectedProduct"
+                :endpoint="`/products/${selectedProduct?.id}/pricing-history`"
+                @form-closed="showPricingHistoryModal = false" />
 
             <ProductLotsView v-if="showLotsModal" :product="selectedProduct" @form-closed="showLotsModal = false" />
 

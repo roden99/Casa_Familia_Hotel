@@ -24,26 +24,17 @@ class SalesOrderController extends Controller
             ->join('customer_sales_account as csa', 'csa.id', '=', 'so.customer_sales_account_id')
             ->join('customers as c', 'c.id', '=', 'csa.customer_id')
             ->join('sales_accounts as sa', 'sa.id', '=', 'csa.sales_account_id')
-            ->leftJoin('customer_sales_account_payments as pmt', 'pmt.id', '=', 'so.payment_id')
             ->select(
                 'so.id',
                 'so.invoice_no',
                 'so.invoice_date',
                 'so.terms',
-                'so.payment_id',
                 'so.customer_sales_account_id',
                 'c.company',
                 'c.first_name',
                 'c.last_name',
                 'c.is_drugstore',
-                'sa.account_name',
-                'pmt.amount as pmt_amount',
-                'pmt.payment_date as pmt_date',
-                'pmt.payment_method as pmt_method',
-                'pmt.reference_no as pmt_reference',
-                'pmt.check_number as pmt_check_number',
-                'pmt.check_date as pmt_check_date',
-                'pmt.notes as pmt_notes'
+                'sa.account_name'
             );
 
         if (!empty($account)) {
@@ -67,7 +58,25 @@ class SalesOrderController extends Controller
             }
         }
 
-        $soRows = $soQuery->orderByDesc('so.invoice_date')->get()->map(function ($item) {
+        $soRawRows = $soQuery->orderByDesc('so.invoice_date')->get();
+
+        // Batch-fetch payment totals and latest details per SO
+        $soIds = $soRawRows->pluck('id');
+        $paymentsBySoId = DB::table('customer_payment_items as cpi')
+            ->join('customer_payments as cp', 'cp.id', '=', 'cpi.customer_payment_id')
+            ->whereIn('cpi.sales_order_id', $soIds)
+            ->select(
+                'cpi.sales_order_id',
+                DB::raw('SUM(cpi.sub_amount) as total_paid'),
+                DB::raw('MAX(cp.payment_date) as pmt_date'),
+                DB::raw('MAX(cp.payment_method) as pmt_method'),
+                DB::raw("GROUP_CONCAT(cp.reference_no ORDER BY cp.payment_date SEPARATOR ', ') as pmt_reference")
+            )
+            ->groupBy('cpi.sales_order_id')
+            ->get()
+            ->keyBy('sales_order_id');
+
+        $soRows = $soRawRows->map(function ($item) use ($paymentsBySoId) {
             $customerName = $item->is_drugstore
                 ? strtoupper($item->company)
                 : trim(strtoupper($item->last_name) . ', ' . strtoupper($item->first_name));
@@ -75,6 +84,11 @@ class SalesOrderController extends Controller
             $total = DB::table('sales_order_items')
                 ->where('sales_order_id', $item->id)
                 ->sum(DB::raw('quantity * unit_price * (1 - IFNULL(discount_percentage, 0) / 100)'));
+
+            $pmt = $paymentsBySoId->get($item->id);
+            $totalFloat = (float) $total;
+            $totalPaid  = (float) ($pmt->total_paid ?? 0);
+            $status     = $totalPaid >= $totalFloat && $totalFloat > 0 ? 'Paid' : ($totalPaid > 0 ? 'Partial' : 'Unpaid');
 
             return [
                 'id'                        => $item->id,
@@ -88,17 +102,14 @@ class SalesOrderController extends Controller
                     ? Carbon::parse($item->invoice_date)->addDays((int) $item->terms)->format('m-d-Y')
                     : null,
                 'terms'                     => $item->terms !== null ? (int) $item->terms : null,
-                'total_amount'              => number_format((float) $total, 2, '.', ','),
-                'payment_id'                => $item->payment_id ?? null,
-                'payment_status'            => $item->payment_id ? 'Paid' : 'Unpaid',
-                'payment_details'           => $item->payment_id ? [
-                    'amount'       => number_format((float) $item->pmt_amount, 2, '.', ','),
-                    'date'         => $item->pmt_date ? Carbon::parse($item->pmt_date)->format('m-d-Y') : null,
-                    'method'       => $item->pmt_method ?? null,
-                    'reference'    => $item->pmt_reference ?? null,
-                    'check_number' => $item->pmt_check_number ?? null,
-                    'check_date'   => $item->pmt_check_date ? Carbon::parse($item->pmt_check_date)->format('m-d-Y') : null,
-                    'notes'        => $item->pmt_notes ?? null,
+                'total_amount'              => number_format($totalFloat, 2, '.', ','),
+                'payment_id'                => $pmt ? $item->id : null,
+                'payment_status'            => $status,
+                'payment_details'           => $pmt ? [
+                    'amount'    => number_format($totalPaid, 2, '.', ','),
+                    'date'      => $pmt->pmt_date ? Carbon::parse($pmt->pmt_date)->format('m-d-Y') : null,
+                    'method'    => $pmt->pmt_method ?? null,
+                    'reference' => $pmt->pmt_reference ?? null,
                 ] : null,
             ];
         });
@@ -109,8 +120,9 @@ class SalesOrderController extends Controller
             ->join('customers as c', 'c.id', '=', 'csa.customer_id')
             ->join('sales_accounts as sa', 'sa.id', '=', 'csa.sales_account_id')
             ->leftJoinSub(
-                DB::table('customer_account_invoice_payments')
-                    ->select('customer_account_invoice_id', DB::raw('SUM(amount) as paid_amount'))
+                DB::table('customer_payment_items')
+                    ->whereNotNull('customer_account_invoice_id')
+                    ->select('customer_account_invoice_id', DB::raw('SUM(sub_amount) as paid_amount'))
                     ->groupBy('customer_account_invoice_id'),
                 'pmts',
                 'pmts.customer_account_invoice_id',
@@ -118,19 +130,21 @@ class SalesOrderController extends Controller
                 'i.id'
             )
             ->leftJoinSub(
-                DB::table('customer_account_invoice_payments')
+                DB::table('customer_payment_items as cpi2')
+                    ->join('customer_payments as cp2', 'cp2.id', '=', 'cpi2.customer_payment_id')
+                    ->whereNotNull('cpi2.customer_account_invoice_id')
                     ->select(
-                        'customer_account_invoice_id',
-                        'amount as pmt_amount',
-                        'payment_date as pmt_date',
-                        'payment_method as pmt_method',
-                        'reference_no as pmt_reference',
-                        'check_number as pmt_check_number',
-                        'check_date as pmt_check_date',
-                        'notes as pmt_notes'
+                        'cpi2.customer_account_invoice_id',
+                        'cp2.amount as pmt_amount',
+                        'cp2.payment_date as pmt_date',
+                        'cp2.payment_method as pmt_method',
+                        'cp2.reference_no as pmt_reference',
+                        'cp2.check_number as pmt_check_number',
+                        'cp2.check_date as pmt_check_date',
+                        'cp2.notes as pmt_notes'
                     )
-                    ->orderByDesc('payment_date')
-                    ->orderByDesc('id'),
+                    ->orderByDesc('cp2.payment_date')
+                    ->orderByDesc('cp2.id'),
                 'last_pmt',
                 'last_pmt.customer_account_invoice_id',
                 '=',
@@ -223,7 +237,8 @@ class SalesOrderController extends Controller
             $today     = Carbon::today();
             $weekLater = Carbon::today()->addDays(7);
             $combined  = $combined->filter(function ($r) use ($filter, $today, $weekLater) {
-                $isPaid = $r['payment_id'] !== null || $r['payment_status'] === 'Paid';
+                $isPaid    = $r['payment_status'] === 'Paid';
+                $isPartial = $r['payment_status'] === 'Partial';
                 if ($filter === 'paid')   return $isPaid;
                 if ($filter === 'unpaid') return !$isPaid;
                 if ($isPaid || !$r['due_date']) return false;
@@ -294,12 +309,21 @@ class SalesOrderController extends Controller
         $account = $request->input('account');
         $today   = Carbon::today();
 
-        // ── Sales Orders (unpaid) ─────────────────────────────────────────────
+        // ── Sales Orders (unpaid or partially paid) ───────────────────────────
         $soQuery = DB::table('sales_orders as so')
             ->join('customer_sales_account as csa', 'csa.id', '=', 'so.customer_sales_account_id')
             ->join('customers as c', 'c.id', '=', 'csa.customer_id')
             ->join('sales_accounts as sa', 'sa.id', '=', 'csa.sales_account_id')
-            ->whereNull('so.payment_id')
+            ->leftJoinSub(
+                DB::table('customer_payment_items')
+                    ->whereNotNull('sales_order_id')
+                    ->select('sales_order_id', DB::raw('SUM(sub_amount) as total_paid'))
+                    ->groupBy('sales_order_id'),
+                'so_paid',
+                'so_paid.sales_order_id',
+                '=',
+                'so.id'
+            )
             ->select(
                 'so.id',
                 'so.invoice_no',
@@ -310,7 +334,8 @@ class SalesOrderController extends Controller
                 'c.last_name',
                 'c.is_drugstore',
                 'c.address',
-                'sa.account_name'
+                'sa.account_name',
+                'so_paid.total_paid'
             );
 
         if ($account) $soQuery->where('sa.account_name', $account);
@@ -320,9 +345,12 @@ class SalesOrderController extends Controller
             $due = Carbon::parse($item->invoice_date)->addDays((int) $item->terms);
             if ($due->gte($today)) return null;
 
-            $amount = DB::table('sales_order_items')
+            $total    = DB::table('sales_order_items')
                 ->where('sales_order_id', $item->id)
                 ->sum(DB::raw('quantity * unit_price * (1 - IFNULL(discount_percentage, 0) / 100)'));
+            $totalPaid = (float) ($item->total_paid ?? 0);
+            $amount    = $total - $totalPaid;
+            if ($amount <= 0) return null; // fully paid
 
             return [
                 'customer_name' => $item->is_drugstore
@@ -331,7 +359,7 @@ class SalesOrderController extends Controller
                 'address'       => $item->address ?? '',
                 'invoice_date'  => Carbon::parse($item->invoice_date)->format('m/d/Y'),
                 'invoice_no'    => $item->invoice_no ?? '',
-                'amount'        => round((float) $amount, 2),
+                'amount'        => round($amount, 2),
                 'days_overdue'  => $due->diffInDays($today),
             ];
         })->filter()->values();
@@ -342,8 +370,9 @@ class SalesOrderController extends Controller
             ->join('customers as c', 'c.id', '=', 'csa.customer_id')
             ->join('sales_accounts as sa', 'sa.id', '=', 'csa.sales_account_id')
             ->leftJoinSub(
-                DB::table('customer_account_invoice_payments')
-                    ->select('customer_account_invoice_id', DB::raw('SUM(amount) as paid_amount'))
+                DB::table('customer_payment_items')
+                    ->whereNotNull('customer_account_invoice_id')
+                    ->select('customer_account_invoice_id', DB::raw('SUM(sub_amount) as paid_amount'))
                     ->groupBy('customer_account_invoice_id'),
                 'pmts',
                 'pmts.customer_account_invoice_id',
@@ -569,7 +598,7 @@ class SalesOrderController extends Controller
     {
         $order = SalesOrder::with('items')->findOrFail($id);
 
-        if ($order->payment_id) {
+        if ($order->customer_sales_account_id && DB::table('customer_payment_items')->where('sales_order_id', $order->id)->exists()) {
             return back()->withErrors(['delete' => 'Cannot delete a paid sales order.']);
         }
 

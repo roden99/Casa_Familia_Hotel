@@ -15,7 +15,7 @@ const isAdmin = computed(() => page.props.auth?.user?.role === 'admin');
 const mainNavItems: NavItem[] = [
   {
     title: 'Dashboard',
-    href: '/under-construction',
+    href: '/dashboard',
     icon: LayoutGrid,
   },
 
@@ -105,14 +105,8 @@ const mainNavItems: NavItem[] = [
 
   {
     title: 'Customer Accounts',
-    href: '/under-construction',
+    href: '/customer-accounts',
     icon: UserCheck,
-  },
-
-  {
-    title: 'Payments',
-    href: '/under-construction',
-    icon: CreditCard,
   },
 
 

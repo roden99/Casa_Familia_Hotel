@@ -9,17 +9,11 @@ class PaymentController extends Controller
 {
     public function index(Request $request)
     {
-        $csaPayments = DB::table('customer_sales_account_payments')
-            ->select('id', DB::raw("'Sales Order' as type"), 'tag_status', 'payment_date', 'amount', 'reference_no', 'payment_method', 'check_date', 'check_number', 'notes');
-
-        $invoicePayments = DB::table('customer_account_invoice_payments')
-            ->select('id', DB::raw("'Invoice' as type"), 'tag_status', 'payment_date', 'amount', 'reference_no', 'payment_method', 'check_date', 'check_number', 'notes');
-        $payments = $csaPayments->unionAll($invoicePayments)
+        $payments = DB::table('customer_payments')
             ->orderByDesc('payment_date')
             ->get()
             ->map(fn($row) => [
                 'id'             => $row->id,
-                'type'           => $row->type,
                 'tag_status'     => $row->tag_status,
                 'payment_date'   => $row->payment_date,
                 'payment_method' => $row->payment_method,
@@ -32,7 +26,6 @@ class PaymentController extends Controller
 
         $columns = [
             ['accessorKey' => 'id',             'header' => 'ID',         'isVisible' => false],
-            ['accessorKey' => 'type',           'header' => 'TYPE',       'isVisible' => true],
             ['accessorKey' => 'payment_date',   'header' => 'DATE',       'isVisible' => true],
             ['accessorKey' => 'payment_method', 'header' => 'METHOD',     'isVisible' => true],
             ['accessorKey' => 'amount',         'header' => 'AMOUNT',     'isVisible' => true],
@@ -51,86 +44,41 @@ class PaymentController extends Controller
 
     public function details(Request $request, int $id)
     {
-        $type = $request->input('type'); // 'Sales Order' or 'Invoice'
+        $payment = DB::table('customer_payments')->where('id', $id)->first();
 
-        if ($type === 'Sales Order') {
-            $payment = DB::table('customer_sales_account_payments as p')
-                ->join('customer_sales_account as csa', 'csa.id', '=', 'p.customer_sales_account_id')
-                ->join('customers as c', 'c.id', '=', 'csa.customer_id')
-                ->join('sales_accounts as sa', 'sa.id', '=', 'csa.sales_account_id')
-                ->where('p.id', $id)
-                ->select(
-                    'p.id',
-                    'p.amount',
-                    'p.payment_date',
-                    'p.reference_no',
-                    'p.payment_method',
-                    'p.check_date',
-                    'p.check_number',
-                    'p.notes',
-                    'p.tag_status',
-                    DB::raw("IF(c.is_drugstore, UPPER(c.company), TRIM(CONCAT(UPPER(c.last_name), ', ', UPPER(c.first_name)))) as customer_name"),
-                    DB::raw('UPPER(sa.account_name) as account_name')
-                )
-                ->first();
-
-            if (!$payment) {
-                return response()->json(['error' => 'Payment not found.'], 404);
-            }
-
-            $applied = DB::table('sales_orders as so')
-                ->where('so.payment_id', $id)
-                ->select('so.id', 'so.invoice_no', 'so.invoice_date',
-                    DB::raw('(SELECT SUM(soi.quantity * soi.unit_price * (1 - IFNULL(soi.discount_percentage,0)/100))
-                              FROM sales_order_items soi WHERE soi.sales_order_id = so.id) as amount'))
-                ->get()
-                ->map(fn($r) => [
-                    'label'  => 'SO #' . $r->id . ($r->invoice_no ? ' — ' . $r->invoice_no : ''),
-                    'date'   => $r->invoice_date,
-                    'amount' => number_format((float) $r->amount, 2),
-                ]);
-        } else {
-            $payment = DB::table('customer_account_invoice_payments as p')
-                ->join('customer_account_invoices as i', 'i.id', '=', 'p.customer_account_invoice_id')
-                ->join('customer_sales_account as csa', 'csa.id', '=', 'i.customer_sales_account_id')
-                ->join('customers as c', 'c.id', '=', 'csa.customer_id')
-                ->join('sales_accounts as sa', 'sa.id', '=', 'csa.sales_account_id')
-                ->where('p.id', $id)
-                ->select(
-                    'p.id',
-                    'p.amount',
-                    'p.payment_date',
-                    'p.reference_no',
-                    'p.payment_method',
-                    'p.check_date',
-                    'p.check_number',
-                    'p.notes',
-                    'p.tag_status',
-                    'i.reference_no as invoice_reference',
-                    'i.invoice_date as invoice_date',
-                    'i.amount as invoice_amount',
-                    DB::raw("IF(c.is_drugstore, UPPER(c.company), TRIM(CONCAT(UPPER(c.last_name), ', ', UPPER(c.first_name)))) as customer_name"),
-                    DB::raw('UPPER(sa.account_name) as account_name')
-                )
-                ->first();
-
-            if (!$payment) {
-                return response()->json(['error' => 'Payment not found.'], 404);
-            }
-
-            $applied = collect([[
-                'label'  => 'Invoice' . ($payment->invoice_reference ? ' — ' . $payment->invoice_reference : ''),
-                'date'   => $payment->invoice_date,
-                'amount' => number_format((float) $payment->invoice_amount, 2),
-            ]]);
+        if (!$payment) {
+            return response()->json(['error' => 'Payment not found.'], 404);
         }
+
+        $applied = DB::table('customer_payment_items as cpi')
+            ->where('cpi.customer_payment_id', $id)
+            ->leftJoin('sales_orders as so', 'so.id', '=', 'cpi.sales_order_id')
+            ->leftJoin('customer_account_invoices as i', 'i.id', '=', 'cpi.customer_account_invoice_id')
+            ->select(
+                'cpi.sub_amount',
+                'cpi.sales_order_id',
+                'cpi.customer_account_invoice_id',
+                'cpi.customer_sales_account_id',
+                'so.invoice_no as so_invoice_no',
+                'so.invoice_date as so_date',
+                'i.reference_no as inv_ref',
+                'i.invoice_date as inv_date'
+            )
+            ->get()
+            ->map(fn($row) => [
+                'label'  => $row->sales_order_id
+                    ? 'SO #' . $row->sales_order_id . ($row->so_invoice_no ? ' — ' . $row->so_invoice_no : '')
+                    : ($row->customer_account_invoice_id
+                        ? 'INV #' . $row->customer_account_invoice_id . ($row->inv_ref ? ' — ' . $row->inv_ref : '')
+                        : 'Direct Account Payment'),
+                'date'   => $row->sales_order_id ? $row->so_date
+                    : ($row->customer_account_invoice_id ? $row->inv_date : $payment->payment_date),
+                'amount' => number_format((float) $row->sub_amount, 2),
+            ]);
 
         return response()->json([
             'payment' => [
                 'id'             => $payment->id,
-                'type'           => $type,
-                'customer_name'  => $payment->customer_name,
-                'account_name'   => $payment->account_name,
                 'payment_date'   => $payment->payment_date,
                 'payment_method' => $payment->payment_method,
                 'amount'         => number_format((float) $payment->amount, 2),

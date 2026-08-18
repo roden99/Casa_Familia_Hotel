@@ -434,4 +434,40 @@ class StoreInventoryController extends Controller
             'history' => $result,
         ]);
     }
+
+    public function pricingHistory(product $product)
+    {
+        $product->load(['unit', 'brand', 'drugform']);
+
+        $parts = [$product->productname];
+        if ($product->drugform) $parts[] = $product->drugform->drugformname;
+        $unitLabel = strtolower($product->unit?->pos_unit ?? 'pcs');
+        $parts[] = '(' . $unitLabel . ')';
+        $displayName = implode(' ', $parts);
+        if ($product->brand) $displayName .= ' (' . $product->brand->brandname . ')';
+
+        $rows = PosDeliveryItem::with('posDelivery.supplier')
+            ->where('product_id', $product->id)
+            ->get()
+            ->map(function ($item) {
+                $delivery = $item->posDelivery;
+                return [
+                    'date'          => $delivery->delivery_date
+                        ? Carbon::parse($delivery->delivery_date)->format('m-d-Y')
+                        : '—',
+                    'reference'     => $delivery->invoice_no ?? '—',
+                    'supplier'      => $delivery->supplier?->company ?? '—',
+                    'quantity'      => (float) $item->quantity,
+                    'unit_price'    => number_format((float) $item->cost, 2),
+                    'selling_price' => number_format((float) $item->selling_price, 2),
+                ];
+            })
+            ->sortBy('date')
+            ->values();
+
+        return response()->json([
+            'product' => ['display_name' => $displayName],
+            'rows'    => $rows,
+        ]);
+    }
 }

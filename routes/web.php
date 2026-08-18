@@ -36,7 +36,7 @@ Route::get('/', function () {
     return redirect()->route('login');
 })->name('home');
 
-Route::get('dashboard', fn() => inertia('UnderConstruction'))->middleware(['auth', 'verified'])->name('dashboard');
+Route::get('dashboard', [DashboardController::class, 'index'])->middleware(['auth', 'verified'])->name('dashboard');
 Route::get('dashboard/chart-data', [DashboardController::class, 'chartData'])->middleware(['auth'])->name('dashboard.chart-data');
 
 Route::get('under-construction', function () {
@@ -77,6 +77,7 @@ Route::delete('pos-items/{product}', [ProductController::class, 'destroyPosItem'
 Route::patch('products/{product}/initial-inventory', [ProductController::class, 'initialInventory'])->name('products.initialInventory');
 Route::patch('products/{product}/reorder-level', [ProductController::class, 'reorderLevel'])->name('products.reorderLevel');
 Route::get('products/{product}/history', [ProductController::class, 'history'])->name('products.history');
+Route::get('products/{product}/pricing-history', [ProductController::class, 'pricingHistory'])->name('products.pricing-history');
 Route::post('products/{product}/lots', [ProductController::class, 'storeLot'])->name('products.lots.store');
 Route::get('products/{product}/lots/all', [ProductController::class, 'getLots'])->name('products.lots.index');
 Route::patch('products/{product}/lots/{lot}', [ProductController::class, 'updateLot'])->name('products.lots.update');
@@ -92,6 +93,7 @@ Route::get('store-inventory', [StoreInventoryController::class, 'index'])->name(
 Route::patch('store-inventory/{product}/pos-qty', [StoreInventoryController::class, 'updatePosQty'])->name('store-inventory.updatePosQty');
 Route::patch('store-inventory/{product}/selling-price', [StoreInventoryController::class, 'posSellingPrice'])->name('store-inventory.sellingPrice');
 Route::get('store-inventory/{product}/history', [StoreInventoryController::class, 'history'])->name('store-inventory.history');
+Route::get('store-inventory/{product}/pricing-history', [StoreInventoryController::class, 'pricingHistory'])->name('store-inventory.pricing-history');
 
 
 Route::get('store-inventory/init-pos-products', [StoreInventoryController::class, 'initPosProducts'])->name('store-inventory.init-pos-products');

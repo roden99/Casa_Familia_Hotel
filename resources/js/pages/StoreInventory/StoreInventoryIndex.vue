@@ -12,6 +12,7 @@ import DeleteProduct from "@/pages/Products/DeleteProduct.vue";
 import UpdatePosQty from "@/pages/StoreInventory/UpdatePosQty.vue";
 import PosProductLotsView from '@/pages/StoreInventory/PosProductLotsView.vue';
 import StoreProductHistory from "@/pages/StoreInventory/StoreProductHistory.vue";
+import PricingHistory from "@/pages/StoreInventory/PricingHistory.vue";
 
 const breadcrumbs = [
     { title: "Dashboard", href: "/dashboard" },
@@ -42,6 +43,7 @@ const showDeleteProductModal = ref(false);
 const showInitialPosQtyModal = ref(false);
 const showLotsModal = ref(false);
 const showHistoryModal = ref(false);
+const showPricingHistoryModal = ref(false);
 const selectedProduct = ref(null);
 
 const currentType = ref(new URLSearchParams(window.location.search).get("type") || "all");
@@ -70,6 +72,10 @@ const handleAction = ({ type, data }) => {
             break;
         case "history":
             showHistoryModal.value = true;
+            selectedProduct.value = data;
+            break;
+        case "pricing_history":
+            showPricingHistoryModal.value = true;
             selectedProduct.value = data;
             break;
         case "delete":
@@ -128,6 +134,9 @@ const handleAction = ({ type, data }) => {
 
             <StoreProductHistory v-if="showHistoryModal" :product="selectedProduct"
                 @form-closed="showHistoryModal = false" />
+
+            <PricingHistory v-if="showPricingHistoryModal" :product="selectedProduct"
+                @form-closed="showPricingHistoryModal = false" />
         </div>
     </AppLayout>
 </template>

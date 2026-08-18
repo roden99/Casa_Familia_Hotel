@@ -86,9 +86,10 @@ class CustomerAccountController extends Controller
                         WHERE i.customer_sales_account_id = csa.id
                     ), 0)
                     - IFNULL((
-                        SELECT SUM(p.amount)
-                        FROM customer_sales_account_payments p
-                        WHERE p.customer_sales_account_id = csa.id
+                        SELECT SUM(cpi.sub_amount) FROM customer_payment_items cpi
+                        WHERE cpi.customer_sales_account_id = csa.id
+                           OR cpi.customer_account_invoice_id IN (SELECT id FROM customer_account_invoices WHERE customer_sales_account_id = csa.id)
+                           OR cpi.sales_order_id IN (SELECT id FROM sales_orders WHERE customer_sales_account_id = csa.id)
                     ), 0) AS balance')
             );
 
@@ -109,7 +110,7 @@ class CustomerAccountController extends Controller
             });
         }
 
-        $customers = $query->orderBy('sa.account_name')->orderBy('c.last_name')->paginate(15)->through(function ($row) {
+        $customers = $query->orderBy('sa.account_name')->orderBy('c.last_name')->get()->map(function ($row) {
             return [
                 'id'           => $row->id,
                 'csa_id'       => $row->csa_id,
@@ -195,11 +196,30 @@ class CustomerAccountController extends Controller
      */
     public function unpaidOrders(int $id)
     {
-        // Unpaid sales orders
         $orders = DB::table('sales_orders as so')
             ->where('so.customer_sales_account_id', $id)
-            ->whereNull('so.payment_id')
-            ->select('so.id', 'so.invoice_no', 'so.invoice_date', 'so.terms')
+            ->leftJoinSub(
+                DB::table('customer_payment_items')
+                    ->whereNotNull('sales_order_id')
+                    ->select('sales_order_id', DB::raw('SUM(sub_amount) as paid_amount'))
+                    ->groupBy('sales_order_id'),
+                'so_pmts',
+                'so_pmts.sales_order_id',
+                '=',
+                'so.id'
+            )
+            ->leftJoinSub(
+                DB::table('customer_payment_items as cpi2')
+                    ->join('customer_payments as cp2', 'cp2.id', '=', 'cpi2.customer_payment_id')
+                    ->whereNotNull('cpi2.sales_order_id')
+                    ->select('cpi2.sales_order_id', DB::raw("GROUP_CONCAT(IFNULL(cp2.reference_no,'') ORDER BY cp2.payment_date SEPARATOR ', ') as paid_refs"))
+                    ->groupBy('cpi2.sales_order_id'),
+                'so_refs',
+                'so_refs.sales_order_id',
+                '=',
+                'so.id'
+            )
+            ->select('so.id', 'so.invoice_no', 'so.invoice_date', 'so.terms', 'so_pmts.paid_amount', 'so_refs.paid_refs')
             ->orderBy('so.invoice_date')
             ->get()
             ->map(function ($row) {
@@ -216,23 +236,35 @@ class CustomerAccountController extends Controller
                     'invoice_date' => $row->invoice_date ? \Carbon\Carbon::parse($row->invoice_date)->format('m-d-Y') : null,
                     'due_date'     => $dueDate,
                     'total'        => round((float) $total, 2),
+                    'paid'         => round((float) ($row->paid_amount ?? 0), 2),
+                    'paid_refs'    => $row->paid_refs ?? null,
                 ];
             });
 
-        // Unpaid / partially-paid manual invoices
         $invoices = DB::table('customer_account_invoices as i')
             ->where('i.customer_sales_account_id', $id)
             ->leftJoinSub(
-                DB::table('customer_account_invoice_payments')
-                    ->select('customer_account_invoice_id', DB::raw('SUM(amount) as paid_amount'))
+                DB::table('customer_payment_items')
+                    ->whereNotNull('customer_account_invoice_id')
+                    ->select('customer_account_invoice_id', DB::raw('SUM(sub_amount) as paid_amount'))
                     ->groupBy('customer_account_invoice_id'),
                 'pmts',
                 'pmts.customer_account_invoice_id',
                 '=',
                 'i.id'
             )
-            ->whereRaw('IFNULL(pmts.paid_amount, 0) < i.amount')
-            ->select('i.id', 'i.reference_no', 'i.invoice_date', 'i.terms', 'i.amount')
+            ->leftJoinSub(
+                DB::table('customer_payment_items as cpi3')
+                    ->join('customer_payments as cp3', 'cp3.id', '=', 'cpi3.customer_payment_id')
+                    ->whereNotNull('cpi3.customer_account_invoice_id')
+                    ->select('cpi3.customer_account_invoice_id', DB::raw("GROUP_CONCAT(IFNULL(cp3.reference_no,'') ORDER BY cp3.payment_date SEPARATOR ', ') as paid_refs"))
+                    ->groupBy('cpi3.customer_account_invoice_id'),
+                'inv_refs',
+                'inv_refs.customer_account_invoice_id',
+                '=',
+                'i.id'
+            )
+            ->select('i.id', 'i.reference_no', 'i.invoice_date', 'i.terms', 'i.amount', 'pmts.paid_amount', 'inv_refs.paid_refs')
             ->orderBy('i.invoice_date')
             ->get()
             ->map(fn($row) => [
@@ -244,31 +276,74 @@ class CustomerAccountController extends Controller
                     ? \Carbon\Carbon::parse($row->invoice_date)->addDays((int) $row->terms)->format('m-d-Y')
                     : null,
                 'total'        => round((float) $row->amount, 2),
+                'paid'         => round((float) ($row->paid_amount ?? 0), 2),
+                'paid_refs'    => $row->paid_refs ?? null,
             ]);
 
-        $all = $orders->concat($invoices)->sortBy('invoice_date')->values();
+        // Untagged payments (credited directly to account, not linked to any invoice/SO)
+        $untagged = DB::table('customer_payments as cp')
+            ->join('customer_payment_items as cpi', 'cpi.customer_payment_id', '=', 'cp.id')
+            ->where('cpi.customer_sales_account_id', $id)
+            ->select('cp.id', 'cpi.sub_amount as amount', 'cp.payment_date as invoice_date', 'cp.reference_no')
+            ->get()
+            ->map(fn($row) => [
+                'id'           => $row->id,
+                'type'         => 'untagged',
+                'invoice_no'   => $row->reference_no ?? '—',
+                'invoice_date' => $row->invoice_date ? \Carbon\Carbon::parse($row->invoice_date)->format('m-d-Y') : null,
+                'due_date'     => null,
+                'total'        => round((float) $row->amount, 2),
+                'paid'         => 0,
+                'paid_refs'    => null,
+            ]);
+
+        $all = $orders->concat($invoices)->concat($untagged)->sortBy('invoice_date')->values();
 
         return response()->json(['orders' => $all]);
     }
 
-    /**
-     * Return orders + invoices available for a specific payment edit (pre-selected if linked).
-     */
     public function ordersForPayment(int $id, int $paymentId)
     {
         $orders = DB::table('sales_orders as so')
             ->where('so.customer_sales_account_id', $id)
             ->where(function ($q) use ($paymentId) {
-                $q->whereNull('so.payment_id')->orWhere('so.payment_id', $paymentId);
+                $q->whereNotExists(fn($s) => $s->from('customer_payment_items')->whereColumn('customer_payment_items.sales_order_id', 'so.id'))
+                    ->orWhereExists(fn($s) => $s->from('customer_payment_items')->whereColumn('customer_payment_items.sales_order_id', 'so.id')->where('customer_payment_items.customer_payment_id', $paymentId));
             })
-            ->select('so.id', 'so.invoice_no', 'so.invoice_date', 'so.terms', 'so.payment_id')
+            ->leftJoinSub(
+                DB::table('customer_payment_items')
+                    ->whereNotNull('sales_order_id')
+                    ->select('sales_order_id', DB::raw('SUM(sub_amount) as paid_amount'))
+                    ->groupBy('sales_order_id'),
+                'so_pmts',
+                'so_pmts.sales_order_id',
+                '=',
+                'so.id'
+            )
+            ->leftJoinSub(
+                DB::table('customer_payment_items as cpi_r')
+                    ->join('customer_payments as cp_r', 'cp_r.id', '=', 'cpi_r.customer_payment_id')
+                    ->whereNotNull('cpi_r.sales_order_id')
+                    ->where('cpi_r.customer_payment_id', '!=', $paymentId)
+                    ->select('cpi_r.sales_order_id', DB::raw("GROUP_CONCAT(IFNULL(cp_r.reference_no,'') ORDER BY cp_r.payment_date SEPARATOR ', ') as paid_refs"))
+                    ->groupBy('cpi_r.sales_order_id'),
+                'so_refs',
+                'so_refs.sales_order_id',
+                '=',
+                'so.id'
+            )
+            ->select('so.id', 'so.invoice_no', 'so.invoice_date', 'so.terms', 'so_pmts.paid_amount', 'so_refs.paid_refs')
             ->orderBy('so.invoice_date')
             ->get()
             ->map(function ($row) use ($paymentId) {
-                $total = DB::table('sales_order_items')
+                $total    = DB::table('sales_order_items')
                     ->where('sales_order_id', $row->id)
                     ->sum(DB::raw('quantity * unit_price * (1 - IFNULL(discount_percentage, 0) / 100)'));
-                $dueDate = ($row->invoice_date && $row->terms)
+                $allocate = DB::table('customer_payment_items')
+                    ->where('sales_order_id', $row->id)
+                    ->where('customer_payment_id', $paymentId)
+                    ->value('sub_amount');
+                $dueDate  = ($row->invoice_date && $row->terms)
                     ? \Carbon\Carbon::parse($row->invoice_date)->addDays((int) $row->terms)->format('m-d-Y')
                     : null;
                 return [
@@ -278,37 +353,82 @@ class CustomerAccountController extends Controller
                     'invoice_date' => $row->invoice_date ? \Carbon\Carbon::parse($row->invoice_date)->format('m-d-Y') : null,
                     'due_date'     => $dueDate,
                     'total'        => round((float) $total, 2),
-                    'selected'     => (int) $row->payment_id === $paymentId,
+                    'paid'         => round((float) ($row->paid_amount ?? 0), 2),
+                    'paid_refs'    => $row->paid_refs ?? null,
+                    'allocate'     => $allocate !== null ? round((float) $allocate, 2) : null,
+                    'selected'     => $allocate !== null,
                 ];
             });
 
         $invoices = DB::table('customer_account_invoices as i')
             ->where('i.customer_sales_account_id', $id)
             ->leftJoinSub(
-                DB::table('customer_account_invoice_payments')
-                    ->select('customer_account_invoice_id', DB::raw('SUM(amount) as paid_amount'))
+                DB::table('customer_payment_items')
+                    ->whereNotNull('customer_account_invoice_id')
+                    ->select('customer_account_invoice_id', DB::raw('SUM(sub_amount) as paid_amount'))
                     ->groupBy('customer_account_invoice_id'),
                 'pmts',
                 'pmts.customer_account_invoice_id',
                 '=',
                 'i.id'
             )
-            ->select('i.id', 'i.reference_no', 'i.invoice_date', 'i.terms', 'i.amount', 'pmts.paid_amount')
+            ->leftJoinSub(
+                DB::table('customer_payment_items as cpi_r2')
+                    ->join('customer_payments as cp_r2', 'cp_r2.id', '=', 'cpi_r2.customer_payment_id')
+                    ->whereNotNull('cpi_r2.customer_account_invoice_id')
+                    ->where('cpi_r2.customer_payment_id', '!=', $paymentId)
+                    ->select('cpi_r2.customer_account_invoice_id', DB::raw("GROUP_CONCAT(IFNULL(cp_r2.reference_no,'') ORDER BY cp_r2.payment_date SEPARATOR ', ') as paid_refs"))
+                    ->groupBy('cpi_r2.customer_account_invoice_id'),
+                'inv_refs',
+                'inv_refs.customer_account_invoice_id',
+                '=',
+                'i.id'
+            )
+            ->select('i.id', 'i.reference_no', 'i.invoice_date', 'i.terms', 'i.amount', 'pmts.paid_amount', 'inv_refs.paid_refs')
             ->orderBy('i.invoice_date')
+            ->get()
+            ->map(function ($row) use ($paymentId) {
+                $allocate = DB::table('customer_payment_items')
+                    ->where('customer_account_invoice_id', $row->id)
+                    ->where('customer_payment_id', $paymentId)
+                    ->value('sub_amount');
+                return [
+                    'id'           => $row->id,
+                    'type'         => 'invoice',
+                    'invoice_no'   => $row->reference_no ?? '—',
+                    'invoice_date' => $row->invoice_date ? \Carbon\Carbon::parse($row->invoice_date)->format('m-d-Y') : null,
+                    'due_date'     => ($row->invoice_date && $row->terms)
+                        ? \Carbon\Carbon::parse($row->invoice_date)->addDays((int) $row->terms)->format('m-d-Y')
+                        : null,
+                    'total'        => round((float) $row->amount, 2),
+                    'paid'         => round((float) ($row->paid_amount ?? 0), 2),
+                    'paid_refs'    => $row->paid_refs ?? null,
+                    'allocate'     => $allocate !== null ? round((float) $allocate, 2) : null,
+                    'selected'     => $allocate !== null,
+                ];
+            });
+
+        // Untagged credits for this account (excluding the current payment)
+        $untagged = DB::table('customer_payments as cp')
+            ->join('customer_payment_items as cpi', 'cpi.customer_payment_id', '=', 'cp.id')
+            ->where('cpi.customer_sales_account_id', $id)
+            ->where('cp.id', '!=', $paymentId)
+            ->select('cp.id', 'cpi.sub_amount as amount', 'cp.payment_date as invoice_date', 'cp.reference_no')
             ->get()
             ->map(fn($row) => [
                 'id'           => $row->id,
-                'type'         => 'invoice',
+                'type'         => 'untagged',
                 'invoice_no'   => $row->reference_no ?? '—',
                 'invoice_date' => $row->invoice_date ? \Carbon\Carbon::parse($row->invoice_date)->format('m-d-Y') : null,
-                'due_date'     => ($row->invoice_date && $row->terms)
-                    ? \Carbon\Carbon::parse($row->invoice_date)->addDays((int) $row->terms)->format('m-d-Y')
-                    : null,
+                'due_date'     => null,
                 'total'        => round((float) $row->amount, 2),
-                'selected'     => $row->paid_amount !== null && (float) $row->paid_amount >= (float) $row->amount,
+                'paid'         => 0,
+                'paid_refs'    => null,
+                'allocate'     => null,
+                'selected'     => false,
             ]);
 
-        $all = $orders->concat($invoices)->sortBy('invoice_date')->values();
+        $all = $orders->concat($invoices)->concat($untagged)->sortBy('invoice_date')->values();
 
         return response()->json(['orders' => $all]);
     }
@@ -328,63 +448,76 @@ class CustomerAccountController extends Controller
             'check_number'    => ($isCheque ? 'required' : 'nullable') . '|string|max:100',
             'check_date'      => ($isCheque ? 'required' : 'nullable') . '|date',
             'notes'           => 'nullable|string',
-            'sales_order_ids'   => 'nullable|array',
-            'sales_order_ids.*' => 'integer|exists:sales_orders,id',
-            'invoice_ids'       => 'nullable|array',
-            'invoice_ids.*'     => 'integer|exists:customer_account_invoices,id',
+            'sales_order_ids'       => 'nullable|array',
+            'sales_order_ids.*'     => 'integer|exists:sales_orders,id',
+            'invoice_ids'           => 'nullable|array',
+            'invoice_ids.*'         => 'integer|exists:customer_account_invoices,id',
+            'sales_order_amounts'   => 'nullable|array',
+            'sales_order_amounts.*' => 'nullable|numeric|min:0.01',
+            'invoice_amounts'       => 'nullable|array',
+            'invoice_amounts.*'     => 'nullable|numeric|min:0.01',
         ]);
 
-        if (!empty($validated['sales_order_ids']) && !empty($validated['invoice_ids'])) {
-            return back()->withErrors(['mixed' => 'A payment cannot cover both sales orders and invoices at the same time.']);
+        $itemsTotal = array_sum($validated['sales_order_amounts'] ?? [])
+            + array_sum($validated['invoice_amounts'] ?? []);
+        if ($itemsTotal > 0 && abs((float) $validated['amount'] - $itemsTotal) > 0.01) {
+            return back()->withErrors(['amount' => 'Payment amount must equal the sum of allocated amounts.']);
         }
 
-        $paymentId = DB::table('customer_sales_account_payments')->insertGetId([
-            'customer_sales_account_id' => $id,
-            'amount'                    => $validated['amount'],
-            'payment_date'              => $validated['payment_date'],
-            'reference_no'              => $validated['reference_no'] ?? null,
-            'payment_method'            => $validated['payment_method'] ?? null,
-            'check_number'              => $validated['check_number'] ?? null,
-            'check_date'                => $validated['check_date'] ?? null,
-            'notes'                     => $validated['notes'] ?? null,
-            'created_by'                => $request->user()->id,
-            'updated_by'                => $request->user()->id,
-            'created_at'                => now(),
-            'updated_at'                => now(),
-        ]);
+        DB::transaction(function () use ($id, $validated, $request) {
+            $paymentId = DB::table('customer_payments')->insertGetId([
+                'amount'         => $validated['amount'],
+                'payment_date'   => $validated['payment_date'],
+                'reference_no'   => $validated['reference_no'] ?? null,
+                'payment_method' => $validated['payment_method'] ?? null,
+                'check_number'   => $validated['check_number'] ?? null,
+                'check_date'     => $validated['check_date'] ?? null,
+                'notes'          => $validated['notes'] ?? null,
+                'created_by'     => $request->user()->id,
+                'updated_by'     => $request->user()->id,
+                'created_at'     => now(),
+                'updated_at'     => now(),
+            ]);
 
-        if (!empty($validated['sales_order_ids'])) {
-            DB::table('sales_orders')
-                ->whereIn('id', $validated['sales_order_ids'])
-                ->where('customer_sales_account_id', $id)
-                ->update(['payment_id' => $paymentId, 'updated_at' => now()]);
-        }
+            foreach ($validated['sales_order_ids'] ?? [] as $soId) {
+                $soAmount = $validated['sales_order_amounts'][$soId]
+                    ?? DB::table('sales_order_items')->where('sales_order_id', $soId)
+                    ->sum(DB::raw('quantity * unit_price * (1 - IFNULL(discount_percentage,0)/100)'));
+                DB::table('customer_payment_items')->insert([
+                    'customer_payment_id' => $paymentId,
+                    'sales_order_id'      => $soId,
+                    'sub_amount'          => round((float) $soAmount, 2),
+                    'created_at'          => now(),
+                    'updated_at'          => now(),
+                ]);
+            }
 
-        if (!empty($validated['invoice_ids'])) {
             $invoices = DB::table('customer_account_invoices')
-                ->whereIn('id', $validated['invoice_ids'])
+                ->whereIn('id', $validated['invoice_ids'] ?? [])
                 ->where('customer_sales_account_id', $id)
                 ->select('id', 'amount')
                 ->get();
-
-            $now = now();
             foreach ($invoices as $invoice) {
-                DB::table('customer_account_invoice_payments')->insert([
+                $allocAmount = $validated['invoice_amounts'][$invoice->id] ?? $invoice->amount;
+                DB::table('customer_payment_items')->insert([
+                    'customer_payment_id'        => $paymentId,
                     'customer_account_invoice_id' => $invoice->id,
-                    'amount'                      => $invoice->amount,
-                    'payment_date'                => $validated['payment_date'],
-                    'reference_no'                => $validated['reference_no'] ?? null,
-                    'payment_method'              => $validated['payment_method'] ?? null,
-                    'check_number'                => $validated['check_number'] ?? null,
-                    'check_date'                  => $validated['check_date'] ?? null,
-                    'notes'                       => $validated['notes'] ?? null,
-                    'created_by'                  => $request->user()->id,
-                    'updated_by'                  => $request->user()->id,
-                    'created_at'                  => $now,
-                    'updated_at'                  => $now,
+                    'sub_amount'                 => round((float) $allocAmount, 2),
+                    'created_at'                 => now(),
+                    'updated_at'                 => now(),
                 ]);
             }
-        }
+
+            if (empty($validated['sales_order_ids']) && empty($validated['invoice_ids'])) {
+                DB::table('customer_payment_items')->insert([
+                    'customer_payment_id'       => $paymentId,
+                    'customer_sales_account_id' => $id,
+                    'sub_amount'                => round((float) $validated['amount'], 2),
+                    'created_at'                => now(),
+                    'updated_at'                => now(),
+                ]);
+            }
+        });
 
         return redirect()->route('customer-accounts.index')
             ->with('success', 'Payment recorded successfully!');
@@ -477,16 +610,53 @@ class CustomerAccountController extends Controller
             ]);
 
         // ── PAYMENTS ──────────────────────────────────────────────────────
-        $payments = DB::table('customer_sales_account_payments')
-            ->where('customer_sales_account_id', $id)
-            ->select('id', 'amount', 'payment_date as date', 'reference_no', 'payment_method', 'check_date', 'check_number', 'notes')
+        $invoiceIds = DB::table('customer_account_invoices')->where('customer_sales_account_id', $id)->pluck('id');
+        $soIds      = DB::table('sales_orders')->where('customer_sales_account_id', $id)->pluck('id');
+
+        $payments = DB::table('customer_payments as cp')
+            ->join('customer_payment_items as cpi', 'cpi.customer_payment_id', '=', 'cp.id')
+            ->leftJoin('sales_orders as so', 'so.id', '=', 'cpi.sales_order_id')
+            ->leftJoin('customer_account_invoices as ci', 'ci.id', '=', 'cpi.customer_account_invoice_id')
+            ->where(fn($q) => $q
+                ->where('cpi.customer_sales_account_id', $id)
+                ->orWhereIn('cpi.customer_account_invoice_id', $invoiceIds)
+                ->orWhereIn('cpi.sales_order_id', $soIds))
+            ->select(
+                'cp.id',
+                DB::raw('SUM(cpi.sub_amount) as amount'),
+                'cp.payment_date as date',
+                'cp.reference_no',
+                'cp.payment_method',
+                'cp.check_date',
+                'cp.check_number',
+                'cp.notes',
+                DB::raw("GROUP_CONCAT(
+                    CASE
+                        WHEN cpi.sales_order_id IS NOT NULL THEN CONCAT('SO#', IFNULL(so.invoice_no, cpi.sales_order_id))
+                        WHEN cpi.customer_account_invoice_id IS NOT NULL THEN CONCAT('INV#', IFNULL(ci.reference_no, cpi.customer_account_invoice_id))
+                        ELSE NULL
+                    END
+                    ORDER BY cpi.id SEPARATOR ', ') as linked_refs")
+            )
+            ->groupBy(
+                'cp.id',
+                'cp.payment_date',
+                'cp.reference_no',
+                'cp.payment_method',
+                'cp.check_date',
+                'cp.check_number',
+                'cp.notes'
+            )
             ->get()
             ->map(fn($row) => [
                 'type'           => 'PAYMENT',
                 'is_payment'     => true,
                 'payment_id'     => $row->id,
                 'reference'      => 'PMT #' . $row->id,
-                'invoice_no'     => $row->reference_no ?? '—',
+                'invoice_no'     => collect(array_filter([
+                    $row->reference_no ?: null,
+                    $row->linked_refs ? $row->linked_refs : ($row->reference_no ? null : 'Untagged Payment'),
+                ]))->unique()->implode(' | ') ?: 'Untagged Payment',
                 'amount'         => (float) $row->amount,
                 'raw_amount'     => (float) $row->amount,
                 'raw_date'       => $row->date,
@@ -626,91 +796,80 @@ class CustomerAccountController extends Controller
             'check_number'   => ($isCheque ? 'required' : 'nullable') . '|string|max:100',
             'check_date'     => ($isCheque ? 'required' : 'nullable') . '|date',
             'notes'          => 'nullable|string',
-            'sales_order_ids'   => 'nullable|array',
-            'sales_order_ids.*' => 'integer|exists:sales_orders,id',
-            'invoice_ids'       => 'nullable|array',
-            'invoice_ids.*'     => 'integer|exists:customer_account_invoices,id',
+            'sales_order_ids'       => 'nullable|array',
+            'sales_order_ids.*'      => 'integer|exists:sales_orders,id',
+            'invoice_ids'            => 'nullable|array',
+            'invoice_ids.*'          => 'integer|exists:customer_account_invoices,id',
+            'sales_order_amounts'    => 'nullable|array',
+            'sales_order_amounts.*'  => 'nullable|numeric|min:0.01',
+            'invoice_amounts'        => 'nullable|array',
+            'invoice_amounts.*'      => 'nullable|numeric|min:0.01',
         ]);
 
-        if (!empty($validated['sales_order_ids']) && !empty($validated['invoice_ids'])) {
-            return back()->withErrors(['mixed' => 'A payment cannot cover both sales orders and invoices at the same time.']);
+        $itemsTotal = array_sum($validated['sales_order_amounts'] ?? [])
+            + array_sum($validated['invoice_amounts'] ?? []);
+        if ($itemsTotal > 0 && abs((float) $validated['amount'] - $itemsTotal) > 0.01) {
+            return back()->withErrors(['amount' => 'Payment amount must equal the sum of allocated amounts.']);
         }
 
-        DB::table('customer_sales_account_payments')
-            ->where('id', $paymentId)
-            ->where('customer_sales_account_id', $csaId)
-            ->update([
-                'amount'         => $validated['amount'],
-                'payment_date'   => $validated['payment_date'],
-                'reference_no'   => $validated['reference_no'] ?? null,
-                'payment_method' => $validated['payment_method'] ?? null,
-                'check_number'   => $validated['check_number'] ?? null,
-                'check_date'     => $validated['check_date'] ?? null,
-                'notes'          => $validated['notes'] ?? null,
-                'updated_by'     => $request->user()->id,
-                'updated_at'     => now(),
-            ]);
+        DB::transaction(function () use ($csaId, $paymentId, $validated, $request) {
+            DB::table('customer_payments')
+                ->where('id', $paymentId)
+                ->update([
+                    'amount'         => $validated['amount'],
+                    'payment_date'   => $validated['payment_date'],
+                    'reference_no'   => $validated['reference_no'] ?? null,
+                    'payment_method' => $validated['payment_method'] ?? null,
+                    'check_number'   => $validated['check_number'] ?? null,
+                    'check_date'     => $validated['check_date'] ?? null,
+                    'notes'          => $validated['notes'] ?? null,
+                    'updated_by'     => $request->user()->id,
+                    'updated_at'     => now(),
+                ]);
 
-        // Unlink previously linked sales orders
-        DB::table('sales_orders')
-            ->where('payment_id', $paymentId)
-            ->where('customer_sales_account_id', $csaId)
-            ->update(['payment_id' => null, 'updated_at' => now()]);
-
-        // Re-link selected sales orders
-        if (!empty($validated['sales_order_ids'])) {
-            DB::table('sales_orders')
-                ->whereIn('id', $validated['sales_order_ids'])
-                ->where('customer_sales_account_id', $csaId)
-                ->update(['payment_id' => $paymentId, 'updated_at' => now()]);
-        }
-
-        // Sync invoice payments: find previously paid invoices for this CSA
-        $prevPaidIds = DB::table('customer_account_invoice_payments as caip')
-            ->join('customer_account_invoices as i', 'i.id', '=', 'caip.customer_account_invoice_id')
-            ->where('i.customer_sales_account_id', $csaId)
-            ->pluck('caip.customer_account_invoice_id')
-            ->unique()
-            ->values()
-            ->toArray();
-
-        $newInvoiceIds = $validated['invoice_ids'] ?? [];
-
-        // Delete payment records for invoices removed from this payment
-        $toRemove = array_values(array_diff($prevPaidIds, $newInvoiceIds));
-        if (!empty($toRemove)) {
-            DB::table('customer_account_invoice_payments')
-                ->whereIn('customer_account_invoice_id', $toRemove)
+            DB::table('customer_payment_items')
+                ->where('customer_payment_id', $paymentId)
                 ->delete();
-        }
 
-        // Insert payment records for newly added invoices
-        $toAdd = array_values(array_diff($newInvoiceIds, $prevPaidIds));
-        if (!empty($toAdd)) {
-            $newInvoices = DB::table('customer_account_invoices')
-                ->whereIn('id', $toAdd)
+            foreach ($validated['sales_order_ids'] ?? [] as $soId) {
+                $soAmount = $validated['sales_order_amounts'][$soId]
+                    ?? DB::table('sales_order_items')->where('sales_order_id', $soId)
+                    ->sum(DB::raw('quantity * unit_price * (1 - IFNULL(discount_percentage,0)/100)'));
+                DB::table('customer_payment_items')->insert([
+                    'customer_payment_id' => $paymentId,
+                    'sales_order_id'      => $soId,
+                    'sub_amount'          => round((float) $soAmount, 2),
+                    'created_at'          => now(),
+                    'updated_at'          => now(),
+                ]);
+            }
+
+            $invoices = DB::table('customer_account_invoices')
+                ->whereIn('id', $validated['invoice_ids'] ?? [])
                 ->where('customer_sales_account_id', $csaId)
                 ->select('id', 'amount')
                 ->get();
-
-            $now = now();
-            foreach ($newInvoices as $invoice) {
-                DB::table('customer_account_invoice_payments')->insert([
+            foreach ($invoices as $invoice) {
+                $allocAmount = $validated['invoice_amounts'][$invoice->id] ?? $invoice->amount;
+                DB::table('customer_payment_items')->insert([
+                    'customer_payment_id'        => $paymentId,
                     'customer_account_invoice_id' => $invoice->id,
-                    'amount'                      => $invoice->amount,
-                    'payment_date'                => $validated['payment_date'],
-                    'reference_no'                => $validated['reference_no'] ?? null,
-                    'payment_method'              => $validated['payment_method'] ?? null,
-                    'check_number'                => $validated['check_number'] ?? null,
-                    'check_date'                  => $validated['check_date'] ?? null,
-                    'notes'                       => $validated['notes'] ?? null,
-                    'created_by'                  => $request->user()->id,
-                    'updated_by'                  => $request->user()->id,
-                    'created_at'                  => $now,
-                    'updated_at'                  => $now,
+                    'sub_amount'                 => round((float) $allocAmount, 2),
+                    'created_at'                 => now(),
+                    'updated_at'                 => now(),
                 ]);
             }
-        }
+
+            if (empty($validated['sales_order_ids']) && empty($validated['invoice_ids'])) {
+                DB::table('customer_payment_items')->insert([
+                    'customer_payment_id'       => $paymentId,
+                    'customer_sales_account_id' => $csaId,
+                    'sub_amount'                => round((float) $validated['amount'], 2),
+                    'created_at'                => now(),
+                    'updated_at'                => now(),
+                ]);
+            }
+        });
 
         return redirect()->route('customer-accounts.index')
             ->with('success', 'Payment updated successfully!');
@@ -733,20 +892,28 @@ class CustomerAccountController extends Controller
             'notes'          => 'nullable|string',
         ]);
 
-        DB::table('customer_account_invoice_payments')->insert([
-            'customer_account_invoice_id' => $invoiceId,
-            'amount'                      => $validated['amount'],
-            'payment_date'                => $validated['payment_date'],
-            'reference_no'                => $validated['reference_no'] ?? null,
-            'payment_method'              => $validated['payment_method'] ?? null,
-            'check_number'                => $validated['check_number'] ?? null,
-            'check_date'                  => $validated['check_date'] ?? null,
-            'notes'                       => $validated['notes'] ?? null,
-            'created_by'                  => $request->user()->id,
-            'updated_by'                  => $request->user()->id,
-            'created_at'                  => now(),
-            'updated_at'                  => now(),
-        ]);
+        DB::transaction(function () use ($invoiceId, $validated, $request) {
+            $paymentId = DB::table('customer_payments')->insertGetId([
+                'amount'         => $validated['amount'],
+                'payment_date'   => $validated['payment_date'],
+                'reference_no'   => $validated['reference_no'] ?? null,
+                'payment_method' => $validated['payment_method'] ?? null,
+                'check_number'   => $validated['check_number'] ?? null,
+                'check_date'     => $validated['check_date'] ?? null,
+                'notes'          => $validated['notes'] ?? null,
+                'created_by'     => $request->user()->id,
+                'updated_by'     => $request->user()->id,
+                'created_at'     => now(),
+                'updated_at'     => now(),
+            ]);
+            DB::table('customer_payment_items')->insert([
+                'customer_payment_id'        => $paymentId,
+                'customer_account_invoice_id' => $invoiceId,
+                'sub_amount'                 => round((float) $validated['amount'], 2),
+                'created_at'                 => now(),
+                'updated_at'                 => now(),
+            ]);
+        });
 
         return redirect()->route('customer-accounts.index')
             ->with('success', 'Invoice payment recorded successfully!');
@@ -769,20 +936,25 @@ class CustomerAccountController extends Controller
             'notes'          => 'nullable|string',
         ]);
 
-        DB::table('customer_account_invoice_payments')
-            ->where('id', $paymentId)
-            ->where('customer_account_invoice_id', $invoiceId)
-            ->update([
-                'amount'         => $validated['amount'],
-                'payment_date'   => $validated['payment_date'],
-                'reference_no'   => $validated['reference_no'] ?? null,
-                'payment_method' => $validated['payment_method'] ?? null,
-                'check_number'   => $validated['check_number'] ?? null,
-                'check_date'     => $validated['check_date'] ?? null,
-                'notes'          => $validated['notes'] ?? null,
-                'updated_by'     => $request->user()->id,
-                'updated_at'     => now(),
-            ]);
+        DB::transaction(function () use ($invoiceId, $paymentId, $validated, $request) {
+            DB::table('customer_payments')
+                ->where('id', $paymentId)
+                ->update([
+                    'amount'         => $validated['amount'],
+                    'payment_date'   => $validated['payment_date'],
+                    'reference_no'   => $validated['reference_no'] ?? null,
+                    'payment_method' => $validated['payment_method'] ?? null,
+                    'check_number'   => $validated['check_number'] ?? null,
+                    'check_date'     => $validated['check_date'] ?? null,
+                    'notes'          => $validated['notes'] ?? null,
+                    'updated_by'     => $request->user()->id,
+                    'updated_at'     => now(),
+                ]);
+            DB::table('customer_payment_items')
+                ->where('customer_payment_id', $paymentId)
+                ->where('customer_account_invoice_id', $invoiceId)
+                ->update(['sub_amount' => round((float) $validated['amount'], 2), 'updated_at' => now()]);
+        });
 
         return redirect()->route('customer-accounts.index')
             ->with('success', 'Invoice payment updated successfully!');
@@ -793,9 +965,11 @@ class CustomerAccountController extends Controller
      */
     public function destroyInvoicePayment(int $invoiceId, int $paymentId)
     {
-        DB::table('customer_account_invoice_payments')
+        DB::table('customer_payments')
             ->where('id', $paymentId)
-            ->where('customer_account_invoice_id', $invoiceId)
+            ->whereExists(fn($q) => $q->from('customer_payment_items')
+                ->where('customer_payment_id', $paymentId)
+                ->where('customer_account_invoice_id', $invoiceId))
             ->delete();
 
         return redirect()->route('customer-accounts.index')
@@ -821,10 +995,20 @@ class CustomerAccountController extends Controller
      */
     public function destroyPayment(int $csaId, int $paymentId)
     {
-        DB::table('customer_sales_account_payments')
-            ->where('id', $paymentId)
-            ->where('customer_sales_account_id', $csaId)
-            ->delete();
+        $invoiceIds = DB::table('customer_account_invoices')->where('customer_sales_account_id', $csaId)->pluck('id');
+        $soIds      = DB::table('sales_orders')->where('customer_sales_account_id', $csaId)->pluck('id');
+
+        $belongs = DB::table('customer_payment_items')
+            ->where('customer_payment_id', $paymentId)
+            ->where(fn($q) => $q
+                ->where('customer_sales_account_id', $csaId)
+                ->orWhereIn('customer_account_invoice_id', $invoiceIds)
+                ->orWhereIn('sales_order_id', $soIds))
+            ->exists();
+
+        if ($belongs) {
+            DB::table('customer_payments')->where('id', $paymentId)->delete();
+        }
 
         return redirect()->route('customer-accounts.index')
             ->with('success', 'Payment deleted successfully!');

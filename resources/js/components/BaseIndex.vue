@@ -124,7 +124,7 @@ const computedHoverItems = (rowData) => {
 const getActionsForIndex = (indexType) => {
     const actionMap = {
         'Members': ['verifyEligibility', 'edit', 'delete'],
-        'Products': ['edit', 'initial', 'reorder', 'history', 'viewlots', 'delete'],
+        'Products': ['edit', 'initial', 'reorder', 'history', 'pricing_history', 'viewlots', 'delete'],
         'Orders': ['view', 'download', 'add'],
         'Patients': ['view', 'edit', 'delete'],
         'Users': ['view', 'edit', 'delete'],
@@ -136,7 +136,7 @@ const getActionsForIndex = (indexType) => {
         'Warehouse Items': ['history', 'edit', 'delete'],
         'SalesAccounts': ['clients', 'edit', 'delete'],
         'CustomerAccounts': ['ledger', 'payment', 'invoice'],
-        'StoreInventory': ['initial', 'viewlots', 'history', 'delete'],
+        'StoreInventory': ['initial', 'viewlots', 'history', 'pricing_history', 'delete'],
         'PosItems': ['view', 'edit', 'delete'],
         'TransferStock': ['view', 'print', 'delete'],
         'PosDelivery': ['view', 'delete'],
