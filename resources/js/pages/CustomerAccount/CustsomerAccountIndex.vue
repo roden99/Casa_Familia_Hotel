@@ -7,7 +7,7 @@ import CustomerAccountCreate from './CustomerAccountCreate.vue';
 import CustomerAccountLedger from './CustomerAccountLedger.vue';
 import CustomerAccountPayment from './CustomerAccountPayment.vue';
 import CustomerAccountInvoice from './CustomerAccountInvoice.vue';
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { router, Head } from '@inertiajs/vue3';
 import { Hospital, User, Phone, MapPin, BookOpen, CreditCard, FilePlus, Search, ChevronLeft, ChevronRight } from 'lucide-vue-next';
 
@@ -37,16 +37,15 @@ const pagination = computed(() =>
 );
 
 let searchTimer = null;
-const handleSearch = (e) => {
-    searchText.value = e.target.value;
+watch(searchText, (val) => {
     clearTimeout(searchTimer);
     searchTimer = setTimeout(() => {
         const url = new URL(window.location.href);
-        searchText.value ? url.searchParams.set('search', searchText.value) : url.searchParams.delete('search');
+        val ? url.searchParams.set('search', val) : url.searchParams.delete('search');
         url.searchParams.delete('page');
-        router.get(url.pathname + url.search, {}, { preserveState: true });
-    }, 400);
-};
+        router.get(url.pathname + url.search, {}, { preserveState: true, preserveScroll: true });
+    }, 500);
+});
 
 const isDrugstore = (c) => c.is_drugstore === true || c.is_drugstore === 'YES' || c.is_drugstore === 1;
 
@@ -102,7 +101,7 @@ const openInvoice = (c) => { selectedAccount.value = c; showInvoiceModal.value =
 
                 <div class="relative flex-1 min-w-48 max-w-64">
                     <Search class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input :value="searchText" @input="handleSearch" placeholder="Search…" class="pl-8" />
+                    <Input v-model="searchText" placeholder="Search…" class="pl-8" />
                 </div>
 
                 <Select :model-value="currentAccount" @update:model-value="handleAccountFilter">
@@ -131,14 +130,17 @@ const openInvoice = (c) => { selectedAccount.value = c; showInvoiceModal.value =
                 </div>
 
                 <span class="text-xs text-muted-foreground ml-auto">
-                    <template v-if="pagination">{{ pagination.from }}–{{ pagination.to }} of {{ pagination.total }}</template>
-                    <template v-else>{{ customerList.length }} record{{ customerList.length !== 1 ? 's' : '' }}</template>
+                    <template v-if="pagination">{{ pagination.from }}–{{ pagination.to }} of {{ pagination.total
+                        }}</template>
+                    <template v-else>{{ customerList.length }} record{{ customerList.length !== 1 ? 's' : ''
+                        }}</template>
                 </span>
             </div>
 
             <!-- Card grid -->
             <div class="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 overflow-y-auto">
-                <div v-if="customerList.length === 0" class="col-span-full text-center text-muted-foreground py-16 text-sm">
+                <div v-if="customerList.length === 0"
+                    class="col-span-full text-center text-muted-foreground py-16 text-sm">
                     No accounts found.
                 </div>
 
@@ -209,7 +211,8 @@ const openInvoice = (c) => { selectedAccount.value = c; showInvoiceModal.value =
                         <ChevronLeft class="h-4 w-4" />
                     </Button>
                     <template v-for="p in pagination.last_page" :key="p">
-                        <Button v-if="Math.abs(p - pagination.current_page) <= 2 || p === 1 || p === pagination.last_page"
+                        <Button
+                            v-if="Math.abs(p - pagination.current_page) <= 2 || p === 1 || p === pagination.last_page"
                             :variant="p === pagination.current_page ? 'default' : 'outline'" size="sm"
                             @click="goToPage(p)">{{ p }}</Button>
                         <span v-else-if="Math.abs(p - pagination.current_page) === 3" class="px-1">…</span>

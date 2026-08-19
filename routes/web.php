@@ -18,6 +18,7 @@ use App\Http\Controllers\ProductTypeController;
 use App\Http\Controllers\StrengthController;
 use App\Http\Controllers\DrugFormController;
 use App\Http\Controllers\StoreInventoryController;
+use App\Http\Controllers\ReturnGoodStockController;
 use App\Http\Controllers\TransferStockController;
 use App\Http\Controllers\PosDeliveryController;
 use App\Http\Controllers\PosController;
@@ -87,6 +88,8 @@ Route::resource('warehouse-items', WarehouseItemController::class);
 Route::resource('deliveries', DeliveryController::class);
 Route::get('sales-orders/overdue-report', [SalesOrderController::class, 'overdueReport'])->middleware(['auth'])->name('sales-orders.overdue-report');
 Route::resource('sales-orders', SalesOrderController::class);
+Route::post('sales-orders/{salesOrder}/rgs', [ReturnGoodStockController::class, 'store'])->middleware(['auth'])->name('sales-orders.rgs.store');
+Route::resource('return-good-stocks', ReturnGoodStockController::class)->only(['index', 'show', 'update']);
 Route::resource('sales-accounts', SalesAccountController::class);
 
 Route::get('store-inventory', [StoreInventoryController::class, 'index'])->name('store-inventory.index');

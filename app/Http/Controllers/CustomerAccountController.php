@@ -59,9 +59,47 @@ class CustomerAccountController extends Controller
         $accountId = $request->input('account');
         $type      = $request->input('type');
 
+        // Pre-aggregated join subqueries replace correlated subqueries for performance
+        $soTotal = DB::table('sales_orders as so')
+            ->join('sales_order_items as soi', 'soi.sales_order_id', '=', 'so.id')
+            ->select('so.customer_sales_account_id', DB::raw('SUM(soi.quantity * soi.unit_price * (1 - IFNULL(soi.discount_percentage,0)/100)) as total'))
+            ->groupBy('so.customer_sales_account_id');
+
+        $invTotal = DB::table('customer_account_invoices')
+            ->select('customer_sales_account_id', DB::raw('SUM(amount) as total'))
+            ->groupBy('customer_sales_account_id');
+
+        $rgsTotal = DB::table('return_good_stocks as rgs')
+            ->join('sales_orders as rso', 'rso.id', '=', 'rgs.sales_order_id')
+            ->join('return_good_stock_items as ri', 'ri.return_good_stock_id', '=', 'rgs.id')
+            ->select('rso.customer_sales_account_id', DB::raw('SUM(ri.quantity * ri.unit_price) as total'))
+            ->groupBy('rso.customer_sales_account_id');
+
+        // Union all payment item sources to avoid double-counting
+        $pmtDirect = DB::table('customer_payment_items')
+            ->select('customer_sales_account_id as csaid', 'sub_amount')
+            ->whereNotNull('customer_sales_account_id');
+        $pmtViaSO = DB::table('customer_payment_items as cpi')
+            ->join('sales_orders as pso', 'pso.id', '=', 'cpi.sales_order_id')
+            ->select('pso.customer_sales_account_id as csaid', 'cpi.sub_amount')
+            ->whereNull('cpi.customer_sales_account_id');
+        $pmtViaInv = DB::table('customer_payment_items as cpi2')
+            ->join('customer_account_invoices as pci', 'pci.id', '=', 'cpi2.customer_account_invoice_id')
+            ->select('pci.customer_sales_account_id as csaid', 'cpi2.sub_amount')
+            ->whereNull('cpi2.customer_sales_account_id')
+            ->whereNull('cpi2.sales_order_id');
+        $pmtUnion = $pmtDirect->union($pmtViaSO)->union($pmtViaInv);
+        $pmtTotal = DB::query()->fromSub($pmtUnion, '_pmt')
+            ->select('csaid', DB::raw('SUM(sub_amount) as total'))
+            ->groupBy('csaid');
+
         $query = DB::table('customer_sales_account as csa')
             ->join('customers as c', 'c.id', '=', 'csa.customer_id')
             ->join('sales_accounts as sa', 'sa.id', '=', 'csa.sales_account_id')
+            ->leftJoinSub($soTotal,  'so_t',  'so_t.customer_sales_account_id',  '=', 'csa.id')
+            ->leftJoinSub($invTotal, 'inv_t', 'inv_t.customer_sales_account_id', '=', 'csa.id')
+            ->leftJoinSub($pmtTotal, 'pmt_t', 'pmt_t.csaid',                     '=', 'csa.id')
+            ->leftJoinSub($rgsTotal, 'rgs_t', 'rgs_t.customer_sales_account_id', '=', 'csa.id')
             ->where('c.status', 'active')
             ->select(
                 'csa.id as csa_id',
@@ -73,24 +111,7 @@ class CustomerAccountController extends Controller
                 'c.phone',
                 'c.address',
                 'sa.account_name',
-                DB::raw('IFNULL(csa.forward_balance, 0)
-                    + IFNULL((
-                        SELECT SUM(soi.quantity * soi.unit_price * (1 - IFNULL(soi.discount_percentage,0)/100))
-                        FROM sales_orders so
-                        JOIN sales_order_items soi ON soi.sales_order_id = so.id
-                        WHERE so.customer_sales_account_id = csa.id
-                    ), 0)
-                    + IFNULL((
-                        SELECT SUM(i.amount)
-                        FROM customer_account_invoices i
-                        WHERE i.customer_sales_account_id = csa.id
-                    ), 0)
-                    - IFNULL((
-                        SELECT SUM(cpi.sub_amount) FROM customer_payment_items cpi
-                        WHERE cpi.customer_sales_account_id = csa.id
-                           OR cpi.customer_account_invoice_id IN (SELECT id FROM customer_account_invoices WHERE customer_sales_account_id = csa.id)
-                           OR cpi.sales_order_id IN (SELECT id FROM sales_orders WHERE customer_sales_account_id = csa.id)
-                    ), 0) AS balance')
+                DB::raw('IFNULL(csa.forward_balance,0) + IFNULL(so_t.total,0) + IFNULL(inv_t.total,0) - IFNULL(pmt_t.total,0) - IFNULL(rgs_t.total,0) AS balance')
             );
 
         if (!empty($accountId) && is_numeric($accountId)) {
@@ -667,8 +688,31 @@ class CustomerAccountController extends Controller
                 'date'           => $row->date ? \Carbon\Carbon::parse($row->date) : null,
             ]);
 
+        // ── RGS CREDITS ───────────────────────────────────────────────────
+        $rgsEntries = DB::table('return_good_stocks as rgs')
+            ->join('sales_orders as so', 'so.id', '=', 'rgs.sales_order_id')
+            ->join('return_good_stock_items as ri', 'ri.return_good_stock_id', '=', 'rgs.id')
+            ->where('so.customer_sales_account_id', $id)
+            ->select(
+                'rgs.id',
+                'so.invoice_no',
+                'rgs.rgs_date as date',
+                'rgs.notes',
+                DB::raw('SUM(ri.quantity * ri.unit_price) as amount')
+            )
+            ->groupBy('rgs.id', 'so.invoice_no', 'rgs.rgs_date', 'rgs.notes')
+            ->get()
+            ->map(fn($row) => [
+                'type'       => 'RGS',
+                'reference'  => 'RGS #' . $row->id,
+                'invoice_no' => $row->invoice_no ?? '—',
+                'amount'     => (float) $row->amount,
+                'notes'      => $row->notes ?? '',
+                'date'       => $row->date ? \Carbon\Carbon::parse($row->date) : null,
+            ]);
+
         // ── Merge & sort by date ──────────────────────────────────────────
-        $entries = $invoices->concat($manualInvoices)->concat($payments)
+        $entries = $invoices->concat($manualInvoices)->concat($payments)->concat($rgsEntries)
             ->sortBy(fn($e) => $e['date'] ?? \Carbon\Carbon::minValue())
             ->values();
 

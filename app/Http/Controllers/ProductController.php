@@ -545,10 +545,43 @@ class ProductController extends Controller
                 ];
             });
 
+        // RGS items (IN) — stock returned from a sales order
+        $rgsItems = \App\Models\ReturnGoodStockItem::with([
+            'returnGoodStock.salesOrder.customerSalesAccount.customer',
+            'returnGoodStock.salesOrder.customerSalesAccount.salesAccount',
+        ])
+            ->where('product_id', $product->id)
+            ->get()
+            ->map(function ($item) use ($initialDate) {
+                $rgs  = $item->returnGoodStock;
+                $date = $rgs?->rgs_date
+                    ? \Carbon\Carbon::parse($rgs->rgs_date)->startOfDay()
+                    : $item->created_at;
+                $csa      = $rgs?->salesOrder?->customerSalesAccount;
+                $customer = $csa?->customer;
+                $account  = $csa?->salesAccount;
+                $customerName = $customer
+                    ? ($customer->is_drugstore
+                        ? strtoupper($customer->company)
+                        : trim(strtoupper($customer->last_name) . ', ' . strtoupper($customer->first_name)))
+                    : 'N/A';
+                $party = ($account ? strtoupper($account->account_name) . ' - ' : '') . $customerName;
+                return [
+                    'date'           => $date,
+                    'type'           => 'IN',
+                    'reference'      => 'RGS #' . $rgs?->id,
+                    'party'          => $party,
+                    'invoice_no'     => $rgs?->salesOrder?->invoice_no ?? '—',
+                    'qty'            => $item->quantity,
+                    'before_initial' => $initialDate ? $date->lt($initialDate) : false,
+                ];
+            });
+
         $entries = $entries
             ->concat($deliveries)
             ->concat($sales)
             ->concat($carryItems)
+            ->concat($rgsItems)
             ->sortBy('date')
             ->values();
 

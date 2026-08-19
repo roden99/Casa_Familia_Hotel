@@ -53,6 +53,7 @@ const badgeVariant = (type) => {
     if (type === 'INVOICE') return 'destructive';
     if (type === 'PAYMENT') return 'default';
     if (type === 'FORWARD') return 'secondary';
+    if (type === 'RGS') return 'outline';
     return 'outline';
 };
 
@@ -235,7 +236,7 @@ const confirmDelete = () => {
                                 </TableCell>
                                 <TableCell
                                     class="text-right font-mono text-sm font-medium text-green-600 dark:text-green-400">
-                                    {{ entry.type === 'PAYMENT' ? entry.amount : '' }}
+                                    {{ (entry.type === 'PAYMENT' || entry.type === 'RGS') ? entry.amount : '' }}
                                 </TableCell>
                                 <TableCell class="text-right font-mono text-sm font-bold">
                                     {{ entry.balance }}

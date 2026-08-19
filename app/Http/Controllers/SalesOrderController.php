@@ -513,6 +513,19 @@ class SalesOrderController extends Controller
     {
         $order = SalesOrder::with(['items.product.brand', 'items.product.unit', 'items.product.drugform', 'items.lot'])->findOrFail($id);
 
+        $rgsRecords = DB::table('return_good_stocks as rgs')
+            ->where('rgs.sales_order_id', $id)
+            ->leftJoin(DB::raw('(SELECT return_good_stock_id, COUNT(*) as items_count FROM return_good_stock_items GROUP BY return_good_stock_id) as ri'), 'ri.return_good_stock_id', '=', 'rgs.id')
+            ->select('rgs.id', 'rgs.rgs_date', 'rgs.notes', DB::raw('COALESCE(ri.items_count, 0) as items_count'))
+            ->orderByDesc('rgs.rgs_date')
+            ->get()
+            ->map(fn($r) => [
+                'id'          => $r->id,
+                'rgs_date'    => $r->rgs_date ? \Carbon\Carbon::parse($r->rgs_date)->format('m-d-Y') : null,
+                'notes'       => $r->notes,
+                'items_count' => $r->items_count,
+            ]);
+
         return response()->json([
             'order' => $order,
             'items' => $order->items->map(function ($item) {
@@ -534,6 +547,7 @@ class SalesOrderController extends Controller
                     'discount_percentage' => $item->discount_percentage,
                 ];
             }),
+            'rgs' => $rgsRecords,
         ]);
     }
 

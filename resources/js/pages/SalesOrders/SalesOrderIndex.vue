@@ -14,6 +14,7 @@ import UpdateSalesOrder from '@/pages/SalesOrders/UpdateSalesOrder.vue';
 import ViewSalesOrder from '@/pages/SalesOrders/ViewSalesOrder.vue';
 import DeleteSalesOrder from '@/pages/SalesOrders/DeleteSalesOrder.vue';
 import ViewSalesOrderPayment from '@/pages/SalesOrders/ViewSalesOrderPayment.vue';
+import CreateReturnGoodStock from '@/pages/SalesOrders/CreateReturnGoodStock.vue';
 
 const breadcrumbs = [
     { title: 'Dashboard', href: '/dashboard' },
@@ -115,6 +116,7 @@ const showUpdateModal = ref(false);
 const showViewModal = ref(false);
 const showDeleteModal = ref(false);
 const showPaymentModal = ref(false);
+const showRgsModal = ref(false);
 const showReportDialog = ref(false);
 const reportAccount = ref('');
 const selectedOrder = ref(null);
@@ -211,6 +213,11 @@ const handleAction = ({ type, data }) => {
             selectedOrder.value = data;
             showPaymentModal.value = true;
             break;
+        case 'rgs':
+            if (data.entry_type === 'INV') return;
+            selectedOrder.value = data;
+            showRgsModal.value = true;
+            break;
         case 'view':
             if (data.entry_type === 'INV') return;
             selectedOrder.value = data;
@@ -303,6 +310,8 @@ const handleAction = ({ type, data }) => {
 
             <ViewSalesOrderPayment v-if="showPaymentModal" :order="selectedOrder"
                 @form-closed="showPaymentModal = false" />
+
+            <CreateReturnGoodStock v-if="showRgsModal" :order="selectedOrder" @form-closed="showRgsModal = false" />
 
             <!-- Overdue Report dialog -->
             <Dialog v-model:open="showReportDialog">

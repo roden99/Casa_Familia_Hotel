@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { MoreHorizontal, Pencil, Trash2, Eye, Copy, Download, PlusCircle, Users, ShieldCheck, History, UserSearch, TrendingDown, TrendingUp, BookOpen, CreditCard, ArrowRightFromLine, FilePlus, PackagePlus, Receipt, Layers, Undo2, Tag, Printer } from 'lucide-vue-next'
+import { MoreHorizontal, Pencil, Trash2, Eye, Copy, Download, PlusCircle, Users, ShieldCheck, History, UserSearch, TrendingDown, TrendingUp, BookOpen, CreditCard, ArrowRightFromLine, FilePlus, PackagePlus, Receipt, Layers, Undo2, Tag, Printer, PackageX } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
@@ -35,6 +35,7 @@ const actionConfig: Record<string, { label: string; icon: any; class: string }> 
   setposqty: { label: 'Set POS Qty', icon: PackagePlus, class: 'text-teal-600' },
   viewlots: { label: 'View Lots', icon: Layers, class: 'text-indigo-600' },
   return: { label: 'Return to Inventory', icon: Undo2, class: 'text-teal-600' },
+  rgs: { label: 'Return Good Stock (RGS)', icon: PackageX, class: 'text-orange-600' },
   'selling-price': { label: 'Selling Price', icon: Tag, class: 'text-emerald-600' },
   reprint: { label: 'Reprint Receipt', icon: Printer, class: 'text-blue-600' },
   print: { label: 'Print Report', icon: Printer, class: 'text-blue-600' },
@@ -58,6 +59,12 @@ const isActionDisabled = (action: string, row: Record<string, any>): boolean => 
   return false
 }
 
+// Hide actions that don't apply to a specific row type
+const isActionHidden = (action: string, row: Record<string, any>): boolean => {
+  if (action === 'rgs' && row.entry_type === 'INV') return true
+  return false
+}
+
 
 </script>
 
@@ -76,13 +83,15 @@ const isActionDisabled = (action: string, row: Record<string, any>): boolean => 
       <!-- ✅ Use slot if provided for custom actions -->
       <slot name="actions" :row="row" :handleAction="handleAction">
         <!-- ✅ Default: Render actions based on props -->
-        <DropdownMenuItem v-for="action in actions" :key="action"
-          :class="[actionConfig[action]?.class || 'text-gray-600', isActionDisabled(action, row) ? 'opacity-50 cursor-not-allowed' : '']"
-          :disabled="isActionDisabled(action, row)"
-          @click="!isActionDisabled(action, row) && handleAction(action, row)">
-          <component :is="actionConfig[action]?.icon || Eye" class="mr-2 h-4 w-4" />
-          {{ actionConfig[action]?.label || action }}
-        </DropdownMenuItem>
+        <template v-for="action in actions" :key="action">
+          <DropdownMenuItem v-if="!isActionHidden(action, row)"
+            :class="[actionConfig[action]?.class || 'text-gray-600', isActionDisabled(action, row) ? 'opacity-50 cursor-not-allowed' : '']"
+            :disabled="isActionDisabled(action, row)"
+            @click="!isActionDisabled(action, row) && handleAction(action, row)">
+            <component :is="actionConfig[action]?.icon || Eye" class="mr-2 h-4 w-4" />
+            {{ actionConfig[action]?.label || action }}
+          </DropdownMenuItem>
+        </template>
       </slot>
     </DropdownMenuContent>
   </DropdownMenu>
