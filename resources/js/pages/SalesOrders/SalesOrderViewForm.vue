@@ -191,7 +191,7 @@ onMounted(async () => {
                         Records</span>
                     <span
                         class="ml-1 rounded-full bg-orange-100 dark:bg-orange-900/40 px-2 py-0.5 text-xs font-medium text-orange-700 dark:text-orange-300">{{
-                        rgsRecords.length }}</span>
+                            rgsRecords.length }}</span>
                 </div>
                 <div class="rounded-md border overflow-hidden">
                     <Table class="text-xs">

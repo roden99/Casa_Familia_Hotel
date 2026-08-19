@@ -2,7 +2,9 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import BaseIndex from '@/components/BaseIndex.vue';
 import { ref, computed } from 'vue';
-import { Head } from '@inertiajs/vue3';
+import { Head, router } from '@inertiajs/vue3';
+import { toast } from 'vue-sonner';
+import axios from 'axios';
 
 import ViewReturnGoodStock from '@/pages/ReturnGoodStock/ViewReturnGoodStock.vue';
 import PrintReturnGoodStock from '@/pages/ReturnGoodStock/PrintReturnGoodStock.vue';
@@ -32,8 +34,9 @@ const showViewModal = ref(false);
 const showPrintModal = ref(false);
 const showEditModal = ref(false);
 const selectedRecord = ref(null);
+const isDeletingId = ref(null);
 
-const handleAction = ({ type, data }) => {
+const handleAction = async ({ type, data }) => {
     switch (type) {
         case 'view':
             selectedRecord.value = data;
@@ -46,6 +49,21 @@ const handleAction = ({ type, data }) => {
         case 'edit':
             selectedRecord.value = data;
             showEditModal.value = true;
+            break;
+        case 'delete':
+            if (!confirm(`Delete RGS #${data.id}? This will reverse the inventory adjustments.`)) return;
+            isDeletingId.value = data.id;
+            try {
+                await axios.delete(`/return-good-stocks/${data.id}`, {
+                    headers: { Accept: 'application/json' },
+                });
+                toast.success(`RGS #${data.id} deleted and inventory reversed.`);
+                router.reload({ only: ['records'] });
+            } catch {
+                toast.error('Failed to delete RGS record.');
+            } finally {
+                isDeletingId.value = null;
+            }
             break;
         default:
             break;

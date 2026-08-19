@@ -1,5 +1,5 @@
 <script setup>
-import { X } from 'lucide-vue-next';
+import { X, Tag } from 'lucide-vue-next';
 import { Input } from '@/components/ui/input';
 import {
     Table,
@@ -58,7 +58,13 @@ const computeTotal = (item) => {
                 </TableRow>
                 <TableRow v-for="(item, index) in items" :key="index">
                     <TableCell class="text-xs whitespace-normal break-words min-w-0">{{ item.product_name }}</TableCell>
-                    <TableCell class="text-xs text-muted-foreground">{{ item.lot_number ?? '—' }}</TableCell>
+                    <TableCell class="text-xs">
+                        <span v-if="item.lot_number" class="inline-flex items-center gap-1 font-mono">
+                            <Tag class="h-3 w-3 text-amber-500 shrink-0" />
+                            {{ item.lot_number }}
+                        </span>
+                        <span v-else class="text-muted-foreground/40">—</span>
+                    </TableCell>
                     <TableCell class="text-center">
                         <Input v-model.number="item.quantity" type="number" min="1"
                             class="w-20 text-xs text-center mx-auto" />

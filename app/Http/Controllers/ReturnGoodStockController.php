@@ -243,6 +243,21 @@ class ReturnGoodStockController extends Controller
         return redirect()->route('return-good-stocks.index')->with('success', 'Return Good Stock updated successfully!');
     }
 
+    public function destroy(string $id)
+    {
+        $rgs = ReturnGoodStock::with('items')->findOrFail($id);
+
+        DB::transaction(function () use ($rgs) {
+            foreach ($rgs->items as $item) {
+                $this->applyInventory($item->product_id, $item->lot_id, $item->quantity, $rgs->rgs_date, '-');
+            }
+            $rgs->items()->delete();
+            $rgs->delete();
+        });
+
+        return response()->json(['message' => 'Return Good Stock deleted successfully.']);
+    }
+
     // +/- inventory qty respecting initial_date
     private function applyInventory(int $productId, ?int $lotId, int $qty, string $date, string $direction): void
     {

@@ -142,7 +142,7 @@ const getActionsForIndex = (indexType) => {
         'PosDelivery': ['view', 'delete'],
         'POS': ['view', 'reprint', 'delete'],
         'Sales Orders': ['view', 'edit', 'rgs', 'payment_details', 'delete'],
-        'ReturnGoodStock': ['view', 'print', 'edit'],
+        'ReturnGoodStock': ['view', 'print', 'edit', 'delete'],
         'Expirations': [],
         'CarryItems': ['return'],
         'Payments': ['payment_details'],

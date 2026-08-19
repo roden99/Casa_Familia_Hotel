@@ -195,10 +195,7 @@ watch(selectedProduct, async (newVal) => {
         const res = await axios.get(`/products/${newVal}/lots`, {
             headers: { Accept: 'application/json' },
         });
-        lotOptions.value = (res.data.lots ?? []).map(l => ({
-            value: String(l.id),
-            label: `${l.lot_number} (exp: ${l.expiration_date})`,
-        }));
+        lotOptions.value = res.data.lots ?? [];
     } catch {
         // no lots available
     }
@@ -221,12 +218,19 @@ const addItem = () => {
     }
     const product = productsOptions.value.find(p => p.value === selectedProduct.value);
     const lot = lotOptions.value.find(l => l.value === selectedLot.value);
+    const qty = Number(itemQuantity.value);
+
+    if (lot && qty > lot.available_qty) {
+        toast.error(`Quantity exceeds available lot stock (${lot.available_qty}).`);
+        return;
+    }
+
     orderItems.value.push({
         product_id: selectedProduct.value,
         product_name: selectedProductLabel.value || product?.label || selectedProduct.value,
         lot_id: selectedLot.value ?? null,
-        lot_number: lot ? lot.label.split(' ')[0] : null,
-        quantity: Number(itemQuantity.value),
+        lot_number: lot?.lot_number ?? null,
+        quantity: qty,
         unit_price: Number(itemPrice.value),
         discount_percentage: Number(itemDiscount.value) || Number(form.discount_percentage) || 0,
     });
