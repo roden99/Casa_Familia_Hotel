@@ -172,6 +172,7 @@ async function loadOrderItems() {
 // ─── Items management ─────────────────────────────────────────────────────────
 
 const selectedProduct = ref(null);
+const selectedProductLabel = ref('');
 const itemQuantity = ref(1);
 const itemPrice = ref(0);
 const itemDiscount = ref(0);
@@ -180,6 +181,13 @@ const lotOptions = ref([]);
 
 // Load lots when product changes
 watch(selectedProduct, async (newVal) => {
+    // Capture label before options may be reloaded
+    if (newVal) {
+        const found = productsOptions.value.find(p => p.value === newVal);
+        if (found) selectedProductLabel.value = found.label;
+    } else {
+        selectedProductLabel.value = '';
+    }
     selectedLot.value = null;
     lotOptions.value = [];
     if (!newVal) return;
@@ -215,7 +223,7 @@ const addItem = () => {
     const lot = lotOptions.value.find(l => l.value === selectedLot.value);
     orderItems.value.push({
         product_id: selectedProduct.value,
-        product_name: product?.label ?? selectedProduct.value,
+        product_name: selectedProductLabel.value || product?.label || selectedProduct.value,
         lot_id: selectedLot.value ?? null,
         lot_number: lot ? lot.label.split(' ')[0] : null,
         quantity: Number(itemQuantity.value),
@@ -223,6 +231,7 @@ const addItem = () => {
         discount_percentage: Number(itemDiscount.value) || Number(form.discount_percentage) || 0,
     });
     selectedProduct.value = null;
+    selectedProductLabel.value = '';
     selectedLot.value = null;
     lotOptions.value = [];
     itemQuantity.value = 1;
@@ -338,7 +347,7 @@ async function loadProducts(searchQuery = '') {
                                     </Field>
                                 </div>
 
-                                <SalesOrderItemsTable :items="orderItems" @remove="removeItem" class="flex-1 min-h-0" />
+                                <SalesOrderItemsTable :items="orderItems" @remove="removeItem" />
                             </FieldGroup>
                         </template>
                     </BaseField>

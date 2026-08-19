@@ -35,7 +35,7 @@ const computeTotal = (item) => {
 </script>
 
 <template>
-    <div class="overflow-y-auto rounded-md border flex-1 min-h-0">
+    <div class="overflow-y-auto rounded-md border" style="max-height: 316px;">
         <Table class="text-xs">
             <TableCaption class="text-xs">List of order items</TableCaption>
             <TableHeader>
