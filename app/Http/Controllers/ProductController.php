@@ -545,8 +545,9 @@ class ProductController extends Controller
                 ];
             });
 
-        // RGS items (IN) — stock returned from a sales order
+        // RGS items (IN) — stock returned from a customer
         $rgsItems = \App\Models\ReturnGoodStockItem::with([
+            'returnGoodStock.customer',
             'returnGoodStock.salesOrder.customerSalesAccount.customer',
             'returnGoodStock.salesOrder.customerSalesAccount.salesAccount',
         ])
@@ -557,15 +558,18 @@ class ProductController extends Controller
                 $date = $rgs?->rgs_date
                     ? \Carbon\Carbon::parse($rgs->rgs_date)->startOfDay()
                     : $item->created_at;
+
+                // Resolve customer from SO path first, then fall back to direct customer_id
                 $csa      = $rgs?->salesOrder?->customerSalesAccount;
-                $customer = $csa?->customer;
+                $customer = $csa?->customer ?? $rgs?->customer;
                 $account  = $csa?->salesAccount;
+
                 $customerName = $customer
                     ? ($customer->is_drugstore
                         ? strtoupper($customer->company)
                         : trim(strtoupper($customer->last_name) . ', ' . strtoupper($customer->first_name)))
                     : 'N/A';
-                $party = ($account ? strtoupper($account->account_name) . ' - ' : '') . $customerName;
+                $party = 'RGS - ' . ($account ? strtoupper($account->account_name) . ' - ' : '') . $customerName;
                 return [
                     'date'           => $date,
                     'type'           => 'IN',
@@ -577,11 +581,35 @@ class ProductController extends Controller
                 ];
             });
 
+        // Return to supplier items (OUT) — stock sent back to supplier
+        $rtsItems = \App\Models\ReturnToSupplierItem::with([
+            'returnToSupplier.supplier',
+        ])
+            ->where('product_id', $product->id)
+            ->get()
+            ->map(function ($item) use ($initialDate) {
+                $rts  = $item->returnToSupplier;
+                $date = $rts?->return_date
+                    ? \Carbon\Carbon::parse($rts->return_date)->startOfDay()
+                    : $item->created_at;
+                $supplierName = strtoupper($rts?->supplier?->company ?? 'N/A');
+                return [
+                    'date'           => $date,
+                    'type'           => 'OUT',
+                    'reference'      => 'RTS #' . $rts?->id,
+                    'party'          => 'RTS - ' . $supplierName,
+                    'invoice_no'     => '—',
+                    'qty'            => $item->quantity,
+                    'before_initial' => $initialDate ? $date->lt($initialDate) : false,
+                ];
+            });
+
         $entries = $entries
             ->concat($deliveries)
             ->concat($sales)
             ->concat($carryItems)
             ->concat($rgsItems)
+            ->concat($rtsItems)
             ->sortBy('date')
             ->values();
 

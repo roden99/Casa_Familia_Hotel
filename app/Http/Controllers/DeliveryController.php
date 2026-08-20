@@ -17,6 +17,7 @@ class DeliveryController extends Controller
     {
         $search = $request->input('search');
         $column = $request->input('column');
+        $sort   = $request->input('sort', 'date_desc');
 
         $query = Delivery::with(['supplier', 'purchaseOrder']);
 
@@ -32,7 +33,15 @@ class DeliveryController extends Controller
             }
         }
 
-        $deliveries = $query->orderBy('created_at', 'desc')->paginate(15)->through(function ($item) {
+        match ($sort) {
+            'date_asc'  => $query->orderBy('delivery_date', 'asc'),
+            'supplier'  => $query->join('suppliers', 'suppliers.id', '=', 'deliveries.supplier_id')
+                ->orderBy('suppliers.company', 'asc')
+                ->select('deliveries.*'),
+            default     => $query->orderBy('delivery_date', 'desc'),
+        };
+
+        $deliveries = $query->paginate(15)->through(function ($item) {
             $item->supplier_name = $item->supplier?->company ?? 'N/A';
             $item->po_number = $item->purchase_order_id ? "#PO-{$item->purchase_order_id}" : 'Standalone';
             return $item;
@@ -78,10 +87,10 @@ class DeliveryController extends Controller
             'delivery_date'                  => 'required|date',
             'items'                          => 'required|array|min:1',
             'items.*.product_id'             => 'required|exists:products,id',
-            'items.*.quantity_received'      => 'required|integer|min:1',
+            'items.*.quantity_received'      => 'required|integer|min:0',
             'items.*.unit_price'             => 'required|numeric|min:0',
-            'items.*.lot_number'             => 'nullable|string|max:100',
-            'items.*.expiration_date'        => 'nullable|date',
+            'items.*.lot_number'             => 'required|string|max:100',
+            'items.*.expiration_date'        => 'required|date',
         ]);
 
         $validated['created_by'] = $request->user()->id;
@@ -92,25 +101,33 @@ class DeliveryController extends Controller
             $lotId = null;
 
             if (!empty($item['lot_number'])) {
-                $lotId = \Illuminate\Support\Facades\DB::table('product_lots')->updateOrInsert(
-                    [
-                        'product_id' => $item['product_id'],
-                        'lot_number' => $item['lot_number'],
-                    ],
-                    [
+                $existingLot = \Illuminate\Support\Facades\DB::table('product_lots')
+                    ->where('product_id', $item['product_id'])
+                    ->where('lot_number', $item['lot_number'])
+                    ->first();
+
+                if ($existingLot) {
+                    \Illuminate\Support\Facades\DB::table('product_lots')
+                        ->where('id', $existingLot->id)
+                        ->update([
+                            'expiration_date' => $item['expiration_date'] ?? $existingLot->expiration_date,
+                            'quantity'        => $existingLot->quantity + $item['quantity_received'],
+                            'updated_by'      => $request->user()->id,
+                            'updated_at'      => now(),
+                        ]);
+                    $lotId = $existingLot->id;
+                } else {
+                    $lotId = \Illuminate\Support\Facades\DB::table('product_lots')->insertGetId([
+                        'product_id'      => $item['product_id'],
+                        'lot_number'      => $item['lot_number'],
                         'expiration_date' => $item['expiration_date'] ?? null,
                         'quantity'        => $item['quantity_received'],
                         'created_by'      => $request->user()->id,
                         'updated_by'      => $request->user()->id,
-                        'updated_at'      => now(),
                         'created_at'      => now(),
-                    ]
-                );
-
-                $lotId = \Illuminate\Support\Facades\DB::table('product_lots')
-                    ->where('product_id', $item['product_id'])
-                    ->where('lot_number', $item['lot_number'])
-                    ->value('id');
+                        'updated_at'      => now(),
+                    ]);
+                }
             }
 
             $product = \App\Models\product::find($item['product_id']);
@@ -196,10 +213,10 @@ class DeliveryController extends Controller
             'delivery_date'                  => 'required|date',
             'items'                          => 'required|array|min:1',
             'items.*.product_id'             => 'required|exists:products,id',
-            'items.*.quantity_received'      => 'required|integer|min:1',
+            'items.*.quantity_received'      => 'required|integer|min:0',
             'items.*.unit_price'             => 'required|numeric|min:0',
-            'items.*.lot_number'             => 'nullable|string|max:100',
-            'items.*.expiration_date'        => 'nullable|date',
+            'items.*.lot_number'             => 'required|string|max:100',
+            'items.*.expiration_date'        => 'required|date',
         ]);
 
         $delivery = Delivery::with('items')->findOrFail($id);

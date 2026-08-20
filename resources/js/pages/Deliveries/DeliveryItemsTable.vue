@@ -23,10 +23,10 @@ const emit = defineEmits(['remove']);
 </script>
 
 <template>
-    <div class="overflow-y-auto rounded-md border flex-1 min-h-0">
+    <div class="overflow-y-auto rounded-md border flex-1 min-h-0 max-h-72">
         <Table>
             <TableCaption>List of delivery items</TableCaption>
-            <TableHeader>
+            <TableHeader class="sticky top-0 z-10">
                 <TableRow>
                     <TableHead>Item Name</TableHead>
                     <TableHead class="text-center w-20">Qty</TableHead>

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ReturnGoodStock;
 use App\Models\ReturnGoodStockItem;
 use App\Models\SalesOrder;
+use App\Models\Customer;
 use App\Models\ProductLot;
 use App\Models\product;
 use Illuminate\Http\Request;
@@ -19,10 +20,11 @@ class ReturnGoodStockController extends Controller
         $column = $request->input('column');
 
         $query = DB::table('return_good_stocks as rgs')
-            ->join('sales_orders as so', 'so.id', '=', 'rgs.sales_order_id')
-            ->join('customer_sales_account as csa', 'csa.id', '=', 'so.customer_sales_account_id')
-            ->join('customers as c', 'c.id', '=', 'csa.customer_id')
-            ->join('sales_accounts as sa', 'sa.id', '=', 'csa.sales_account_id')
+            ->leftJoin('sales_orders as so', 'so.id', '=', 'rgs.sales_order_id')
+            ->leftJoin('customer_sales_account as csa', 'csa.id', '=', 'so.customer_sales_account_id')
+            ->leftJoin('customers as c_so', 'c_so.id', '=', 'csa.customer_id')
+            ->leftJoin('sales_accounts as sa', 'sa.id', '=', 'csa.sales_account_id')
+            ->leftJoin('customers as c_direct', 'c_direct.id', '=', 'rgs.customer_id')
             ->leftJoinSub(
                 DB::table('return_good_stock_items')
                     ->select('return_good_stock_id', DB::raw('COUNT(*) as items_count'))
@@ -38,10 +40,10 @@ class ReturnGoodStockController extends Controller
                 'rgs.notes',
                 'rgs.sales_order_id',
                 'so.invoice_no',
-                'c.first_name',
-                'c.last_name',
-                'c.company',
-                'c.is_drugstore',
+                DB::raw('COALESCE(c_so.first_name,  c_direct.first_name)  as first_name'),
+                DB::raw('COALESCE(c_so.last_name,   c_direct.last_name)   as last_name'),
+                DB::raw('COALESCE(c_so.company,     c_direct.company)     as company'),
+                DB::raw('COALESCE(c_so.is_drugstore,c_direct.is_drugstore) as is_drugstore'),
                 'sa.account_name',
                 DB::raw('COALESCE(ri.items_count, 0) as items_count')
             );
@@ -51,8 +53,10 @@ class ReturnGoodStockController extends Controller
                 $query->where('so.invoice_no', 'like', "{$search}%");
             } elseif ($column === 'customer_name') {
                 $query->where(function ($q) use ($search) {
-                    $q->where('c.last_name', 'like', "{$search}%")
-                        ->orWhere('c.company', 'like', "{$search}%");
+                    $q->where('c_so.last_name',    'like', "{$search}%")
+                        ->orWhere('c_so.company',    'like', "{$search}%")
+                        ->orWhere('c_direct.last_name', 'like', "{$search}%")
+                        ->orWhere('c_direct.company',   'like', "{$search}%");
                 });
             } elseif ($column === 'account_name') {
                 $query->where('sa.account_name', 'like', "{$search}%");
@@ -61,10 +65,11 @@ class ReturnGoodStockController extends Controller
 
         $records = $query->orderByDesc('rgs.rgs_date')->paginate(15);
         $records->through(function ($item) {
-            $item->customer_name = $item->is_drugstore
-                ? strtoupper($item->company)
-                : trim(strtoupper($item->last_name) . ', ' . strtoupper($item->first_name));
-            $item->account_name = strtoupper($item->account_name);
+            $isDrugstore = (bool) $item->is_drugstore;
+            $item->customer_name = $isDrugstore
+                ? strtoupper($item->company ?? '')
+                : trim(strtoupper($item->last_name ?? '') . ', ' . strtoupper($item->first_name ?? ''));
+            $item->account_name = $item->account_name ? strtoupper($item->account_name) : '—';
             $item->rgs_date     = $item->rgs_date
                 ? Carbon::parse($item->rgs_date)->format('m-d-Y')
                 : null;
@@ -94,26 +99,40 @@ class ReturnGoodStockController extends Controller
             'items.product.unit',
             'items.product.drugform',
             'items.lot',
+            'customer',
             'salesOrder.customerSalesAccount.customer',
             'salesOrder.customerSalesAccount.salesAccount',
         ])->findOrFail($id);
 
-        $so  = $rgs->salesOrder;
-        $csa = $so->customerSalesAccount;
-        $c   = $csa->customer;
-        $customerName = $c->is_drugstore
-            ? strtoupper($c->company)
-            : trim(strtoupper($c->last_name) . ', ' . strtoupper($c->first_name));
+        $so           = $rgs->salesOrder;
+        $customerName = '—';
+        $accountName  = '—';
+        $invoiceNo    = null;
+
+        if ($so) {
+            $csa          = $so->customerSalesAccount;
+            $c            = $csa->customer;
+            $customerName = $c->is_drugstore
+                ? strtoupper($c->company)
+                : trim(strtoupper($c->last_name) . ', ' . strtoupper($c->first_name));
+            $accountName  = strtoupper($csa->salesAccount->account_name);
+            $invoiceNo    = $so->invoice_no;
+        } elseif ($rgs->customer) {
+            $c            = $rgs->customer;
+            $customerName = $c->is_drugstore
+                ? strtoupper($c->company)
+                : trim(strtoupper($c->last_name) . ', ' . strtoupper($c->first_name));
+        }
 
         return response()->json([
             'rgs' => [
                 'id'              => $rgs->id,
                 'rgs_date'        => $rgs->rgs_date,
                 'notes'           => $rgs->notes,
-                'sales_order_id'  => $so->id,
-                'invoice_no'      => $so->invoice_no,
+                'sales_order_id'  => $so?->id,
+                'invoice_no'      => $invoiceNo,
                 'customer_name'   => $customerName,
-                'account_name'    => strtoupper($csa->salesAccount->account_name),
+                'account_name'    => $accountName,
             ],
             'items' => $rgs->items->map(function ($item) {
                 $product = $item->product;
@@ -134,6 +153,72 @@ class ReturnGoodStockController extends Controller
                 ];
             }),
         ]);
+    }
+
+    public function storeStandalone(Request $request)
+    {
+        $validated = $request->validate([
+            'customer_id'               => 'required|exists:customers,id',
+            'rgs_date'                  => 'required|date',
+            'notes'                     => 'nullable|string|max:500',
+            'items'                     => 'required|array|min:1',
+            'items.*.product_id'        => 'required|exists:products,id',
+            'items.*.lot_number'        => 'nullable|string|max:100',
+            'items.*.expiration_date'   => 'nullable|date',
+            'items.*.quantity'          => 'required|integer|min:1',
+            'items.*.unit_price'        => 'nullable|numeric|min:0',
+        ]);
+
+        DB::transaction(function () use ($validated, $request) {
+            $rgs = ReturnGoodStock::create([
+                'customer_id'    => $validated['customer_id'],
+                'sales_order_id' => null,
+                'rgs_date'       => $validated['rgs_date'],
+                'notes'          => $validated['notes'] ?? null,
+                'created_by'     => $request->user()->id,
+                'updated_by'     => $request->user()->id,
+            ]);
+
+            foreach ($validated['items'] as $item) {
+                $lotId = null;
+
+                if (!empty($item['lot_number'])) {
+                    $existing = DB::table('product_lots')
+                        ->where('product_id', $item['product_id'])
+                        ->where('lot_number', $item['lot_number'])
+                        ->first();
+
+                    if ($existing) {
+                        $lotId = $existing->id;
+                    } else {
+                        $lotId = DB::table('product_lots')->insertGetId([
+                            'product_id'      => $item['product_id'],
+                            'lot_number'      => $item['lot_number'],
+                            'expiration_date' => $item['expiration_date'] ?? null,
+                            'quantity'        => 0,
+                            'created_by'      => $request->user()->id,
+                            'updated_by'      => $request->user()->id,
+                            'created_at'      => now(),
+                            'updated_at'      => now(),
+                        ]);
+                    }
+                }
+
+                ReturnGoodStockItem::create([
+                    'return_good_stock_id' => $rgs->id,
+                    'product_id'           => $item['product_id'],
+                    'lot_id'               => $lotId,
+                    'quantity'             => $item['quantity'],
+                    'unit_price'           => $item['unit_price'] ?? 0,
+                    'created_by'           => $request->user()->id,
+                    'updated_by'           => $request->user()->id,
+                ]);
+
+                $this->applyInventory($item['product_id'], $lotId, $item['quantity'], $validated['rgs_date'], '+');
+            }
+        });
+
+        return response()->json(['message' => 'Return Good Stock recorded successfully.'], 201);
     }
 
     public function store(Request $request, string $salesOrderId)

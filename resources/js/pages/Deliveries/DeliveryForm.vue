@@ -202,6 +202,14 @@ const addItem = () => {
         toast.error('Please select a product.');
         return;
     }
+    if (!itemLotNumber.value.trim()) {
+        toast.error('Lot number is required.');
+        return;
+    }
+    if (!itemExpirationDate.value) {
+        toast.error('Expiration date is required.');
+        return;
+    }
     const product = productsOptions.value.find(p => p.value === selectedProducts.value);
     deliveryItems.value.push({
         product_id: selectedProducts.value,

@@ -6,6 +6,7 @@ import BaseIndex from '@/components/BaseIndex.vue';
 import { onMounted, ref, computed, watch } from 'vue';
 import { toast } from 'vue-sonner';
 import { router, usePage, Head } from '@inertiajs/vue3';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 import CreateDelivery from '@/pages/Deliveries/CreateDelivery.vue';
 import UpdateDelivery from '@/pages/Deliveries/UpdateDelivery.vue';
@@ -53,6 +54,13 @@ const showDeleteDeliveryModal = ref(false);
 const showViewDeliveryModal = ref(false);
 const selectedDelivery = ref(null);
 
+const page = usePage();
+const sortValue = ref(page.props.ziggy?.query?.sort ?? 'date_desc');
+
+watch(sortValue, (val) => {
+    router.get('/deliveries', { sort: val }, { preserveScroll: true, preserveState: true });
+});
+
 const handleAction = ({ type, data }) => {
     switch (type) {
         case 'view':
@@ -86,6 +94,17 @@ const handleAction = ({ type, data }) => {
                     { field: 'delivery_date', label: 'Delivery Date' },
                     { field: 'status', label: 'Status' }
                 ]">
+
+                <Select v-model="sortValue">
+                    <SelectTrigger class="w-44 mr-2">
+                        <SelectValue placeholder="Sort by..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="date_desc">Date (Newest)</SelectItem>
+                        <SelectItem value="date_asc">Date (Oldest)</SelectItem>
+                        <SelectItem value="supplier">Supplier (A–Z)</SelectItem>
+                    </SelectContent>
+                </Select>
 
                 <Button variant="default" class="mr-2" @click="showCreateDeliveryModal = true">
                     New Delivery

@@ -216,6 +216,10 @@ const addItem = () => {
         toast.error('Please select a product.');
         return;
     }
+    if (!selectedLot.value) {
+        toast.error('Please select a lot number.');
+        return;
+    }
     const product = productsOptions.value.find(p => p.value === selectedProduct.value);
     const lot = lotOptions.value.find(l => l.value === selectedLot.value);
     const qty = Number(itemQuantity.value);

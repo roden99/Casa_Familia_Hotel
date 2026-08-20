@@ -5,10 +5,12 @@ import { ref, computed } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import { toast } from 'vue-sonner';
 import axios from 'axios';
+import { Button } from '@/components/ui/button';
 
 import ViewReturnGoodStock from '@/pages/ReturnGoodStock/ViewReturnGoodStock.vue';
 import PrintReturnGoodStock from '@/pages/ReturnGoodStock/PrintReturnGoodStock.vue';
 import EditReturnGoodStock from '@/pages/ReturnGoodStock/EditReturnGoodStock.vue';
+import CreateReturnGoodStock from '@/pages/ReturnGoodStock/CreateReturnGoodStock.vue';
 
 const breadcrumbs = [
     { title: 'Dashboard', href: '/dashboard' },
@@ -33,6 +35,7 @@ const transformedColumns = computed(() =>
 const showViewModal = ref(false);
 const showPrintModal = ref(false);
 const showEditModal = ref(false);
+const showCreateModal = ref(false);
 const selectedRecord = ref(null);
 const isDeletingId = ref(null);
 
@@ -77,8 +80,13 @@ const handleAction = async ({ type, data }) => {
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
             <BaseIndex IndexType="ReturnGoodStock" :data="records" :columnDefs="transformedColumns"
-                :selectOptions="selectOptions" v-model:selectModelValue="selectModelValue" @action="handleAction" />
+                :selectOptions="selectOptions" v-model:selectModelValue="selectModelValue" @action="handleAction">
+                <Button variant="default" class="mr-2" @click="showCreateModal = true">
+                    New RGS
+                </Button>
+            </BaseIndex>
 
+            <CreateReturnGoodStock v-if="showCreateModal" @form-closed="showCreateModal = false" />
             <ViewReturnGoodStock v-if="showViewModal" :record="selectedRecord" @form-closed="showViewModal = false" />
             <PrintReturnGoodStock v-if="showPrintModal" :record="selectedRecord"
                 @form-closed="showPrintModal = false" />

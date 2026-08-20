@@ -3,6 +3,7 @@
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CustomerAccountController;
+use App\Http\Controllers\ReturnToSupplierController;
 use App\Http\Controllers\SalesAccountController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -27,7 +28,6 @@ use App\Http\Controllers\ExpirationController;
 use App\Http\Controllers\SalesAgentController;
 use App\Http\Controllers\CarryItemController;
 use App\Http\Controllers\UserController;
-use App\Http\Controllers\PaymentController;
 
 Route::get('/login', function () {
     return Inertia::render('Login/Index');
@@ -89,7 +89,9 @@ Route::resource('deliveries', DeliveryController::class);
 Route::get('sales-orders/overdue-report', [SalesOrderController::class, 'overdueReport'])->middleware(['auth'])->name('sales-orders.overdue-report');
 Route::resource('sales-orders', SalesOrderController::class);
 Route::post('sales-orders/{salesOrder}/rgs', [ReturnGoodStockController::class, 'store'])->middleware(['auth'])->name('sales-orders.rgs.store');
+Route::post('return-good-stocks', [ReturnGoodStockController::class, 'storeStandalone'])->middleware(['auth'])->name('return-good-stocks.store');
 Route::resource('return-good-stocks', ReturnGoodStockController::class)->only(['index', 'show', 'update', 'destroy']);
+Route::resource('return-to-suppliers', ReturnToSupplierController::class)->only(['index', 'show', 'store', 'destroy'])->middleware(['auth']);
 Route::resource('sales-accounts', SalesAccountController::class);
 
 Route::get('store-inventory', [StoreInventoryController::class, 'index'])->name('store-inventory.index');

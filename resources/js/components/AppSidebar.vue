@@ -5,7 +5,7 @@ import NavUser from '@/components/NavUser.vue';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/vue3';
-import { BookOpen, Warehouse, Folder, Settings2Icon, UserRoundCogIcon, Store, UsersRoundIcon, NotebookText, ShoppingCartIcon, BaggageClaim, LayoutGrid, LucideNotebookText, ScanBarcode, Package, UserCheck, UserRoundSearch, UsersRound, ShoppingCart, UserRoundCog, Settings2, Truck, ClipboardList, Ruler, Zap, Pill, Notebook, BriefcaseMedical, CalendarClock, BarChart2, CreditCard, Tag, Undo2 } from 'lucide-vue-next';
+import { BookOpen, Warehouse, Folder, Settings2Icon, UserRoundCogIcon, Store, UsersRoundIcon, NotebookText, ShoppingCartIcon, BaggageClaim, LayoutGrid, LucideNotebookText, ScanBarcode, Package, UserCheck, UserRoundSearch, UsersRound, ShoppingCart, UserRoundCog, Settings2, Truck, ClipboardList, Ruler, Zap, Pill, Notebook, BriefcaseMedical, CalendarClock, BarChart2, CreditCard, Tag, Undo2, PackageCheck, PackageMinus } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 import { computed } from 'vue';
 
@@ -99,7 +99,13 @@ const mainNavItems: NavItem[] = [
   {
     title: 'Return Good Stock',
     href: '/return-good-stocks',
-    icon: Undo2,
+    icon: PackageCheck,
+  },
+
+  {
+    title: 'Return to Supplier',
+    href: '/return-to-suppliers',
+    icon: PackageMinus,
   },
 
   {

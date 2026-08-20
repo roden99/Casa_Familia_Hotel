@@ -3,16 +3,23 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Customer;
 
 class ReturnGoodStock extends Model
 {
     protected $fillable = [
+        'customer_id',
         'sales_order_id',
         'rgs_date',
         'notes',
         'created_by',
         'updated_by',
     ];
+
+    public function customer()
+    {
+        return $this->belongsTo(Customer::class);
+    }
 
     public function salesOrder()
     {

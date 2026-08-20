@@ -85,9 +85,9 @@ const badgeVariant = (type) => {
             </div>
 
             <!-- Ledger table -->
-            <div v-else class="rounded-md border overflow-hidden">
+            <div v-else class="rounded-md border overflow-hidden max-h-[450px] overflow-y-auto">
                 <Table>
-                    <TableHeader>
+                    <TableHeader class="sticky top-0 z-10">
                         <TableRow class="bg-muted/60 hover:bg-muted/60">
                             <TableHead class="w-24 font-semibold">Type</TableHead>
                             <TableHead class="font-semibold">Party</TableHead>
