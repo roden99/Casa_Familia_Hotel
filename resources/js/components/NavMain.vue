@@ -19,21 +19,21 @@ function toggleMenu(title: string) {
 }
 
 // Open parent menu if any of its children is currently active
-onMounted(() => {
-  props.items.forEach(item => {
-    if (item.children) {
-      const hasActiveChild = item.children.some(child => child.href === page.url);
-      if (hasActiveChild) {
-        openMenus.value[item.title] = true;
-      }
-    }
-  });
-});
+// onMounted(() => {
+//   props.items.forEach(item => {
+//     if (item.children) {
+//       const hasActiveChild = item.children.some(child => child.href === page.url);
+//       if (hasActiveChild) {
+//         openMenus.value[item.title] = true;
+//       }
+//     }
+//   });
+// });
 </script>
 
 <template>
   <SidebarGroup class="px-2 py-0">
-    <SidebarGroupLabel>Platform</SidebarGroupLabel>
+    <SidebarGroupLabel>MENU</SidebarGroupLabel>
     <SidebarMenu>
       <template v-for="item in items" :key="item.title">
         <SidebarMenuItem v-if="!item.children">

@@ -37,8 +37,11 @@ Route::get('/', function () {
     return redirect()->route('login');
 })->name('home');
 
-Route::get('dashboard', [DashboardController::class, 'index'])->middleware(['auth', 'verified'])->name('dashboard');
-Route::get('dashboard/chart-data', [DashboardController::class, 'chartData'])->middleware(['auth'])->name('dashboard.chart-data');
+Route::get('dashboard', function () {
+    return Inertia::render('Dashboard');
+})->middleware(['auth', 'verified'])->name('dashboard');
+
+
 
 Route::get('under-construction', function () {
     return Inertia::render('UnderConstruction');

@@ -5,211 +5,245 @@ import NavUser from '@/components/NavUser.vue';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/vue3';
-import { BookOpen, Warehouse, Folder, Settings2Icon, UserRoundCogIcon, Store, UsersRoundIcon, NotebookText, ShoppingCartIcon, BaggageClaim, LayoutGrid, LucideNotebookText, ScanBarcode, Package, UserCheck, UserRoundSearch, UsersRound, ShoppingCart, UserRoundCog, Settings2, Truck, ClipboardList, Ruler, Zap, Pill, Notebook, BriefcaseMedical, CalendarClock, BarChart2, CreditCard, Tag, Undo2, PackageCheck, PackageMinus } from 'lucide-vue-next';
+import { ArrowLeftRight, BarChart3, Building2, CalendarCheck, CalendarDays, CreditCard, LayoutGrid, Package, Settings2, Sparkles, UserCog, UserRoundSearch, UsersRound, Utensils } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 import { computed } from 'vue';
 
 const page = usePage();
-const isAdmin = computed(() => page.props.auth?.user?.role === 'admin');
+// const isAdmin = computed(() => page.props.auth?.user?.role === 'admin');
 
 const mainNavItems: NavItem[] = [
   {
     title: 'Dashboard',
-    href: '/dashboard',
+    href: '/under-construction',
     icon: LayoutGrid,
   },
 
-
   {
-    title: 'Point of Sale',
-    icon: ScanBarcode,
+    title: 'Hotel Management',
+    icon: Building2,
     href: '/under-construction',
-    children: [
-      {
-        title: 'POS Dashboard',
-        href: '/pos-dashboard',
-        icon: BarChart2,
-      },
-      {
-        title: 'Store Inventory',
-        href: '/store-inventory',
-        icon: ScanBarcode,
-      },
-      {
-        title: 'Transfer Stock',
-        href: '/transfer-stocks',
-        icon: Package,
-      },
-
-      {
-        title: 'POS Transactions',
-        href: '/pos',
-        icon: ShoppingCart,
-      },
-
-      {
-        title: 'POS Deliveries',
-        href: '/pos-deliveries',
-        icon: Truck,
-      },
-
-      {
-        title: 'POS Items',
-        href: '/pos-items',
-        icon: Tag,
-      },
-
-      //   {
-      //     title: 'Menu #2',
-      //     href: '/under-construction',
-      //     icon: LucideNotebookText,
-      //   },
-    ],
+    // children: [
+    //   {
+    //     title: 'Menu #1',
+    //     href: '/verify-eligibility',
+    //     icon: UserCheck,
+    //   },
+    //   {
+    //     title: 'Menu #2',
+    //     href: '/claim-eligibility',
+    //     icon: LucideNotebookText,
+    //   },
+    // ],
   },
 
   {
+    title: 'Guest Management',
+    icon: UsersRound,
+    href: '/under-construction',
+    // children: [
+    //   {
+    //     title: 'Menu #1',
+    //     href: '/verify-member',
+    //     icon: UserRoundSearch,
+    //   },
+    //   {
+    //     title: 'Menu #2',
+    //     href: '#',
+    //     icon: LucideNotebookText,
+    //   },
+    // ],
+  },
 
+  {
+    title: 'Reservation',
+    icon: CalendarCheck,
+    href: '/under-construction',
+    // children: [
+    //   {
+    //     title: 'Menu #1',
+    //     href: '/verify-member',
+    //     icon: UserRoundSearch,
+    //   },
+    //   {
+    //     title: 'Menu #2',
+    //     href: '#',
+    //     icon: LucideNotebookText,
+    //   },
+    // ],
+  },
+
+  {
+    title: 'Check-in/Check-out',
+    icon: ArrowLeftRight,
+    href: '/under-construction',
+    // children: [
+    //   {
+    //     title: 'Menu #1',
+    //     href: '/verify-member',
+    //     icon: UserRoundSearch,
+    //   },
+    //   {
+    //     title: 'Menu #2',
+    //     href: '#',
+    //     icon: LucideNotebookText,
+    //   },
+    // ],
+  },
+
+  {
+    title: 'Restaurant/POS',
+    icon: Utensils,
+    href: '/under-construction',
+    // children: [
+    //   {
+    //     title: 'Menu #1',
+    //     href: '/verify-member',
+    //     icon: UserRoundSearch,
+    //   },
+    //   {
+    //     title: 'Menu #2',
+    //     href: '#',
+    //     icon: LucideNotebookText,
+    //   },
+    // ],
+  },
+
+  {
+    title: 'Events Management',
+    icon: CalendarDays,
+    href: '/under-construction',
+    // children: [
+    //   {
+    //     title: 'Menu #1',
+    //     href: '/verify-member',
+    //     icon: UserRoundSearch,
+    //   },
+    //   {
+    //     title: 'Menu #2',
+    //     href: '#',
+    //     icon: LucideNotebookText,
+    //   },
+    // ],
+  },
+
+  {
+    title: 'Billing and Payments',
+    icon: CreditCard,
+    href: '/under-construction',
+    // children: [
+    //   {
+    //     title: 'Menu #1',
+    //     href: '/verify-member',
+    //     icon: UserRoundSearch,
+    //   },
+    //   {
+    //     title: 'Menu #2',
+    //     href: '#',
+    //     icon: LucideNotebookText,
+    //   },
+    // ],
+  },
+
+  {
     title: 'Inventory',
-    href: '/products',
     icon: Package,
-
-  },
-  {
-    title: 'Expirations',
-    href: '/expirations',
-    icon: CalendarClock,
-  },
-
-  {
-
-    title: 'Stock Receiving',
-    href: '/deliveries',
-    icon: Truck,
-
-
-  },
-
-  {
-    title: 'Sales Orders',
-    href: '/sales-orders',
-    icon: Package,
-
-  },
-
-  {
-    title: 'Return Good Stock',
-    href: '/return-good-stocks',
-    icon: PackageCheck,
-  },
-
-  {
-    title: 'Return to Supplier',
-    href: '/return-to-suppliers',
-    icon: PackageMinus,
-  },
-
-  {
-    title: 'Carry Items',
-    href: '/carry-items',
-    icon: BriefcaseMedical,
-  },
-
-  {
-    title: 'Customer Accounts',
-    href: '/customer-accounts',
-    icon: UserCheck,
-  },
-
-
-
-
-  // {
-  //   title: 'Stock Movement',
-  //   icon: BaggageClaim,
-  //   href: '/under-construction',
-  // },
-
-  {
-    title: 'Reports',
-    icon: NotebookText,
     href: '/under-construction',
+    // children: [
+    //   {
+    //     title: 'Menu #1',
+    //     href: '/verify-member',
+    //     icon: UserRoundSearch,
+    //   },
+    //   {
+    //     title: 'Menu #2',
+    //     href: '#',
+    //     icon: LucideNotebookText,
+    //   },
+    // ],
   },
 
+  {
+    title: 'Housekeeping',
+    icon: Sparkles,
+    href: '/under-construction',
+    // children: [
+    //   {
+    //     title: 'Menu #1',
+    //     href: '/verify-member',
+    //     icon: UserRoundSearch,
+    //   },
+    //   {
+    //     title: 'Menu #2',
+    //     href: '#',
+    //     icon: LucideNotebookText,
+    //   },
+    // ],
+  },
+
+
+  {
+    title: 'Reports and Analytics',
+    icon: BarChart3,
+    href: '/under-construction',
+    // children: [
+    //   {
+    //     title: 'Menu #1',
+    //     href: '/verify-member',
+    //     icon: UserRoundSearch,
+    //   },
+    //   {
+    //     title: 'Menu #2',
+    //     href: '#',
+    //     icon: LucideNotebookText,
+    //   },
+    // ],
+  },
+
+  {
+    title: 'User Management',
+    icon: UserCog,
+    href: '/under-construction',
+    // children: [
+    //   {
+    //     title: 'Menu #1',
+    //     href: '/verify-member',
+    //     icon: UserRoundSearch,
+    //   },
+    //   {
+    //     title: 'Menu #2',
+    //     href: '#',
+    //     icon: LucideNotebookText,
+    //   },
+    // ],
+  },
   {
     title: 'Library',
     icon: Settings2,
+    href: '/under-construction',
+
     children: [
-      // {
-      //   title: 'Products',
-      //   href: '/products',
-      //   icon: Package,
-      // },
       {
-        title: 'Product Units',
-        href: '/product-units',
-        icon: Ruler,
-      },
-      {
-        title: 'Brands',
-        href: '/brands',
-        icon: NotebookText,
-      },
-      // {
-      //   title: 'Strengths',
-      //   href: '/strengths',
-      //   icon: Zap,
-      // },
-      {
-        title: 'Drug Forms',
-        href: '/drugforms',
-        icon: Pill,
-      },
-      {
-        title: 'Product Types',
-        href: '/product-types',
-        icon: BriefcaseMedical,
-      },
-      {
-        title: 'Warehouse',
-        href: '/warehouses',
-        icon: Warehouse,
-      },
-      {
-        title: 'Customers',
-        href: '/customers',
-        icon: UsersRoundIcon,
-      },
-      {
-        title: 'Suppliers',
-        href: '/suppliers',
-        icon: Store,
-      },
-      {
-        title: 'Sales Accounts',
-        href: '/sales-accounts',
-        icon: Notebook,
-      },
-      {
-        title: 'Sales Agents',
-        href: '/sales-agents',
+        title: 'Room Types',
+        href: '/under-construction',
         icon: UserRoundSearch,
       },
-      {
-        title: 'User Management',
-        href: '/users',
-        icon: UserRoundCog,
-      },
+      //   // {
+      //   //   title: 'Menu #2',
+      //   //   href: '#',
+      //   //   icon: LucideNotebookText,
+      //   // },
     ],
   },
 
 ];
 
 // POS users only see the Point of Sale section
-const visibleNavItems = computed(() =>
-  isAdmin.value ? mainNavItems : mainNavItems.filter(item =>
-    item.title === 'Point of Sale'
-  )
-);
+// const visibleNavItems = computed(() =>
+//   isAdmin.value ? mainNavItems : mainNavItems.filter(item =>
+//     item.title === 'Point of Sale'
+//   )
+// );
 </script>
 
 <template>
@@ -227,7 +261,7 @@ const visibleNavItems = computed(() =>
     </SidebarHeader>
 
     <SidebarContent>
-      <NavMain :items="visibleNavItems" />
+      <NavMain :items="mainNavItems" />
     </SidebarContent>
 
     <SidebarFooter>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
+import { Building2 } from 'lucide-vue-next';
 </script>
 
 <template>
@@ -8,6 +9,8 @@ import AppLogoIcon from '@/components/AppLogoIcon.vue';
         <AppLogoIcon class="size-5 fill-current text-white dark:text-black" />
     </div>
     <div class="ml-1 grid flex-1 text-left text-sm">
-        <span class="mb-0.5 truncate font-medium leading-none">Pharmahealth IMS</span>
+        <span class="mb-0.5 truncate font-medium leading-none">CASA FAMILIA HOTEL</span>
+        <span class="truncate text-xs leading-tight text-muted-foreground">Hotel & Event Place</span>
     </div>
+
 </template>
