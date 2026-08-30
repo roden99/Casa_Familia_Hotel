@@ -11,14 +11,13 @@ class warehouse extends Model
     use HasFactory;
 
     protected $fillable = [
-        'warehousename',
-        'status',
-        'created_by',
-        'updated_by',
+        'room_type',
+        'created_at',
     ];
 
     protected $casts = [
-        'status' => 'boolean',
+
+        'is_active' => 'boolean'
     ];
 
     /**
