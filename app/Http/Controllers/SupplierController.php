@@ -1,0 +1,223 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\supplier;
+use Illuminate\Http\Request;
+
+
+class SupplierController extends Controller
+{
+    /**
+     * Display a listing of the resource.
+     */
+    public function index(Request $request)
+    {
+
+
+
+        if (request()->wantsJson()) {
+            $search   = $request->input('search');
+            $posOnly  = $request->boolean('pos_only');
+
+            $query = supplier::where('status', 'active');
+
+            if ($posOnly) {
+                $query->where('is_pos_supplier', true);
+            }
+
+            if (!empty($search)) {
+                $query->where('company', 'like', "{$search}%");
+            }
+            return response()->json([
+                'suppliers' => $query->orderBy('company')->limit(5)->get(['id', 'company'])
+            ]);
+        }
+
+
+
+        $search = $request->input('search');
+        $column = $request->input('column');
+
+        $query = supplier::query();
+
+        // Show only active suppliers
+        $query->where('status', 'active');
+
+        if (!empty($search) && strlen($search) >= 3 && !empty($column)) {
+            $query->where($column, 'like', "{$search}%");
+        }
+
+        $suppliers = $query->orderBy('company')->paginate(15)->through(function ($supplier) {
+            $supplier->full_name = trim(
+                strtoupper($supplier->lastname) . ', ' .
+                    strtoupper($supplier->firstname) . ' ' .
+                    strtoupper($supplier->middlename)
+            );
+            return $supplier;
+        });
+
+        $columns = [
+
+            ['accessorKey' => 'id', 'header' => 'ID', 'isVisible' => false, 'isParameter' => false],
+            ['accessorKey' => 'company', 'header' => 'COMPANY', 'isVisible' => true, 'isParameter' => true],
+            ['accessorKey' => 'tin', 'header' => 'TIN', 'isVisible' => true, 'isParameter' => true],
+            ['accessorKey' => 'full_name', 'header' => 'REPRESENTATIVE', 'isVisible' => true, 'isParameter' => false],
+            ['accessorKey' => 'contact_email', 'header' => 'EMAIL', 'false' => true, 'isParameter' => false],
+            ['accessorKey' => 'contact_phone', 'header' => 'CONTACT #', 'isVisible' => true, 'isParameter' => true],
+            ['accessorKey' => 'is_pos_supplier', 'header' => 'TAG', 'isVisible' => true, 'isParameter' => false],
+        ];
+
+
+        return inertia('Suppliers/SupplierIndex', [
+            'suppliers' => $suppliers,
+            'columns' => $columns
+        ]);
+    }
+
+    public function posIndex(Request $request)
+    {
+        $search = $request->input('search');
+        $column = $request->input('column');
+
+        $query = supplier::where('status', 'active')->where('is_pos_supplier', true);
+
+        if (!empty($search) && strlen($search) >= 3 && !empty($column)) {
+            $query->where($column, 'like', "{$search}%");
+        }
+
+        $suppliers = $query->orderBy('company')->paginate(15)->through(function ($supplier) {
+            $supplier->full_name = trim(
+                strtoupper($supplier->lastname) . ', ' .
+                    strtoupper($supplier->firstname) . ' ' .
+                    strtoupper($supplier->middlename)
+            );
+            return $supplier;
+        });
+
+        $columns = [
+            ['accessorKey' => 'id',            'header' => 'ID',             'isVisible' => false, 'isParameter' => false],
+            ['accessorKey' => 'company',       'header' => 'COMPANY',        'isVisible' => true,  'isParameter' => true],
+            ['accessorKey' => 'tin',           'header' => 'TIN',            'isVisible' => true,  'isParameter' => true],
+            ['accessorKey' => 'full_name',     'header' => 'REPRESENTATIVE', 'isVisible' => true,  'isParameter' => false],
+            ['accessorKey' => 'contact_phone', 'header' => 'CONTACT #',      'isVisible' => true,  'isParameter' => true],
+        ];
+
+        return inertia('POS/PosSupplierIndex', [
+            'suppliers' => $suppliers,
+            'columns'   => $columns,
+        ]);
+    }
+
+    /**
+     * Show the form for creating a new resource.
+     */
+    public function create()
+    {
+        //
+    }
+
+    /**
+     * Store a newly created resource in storage.
+     */
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            // Supplier information
+            'company' => 'required|string|max:255',
+            'tin' => 'nullable|string|max:50',
+
+            // Contact person information
+            'lastname' => 'nullable|string|max:255',
+            'firstname' => 'nullable|string|max:255',
+            'middlename' => 'nullable|string|max:255',
+
+            // Contact details
+            'contact_phone' => 'nullable|string|max:50',
+            'contact_email' => 'nullable|email|max:255',
+
+            // Address information
+            'address' => 'nullable|string|max:500',
+            'is_pos_supplier' => 'boolean',
+        ]);
+
+        // Add system-generated fields
+        $validated['created_by'] = $request->user()->id;
+        $validated['status'] = $validated['status'] ?? 'active';
+
+        $supplier = supplier::create($validated);
+
+        if (request()->expectsJson()) {
+            return response()->json(['supplier' => $supplier]);
+        }
+
+        return redirect()->route('suppliers.index');
+    }
+
+    /**
+     * Display the specified resource.
+     */
+    public function show(supplier $supplier)
+    {
+        //
+    }
+
+    /**
+     * Show the form for editing the specified resource.
+     */
+    public function edit(supplier $supplier)
+    {
+        //
+    }
+
+    /**
+     * Update the specified resource in storage.
+     */
+    public function update(Request $request, supplier $supplier)
+    {
+        $validated = $request->validate([
+            // Supplier information
+            'company' => 'required|string|max:255',
+            'tin' => 'nullable|string|max:50',
+
+            // Contact person information
+            'lastname' => 'nullable|string|max:255',
+            'firstname' => 'nullable|string|max:255',
+            'middlename' => 'nullable|string|max:255',
+
+            // Contact details
+            'contact_phone' => 'nullable|string|max:50',
+            'contact_email' => 'nullable|email|max:255',
+
+            // Address information
+            'address' => 'nullable|string|max:500',
+            'is_pos_supplier' => 'boolean',
+
+
+        ]);
+
+        // Add updated_by field
+        $validated['updated_by'] = $request->user()->id;
+
+        $supplier->update($validated);
+
+        return redirect()->route('suppliers.index')->with('success', 'Supplier updated successfully!');
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     * Soft delete by setting status to inactive.
+     */
+    public function destroy(Request $request, $id)
+    {
+        $supplier = Supplier::findOrFail($id);
+
+        // Soft delete: set status to inactive
+        $supplier->update([
+            'status' => 'inactive',
+            'updated_by' => $request->user()->id
+        ]);
+
+        return redirect()->route('suppliers.index')->with('success', 'Supplier deactivated successfully!');
+    }
+}
